@@ -154,3 +154,36 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .btn { min-height: 48px; }
 }
 .top-actions { display: flex; gap: 8px; }
+.panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.op-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.op-badges .badge { font-size: .85rem; padding: 6px 12px; }
+.panel-search { margin-bottom: 12px; max-width: 420px; }
+.only-mobile { display: none; }
+.p-list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.p-item { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.p-item:last-child { border-bottom: 0; }
+.p-item .avatar { flex: none; width: 44px; height: 44px; }
+.p-body { flex: 1; min-width: 0; }
+.p-name { font-weight: 600; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-body .small { line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-meta { display: flex; gap: 8px; justify-content: space-between; font-size: .75rem; }
+.p-meta a { font-size: .75rem; flex: none; }
+.p-num { flex: none; font-weight: 800; font-size: 1.25rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.p-empty { padding: 14px 12px; }
+.stats { gap: 8px; margin-bottom: 10px; }
+.stats div { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; display: flex; align-items: baseline; gap: 6px; }
+.stats strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.stats span { font-size: .8rem; color: var(--muted); }
+@media (max-width: 600px) {
+  .only-desk { display: none !important; }
+  .only-mobile { display: block; }
+  .stats.only-mobile { display: flex; }
+  .panel-top { margin-bottom: 10px; }
+  .panel-top > div:first-child { width: 100%; }
+  .panel-actions { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 6px; width: 100%; }
+  .panel-actions .btn { min-height: 40px; padding: 8px 6px; font-size: .8rem; gap: 4px; white-space: nowrap; width: 100%; }
+  .panel-actions form { display: contents; }
+  .op-badges { gap: 6px; margin-bottom: 10px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .op-badges .badge { font-size: .78rem; padding: 4px 10px; white-space: nowrap; }
+  .panel-search { max-width: none; margin-bottom: 10px; }
+}

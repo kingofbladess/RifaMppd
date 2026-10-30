@@ -1,6 +1,7 @@
 import { getActiveRaffle } from "@/lib/participants";
 import { supabaseAdmin, BUCKET_PHOTOS } from "@/lib/supabase";
 import AutoRefresh from "@/components/AutoRefresh";
+import PanelList, { type PanelRow } from "@/components/PanelList";
 
 export const dynamic = "force-dynamic";
 
@@ -22,51 +23,40 @@ export default async function AdminPage() {
   list.forEach((p) => byOperator.set(p.registered_by_name ?? "—", (byOperator.get(p.registered_by_name ?? "—") ?? 0) + 1));
   const total = raffle ? raffle.number_max - raffle.number_min + 1 : 0;
 
+  const panelRows: PanelRow[] = list.map((p) => ({
+    id: p.id, number: String(p.raffle_number).padStart(digits, "0"), name: p.full_name, rank: p.rank,
+    doc: `${p.document_type} ${p.document_number}`, phone: p.phone, email: p.email, city: p.city,
+    photoUrl: photo.get(p.photo_path) ?? null, hasIdDoc: !!p.id_document_path, photoSource: p.photo_source,
+    by: p.registered_by_name, createdAt: p.created_at,
+  }));
+
   return (
     <main className="container wide">
-      <div className="topbar">
+      <div className="topbar panel-top">
         <div>
           <h1>Panel · {raffle?.name ?? "Sin rifa activa"}</h1>
-          <p className="sub" style={{ margin: 0 }}>{list.length} inscritos · {total - list.length} números disponibles</p>
+          <p className="sub only-desk" style={{ margin: 0 }}>{list.length} inscritos · {total - list.length} números disponibles</p>
         </div>
-        <div className="topbar-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <a className="btn" href="/ruleta">🎡 Abrir ruleta</a>
+        <div className="panel-actions">
+          <a className="btn" href="/ruleta">🎡 <span className="only-desk">Abrir ruleta</span><span className="only-mobile">Ruleta</span></a>
           <a className="btn secondary" href="/registro">➕ Registrar</a>
           <a className="btn secondary" href="/admin/usuarios">👥 Usuarios</a>
           <form method="post" action="/api/logout"><button className="btn secondary">Salir</button></form>
         </div>
       </div>
       <AutoRefresh seconds={15} />
+      <div className="stats only-mobile">
+        <div><strong>{list.length}</strong><span>inscritos</span></div>
+        <div><strong>{total - list.length}</strong><span>disponibles</span></div>
+      </div>
       {byOperator.size > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        <div className="op-badges">
           {[...byOperator.entries()].sort((a, b) => b[1] - a[1]).map(([name, n]) => (
-            <span key={name} className="badge on" style={{ fontSize: ".85rem", padding: "6px 12px" }}>{name}: <strong>{n}</strong></span>
+            <span key={name} className="badge on">{name}: <strong>{n}</strong></span>
           ))}
         </div>
       )}
-      <div className="card table-wrap">
-        <table>
-          <thead>
-            <tr><th></th><th>N.º</th><th>Nombre</th><th>Documento</th><th>Contacto</th><th>Ciudad</th><th>Registró</th><th>Fecha</th><th></th></tr>
-          </thead>
-          <tbody>
-            {list.map((p) => (
-              <tr key={p.id}>
-                <td>{photo.get(p.photo_path) ? <img className="avatar" src={photo.get(p.photo_path)!} alt="" /> : <div className="avatar" />}</td>
-                <td><strong>{String(p.raffle_number).padStart(digits, "0")}</strong></td>
-                <td>{p.full_name}{p.rank && <><br /><span className="small">{p.rank}</span></>}</td>
-                <td>{p.document_type} {p.document_number}</td>
-                <td>{p.phone}<br /><span className="small">{p.email ?? ""}</span></td>
-                <td>{p.city ?? "—"}</td>
-                <td>{p.registered_by_name ?? "—"}</td>
-                <td className="small">{new Date(p.created_at).toLocaleString("es")}</td>
-                <td>{p.id_document_path ? <a href={`/api/admin/document/${p.id}`} target="_blank" rel="noreferrer">Ver cédula</a> : <span className="small">{p.photo_source === "api" ? "Foto API" : "Foto nueva"}</span>}</td>
-              </tr>
-            ))}
-            {!list.length && <tr><td colSpan={9} className="small">Sin inscritos todavía.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+      <PanelList rows={panelRows} />
     </main>
   );
 }
