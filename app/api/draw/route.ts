@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomInt } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getActiveRaffle } from "@/lib/participants";
+import { getActiveRaffle, fetchAll } from "@/lib/participants";
 
 export const runtime = "nodejs";
 
@@ -12,14 +12,18 @@ export async function POST() {
   if (!raffle) return NextResponse.json({ error: "No hay rifa activa" }, { status: 409 });
   const sb = supabaseAdmin();
 
-  const [{ data: participants, error }, { data: prev }] = await Promise.all([
-    sb.from("participants").select("id").eq("raffle_id", raffle.id),
-    sb.from("draws").select("participant_id").eq("raffle_id", raffle.id),
-  ]);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  let participants: { id: string }[], prev: { participant_id: string }[];
+  try {
+    [participants, prev] = await Promise.all([
+      fetchAll<{ id: string }>((from, to) => sb.from("participants").select("id").eq("raffle_id", raffle.id).order("id").range(from, to)),
+      fetchAll<{ participant_id: string }>((from, to) => sb.from("draws").select("participant_id").eq("raffle_id", raffle.id).order("id").range(from, to)),
+    ]);
+  } catch (e) {
+    return NextResponse.json({ error: (e as { message?: string }).message ?? "Error al leer participantes" }, { status: 500 });
+  }
 
-  const won = new Set((prev ?? []).map((d) => d.participant_id));
-  const pool = (participants ?? []).filter((p) => !won.has(p.id));
+  const won = new Set(prev.map((d) => d.participant_id));
+  const pool = participants.filter((p) => !won.has(p.id));
   if (!pool.length) return NextResponse.json({ error: "No quedan participantes sin premio" }, { status: 409 });
 
   const winner = pool[randomInt(pool.length)];

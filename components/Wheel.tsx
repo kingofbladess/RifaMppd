@@ -28,6 +28,8 @@ export default function Wheel({ participants, digits }: { participants: WheelPar
   const seg = n ? TAU / n : TAU;
   const showPhotos = n <= 40;
   const showNames = n <= 80;
+  const showNumbers = n <= 400; // con más, la ruleta queda como disco de colores y el recuadro muestra a quién señala
+
   const pad = (num: number) => String(num).padStart(digits, "0");
 
   const indexAtPointer = useCallback((r: number) => {
@@ -41,7 +43,22 @@ export default function Wheel({ participants, digits }: { participants: WheelPar
     const c = SIZE / 2, R = c - 10, r = rotation.current;
     ctx.clearRect(0, 0, SIZE, SIZE);
 
-    participants.forEach((p, i) => {
+    if (!showNumbers) {
+      // Muchos participantes: 24 franjas de color (cada una agrupa varias porciones) para que gire fluido.
+      const BANDS = 24, band = TAU / BANDS;
+      for (let b = 0; b < BANDS; b++) {
+        ctx.beginPath();
+        ctx.moveTo(c, c);
+        ctx.arc(c, c, R, r + b * band, r + (b + 1) * band);
+        ctx.closePath();
+        ctx.fillStyle = COLORS[b % COLORS.length];
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,.6)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+    if (showNumbers) participants.forEach((p, i) => {
       const a0 = r + i * seg, a1 = a0 + seg, mid = a0 + seg / 2;
       ctx.beginPath();
       ctx.moveTo(c, c);
@@ -50,7 +67,7 @@ export default function Wheel({ participants, digits }: { participants: WheelPar
       ctx.fillStyle = COLORS[i % COLORS.length];
       ctx.fill();
       ctx.strokeStyle = "rgba(255,255,255,.6)";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = n <= 150 ? 2 : 0.5;
       ctx.stroke();
 
       ctx.save();
@@ -123,7 +140,7 @@ export default function Wheel({ participants, digits }: { participants: WheelPar
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("🎟️", c, c);
-  }, [participants, n, seg, showPhotos, showNames, digits]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [participants, n, seg, showPhotos, showNames, showNumbers, digits]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Precarga de fotos
   useEffect(() => {

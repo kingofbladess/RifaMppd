@@ -1,5 +1,6 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 export type PanelRow = {
   id: string; number: string; name: string; rank: string | null;
@@ -8,16 +9,27 @@ export type PanelRow = {
   by: string | null; createdAt: string;
 };
 
-const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-
-// Lista de inscritos: tabla en PC, tarjetas en celular, con buscador por nombre, cédula o número.
-export default function PanelList({ rows }: { rows: PanelRow[] }) {
-  const [q, setQ] = useState("");
-  const shown = useMemo(() => {
-    const t = norm(q.trim());
-    if (!t) return rows;
-    return rows.filter((r) => norm(`${r.name} ${r.doc} ${r.number} ${r.rank ?? ""} ${r.by ?? ""}`).includes(t));
-  }, [rows, q]);
+// Lista de inscritos: tabla en PC, tarjetas en celular. El buscador consulta en el servidor
+// (por nombre, cédula, número, cargo u operador) para que funcione igual con miles de inscritos.
+export default function PanelList({ rows, total, query, limit }: { rows: PanelRow[]; total: number; query: string; limit: number }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [q, setQ] = useState(query);
+  const [pending, startTransition] = useTransition();
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  function onSearch(value: string) {
+    setQ(value);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      const t = value.trim();
+      startTransition(() => router.replace(t ? `${pathname}?q=${encodeURIComponent(t)}` : pathname, { scroll: false }));
+    }, 350);
+  }
+  const shown = rows;
+  const caption = query
+    ? `${rows.length >= limit ? `Más de ${limit}` : rows.length} resultado${rows.length === 1 ? "" : "s"}${rows.length >= limit ? " (afina la búsqueda)" : ""}`
+    : total > rows.length ? `Mostrando los ${rows.length} más recientes de ${total}. Usa el buscador para encontrar a cualquiera.` : "";
   const date = (s: string) => new Date(s).toLocaleString("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   const extra = (r: PanelRow) => r.hasIdDoc
     ? <a href={`/api/admin/document/${r.id}`} target="_blank" rel="noreferrer">Ver cédula</a>
@@ -29,10 +41,14 @@ export default function PanelList({ rows }: { rows: PanelRow[] }) {
 
   return (
     <>
-      {rows.length > 0 && (
-        <input className="panel-search" type="search" value={q} onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar por nombre, cédula o número" aria-label="Buscar inscrito" />
+      {(total > 0 || query) && (
+        <div className="panel-search-wrap">
+          <input className="panel-search" type="search" value={q} onChange={(e) => onSearch(e.target.value)}
+            placeholder="Buscar por nombre, cédula o número" aria-label="Buscar inscrito" />
+          {pending && <span className="spinner" aria-label="Buscando" />}
+        </div>
       )}
+      {caption && <p className="small list-caption">{caption}</p>}
 
       <div className="card table-wrap only-desk">
         <table>
@@ -53,7 +69,7 @@ export default function PanelList({ rows }: { rows: PanelRow[] }) {
                 <td>{extra(r)}</td>
               </tr>
             ))}
-            {!shown.length && <tr><td colSpan={9} className="small">{rows.length ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
+            {!shown.length && <tr><td colSpan={9} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -73,7 +89,7 @@ export default function PanelList({ rows }: { rows: PanelRow[] }) {
             <div className="p-num">{r.number}</div>
           </li>
         ))}
-        {!shown.length && <li className="small p-empty">{rows.length ? "Sin resultados." : "Sin inscritos todavía."}</li>}
+        {!shown.length && <li className="small p-empty">{query ? "Sin resultados." : "Sin inscritos todavía."}</li>}
       </ul>
     </>
   );

@@ -235,3 +235,9 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .demo-box .btn { min-height: 0; padding: 8px 12px; font-size: .85rem; }
 .btn.secondary.danger:hover { color: var(--err); border-color: color-mix(in srgb, var(--err) 45%, var(--border)); background: color-mix(in srgb, var(--err) 7%, var(--surface)); }
 .initials { display: grid; place-items: center; color: #fff; font-weight: 800; background: var(--grad); }
+.panel-search-wrap { position: relative; max-width: 420px; }
+.panel-search-wrap .spinner { position: absolute; right: 14px; top: 13px; color: var(--accent); }
+.list-caption { margin: -4px 0 10px; }
+.demo-add { display: flex; gap: 6px; }
+.demo-add select { width: auto; padding: 6px 8px; }
+@media (max-width: 600px) { .panel-search-wrap { max-width: none; } }
