@@ -6,7 +6,7 @@ import { dataUrlToJpeg } from "@/lib/image";
 
 type Person = {
   full_name: string; document_type: string; document_number: string;
-  birth_date: string; city: string; phone: string; email: string;
+  birth_date: string; city: string; rank: string; phone: string; email: string;
 };
 type Lookup = {
   found: boolean; source: "api" | "demo"; person: Person | null; photo: string | null; photoDate: string | null;
@@ -14,7 +14,7 @@ type Lookup = {
 };
 type Saved = { number: number; name: string; photo: string | null };
 
-const EMPTY: Person = { full_name: "", document_type: "CC", document_number: "", birth_date: "", city: "", phone: "", email: "" };
+const EMPTY: Person = { full_name: "", document_type: "CC", document_number: "", birth_date: "", city: "", rank: "", phone: "", email: "" };
 
 function useObjectUrl(blob: Blob | null) {
   const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob]);
@@ -179,6 +179,10 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
           {!lookup.found && lookup.apiError && <p className="small warn-text" style={{ textAlign: "left" }}>{lookup.apiError}</p>}
 
           <div className="grid two">
+            <div className="full">
+              <label htmlFor="rank">Rango / cargo</label>
+              <input id="rank" value={fields.rank} onChange={(e) => set("rank", e.target.value)} maxLength={80} placeholder="Ej. Coordinador" />
+            </div>
             <div>
               <label htmlFor="birth_date">Nacimiento</label>
               <input id="birth_date" type="date" value={fields.birth_date} onChange={(e) => set("birth_date", e.target.value)} required />

@@ -43,6 +43,7 @@ export async function POST(req: Request) {
     phone: s("phone"),
     birth_date: s("birth_date"),
     city: s("city"),
+    rank: s("rank").slice(0, 80),
   };
   const consent = form.get("consent") === "on";
   const idDoc = form.get("id_document");
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
     p_full_name: data.full_name, p_document_type: data.document_type, p_document_number: data.document_number,
     p_email: data.email, p_phone: data.phone, p_birth_date: data.birth_date, p_city: data.city,
     p_id_document_path: idPath, p_photo_path: photoPath,
-    p_registered_by: session.uid === "env-admin" ? null : session.uid, p_registered_by_name: session.name, p_photo_source: photoSource,
+    p_registered_by: session.uid === "env-admin" ? null : session.uid, p_registered_by_name: session.name, p_photo_source: photoSource, p_rank: data.rank,
   });
 
   if (error) {

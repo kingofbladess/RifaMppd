@@ -9,7 +9,7 @@ export default async function AdminPage() {
   const sb = supabaseAdmin();
   const { data: rows } = raffle
     ? await sb.from("participants")
-        .select("id, raffle_number, full_name, document_type, document_number, email, phone, city, photo_path, id_document_path, photo_source, registered_by_name, created_at")
+        .select("id, raffle_number, full_name, rank, document_type, document_number, email, phone, city, photo_path, id_document_path, photo_source, registered_by_name, created_at")
         .eq("raffle_id", raffle.id).order("created_at", { ascending: false })
     : { data: [] };
   const list = rows ?? [];
@@ -54,7 +54,7 @@ export default async function AdminPage() {
               <tr key={p.id}>
                 <td>{photo.get(p.photo_path) ? <img className="avatar" src={photo.get(p.photo_path)!} alt="" /> : <div className="avatar" />}</td>
                 <td><strong>{String(p.raffle_number).padStart(digits, "0")}</strong></td>
-                <td>{p.full_name}</td>
+                <td>{p.full_name}{p.rank && <><br /><span className="small">{p.rank}</span></>}</td>
                 <td>{p.document_type} {p.document_number}</td>
                 <td>{p.phone}<br /><span className="small">{p.email ?? ""}</span></td>
                 <td>{p.city ?? "—"}</td>

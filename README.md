@@ -44,7 +44,7 @@ y `PERSON_API_TOKEN` (se envía como `Authorization: Bearer ...`). La consulta s
 así el token nunca llega al navegador.
 
 El adaptador está en `lib/person-api.ts`. Reconoce nombres de campo comunes (`nombres`, `apellidos`, `nombre_completo`,
-`cedula`, `fecha_nacimiento`, `municipio`, `celular`, `foto`, `foto_url`, `foto_base64`, `fecha_foto`…) y la foto puede venir
+`cedula`, `fecha_nacimiento`, `municipio`, `rango`/`cargo`, `celular`, `foto`, `foto_url`, `foto_base64`, `fecha_foto`…) y la foto puede venir
 en base64, data URL o URL. Si la API real usa otros nombres o requiere otro método de autenticación, solo se ajusta ese archivo.
 
 **Modo demo:** si `PERSON_API_URL` está vacío, la app responde con datos ficticios para probar el flujo:

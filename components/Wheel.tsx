@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type WheelParticipant = { id: string; name: string; number: number; photoUrl: string | null };
+export type WheelParticipant = { id: string; name: string; number: number; rank: string | null; photoUrl: string | null };
 
 const COLORS = ["#d6336c", "#f59f00", "#1c7ed6", "#2b8a3e", "#7048e8", "#e8590c", "#0c8599", "#c2255c"];
 const SIZE = 1000;
@@ -184,6 +184,7 @@ export default function Wheel({ participants, digits }: { participants: WheelPar
           : <div className="avatar" style={{ width: 160, height: 160, margin: "0 auto" }} />}
         <div className="num">{shown ? pad(shown.number) : "—"}</div>
         <div style={{ fontSize: "1.3rem", fontWeight: 700 }}>{shown?.name}</div>
+        {shown?.rank && <div className="small">{shown.rank}</div>}
         <p className="small">{n} participantes</p>
         <button className="btn" onClick={spin} disabled={spinning} style={{ width: "100%", fontSize: "1.1rem" }}>
           {spinning ? "Girando…" : "🎡 Girar ruleta"}

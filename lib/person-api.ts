@@ -9,6 +9,7 @@ export type Person = {
   document_number: string;
   birth_date: string; // YYYY-MM-DD o ""
   city: string;
+  rank: string;   // rango o cargo administrativo
   phone: string;
   email: string;
 };
@@ -55,6 +56,7 @@ export function mapPerson(raw: Record<string, unknown>, doc: string): { person: 
       document_number: pick(data, ["numero_documento", "cedula", "documento", "document_number"]).replace(/\D/g, "") || doc,
       birth_date: normDate(pick(data, ["fecha_nacimiento", "birth_date", "fechaNacimiento"])),
       city: title(pick(data, ["ciudad", "municipio", "city", "lugar_nacimiento"])),
+      rank: pick(data, ["rango", "cargo", "grado", "rank", "position", "puesto", "cargo_administrativo"]),
       phone: pick(data, ["telefono", "celular", "phone", "mobile"]),
       email: pick(data, ["correo", "email"]),
     },
@@ -123,7 +125,8 @@ function demoLookup(doc: string): LookupResult {
     found: true, source: "demo",
     person: {
       full_name: DEMO_NAMES[seed % DEMO_NAMES.length], document_type: "CC", document_number: doc,
-      birth_date: `${year}-0${(seed % 9) + 1}-1${seed % 9}`, city: "Bogotá", phone: "", email: "",
+      birth_date: `${year}-0${(seed % 9) + 1}-1${seed % 9}`, city: "Bogotá",
+      rank: ["Coordinador", "Auxiliar administrativo", "Jefe de área", "Analista", "Supervisor"][seed % 5], phone: "", email: "",
     },
     photo: last % 2 === 0 ? demoPhoto(seed) : null,
     photoDate: last % 2 === 0 ? `${2010 + (seed % 10)}-06-01` : null,

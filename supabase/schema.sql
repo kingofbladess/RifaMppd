@@ -38,6 +38,7 @@ create table if not exists public.participants (
   phone             text not null check (char_length(phone) between 7 and 20),
   birth_date        date not null,
   city              text,
+  rank              text,            -- rango o cargo administrativo (viene de la API o se escribe)
   id_document_path  text,            -- ruta en bucket privado "documentos" (opcional)
   photo_path        text not null,   -- ruta en bucket privado "fotos"
   photo_source      text not null default 'camera' check (photo_source in ('api','camera')),
@@ -65,6 +66,7 @@ alter table public.participants add column if not exists registered_by uuid refe
 alter table public.participants add column if not exists registered_by_name text;
 alter table public.participants alter column id_document_path drop not null;
 alter table public.participants add column if not exists photo_source text not null default 'camera';
+alter table public.participants add column if not exists rank text;
 
 create index if not exists participants_raffle_idx on public.participants(raffle_id);
 
@@ -81,12 +83,14 @@ alter table public.app_users    enable row level security;
 -- Un bloqueo por rifa evita que dos inscripciones simultáneas obtengan el mismo número.
 drop function if exists public.register_participant(text,text,text,text,text,date,text,text,text);
 drop function if exists public.register_participant(text,text,text,text,text,date,text,text,text,uuid,text);
+drop function if exists public.register_participant(text,text,text,text,text,date,text,text,text,uuid,text,text);
 create or replace function public.register_participant(
   p_full_name text, p_document_type text, p_document_number text,
   p_email text, p_phone text, p_birth_date date, p_city text,
   p_id_document_path text, p_photo_path text,
   p_registered_by uuid default null, p_registered_by_name text default null,
-  p_photo_source text default 'camera'
+  p_photo_source text default 'camera',
+  p_rank text default null
 ) returns table (participant_id uuid, raffle_number int)
 language plpgsql security definer set search_path = public as $$
 declare
@@ -116,11 +120,12 @@ begin
   insert into public.participants (
     raffle_id, raffle_number, full_name, document_type, document_number,
     email, phone, birth_date, city, id_document_path, photo_path, consent_at,
-    registered_by, registered_by_name, photo_source
+    registered_by, registered_by_name, photo_source, rank
   ) values (
     r.id, n, trim(p_full_name), p_document_type, trim(p_document_number),
     nullif(lower(trim(p_email)), ''), trim(p_phone), p_birth_date, nullif(trim(p_city), ''),
-    p_id_document_path, p_photo_path, now(), p_registered_by, p_registered_by_name, p_photo_source
+    p_id_document_path, p_photo_path, now(), p_registered_by, p_registered_by_name, p_photo_source,
+    nullif(trim(p_rank), '')
   ) returning id into pid;
 
   return query select pid, n;

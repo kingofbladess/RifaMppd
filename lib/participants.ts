@@ -1,7 +1,7 @@
 import "server-only";
 import { supabaseAdmin, BUCKET_PHOTOS } from "./supabase";
 
-export type WheelParticipant = { id: string; name: string; number: number; photoUrl: string | null };
+export type WheelParticipant = { id: string; name: string; number: number; rank: string | null; photoUrl: string | null };
 
 export async function getActiveRaffle() {
   const { data, error } = await supabaseAdmin()
@@ -17,7 +17,7 @@ export async function getWheelParticipants(): Promise<WheelParticipant[]> {
   if (!raffle) return [];
   const sb = supabaseAdmin();
   const { data, error } = await sb
-    .from("participants").select("id, full_name, raffle_number, photo_path")
+    .from("participants").select("id, full_name, raffle_number, rank, photo_path")
     .eq("raffle_id", raffle.id).order("raffle_number");
   if (error) throw error;
   if (!data.length) return [];
@@ -27,7 +27,7 @@ export async function getWheelParticipants(): Promise<WheelParticipant[]> {
   const urlByPath = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
 
   return data.map((p) => ({
-    id: p.id, name: p.full_name, number: p.raffle_number,
+    id: p.id, name: p.full_name, number: p.raffle_number, rank: p.rank,
     photoUrl: urlByPath.get(p.photo_path) ?? null,
   }));
 }
