@@ -68,7 +68,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <div className="demo-box">
         <span className="small">Datos de prueba{tempCount ? ` · ${tempCount} en la rifa` : ""}</span>
         <form method="post" action="/api/admin/demo">
-          <button className="btn secondary">🧪 Agregar 10 de prueba</button>
+          <button className="btn secondary">🧪 Agregar 100 de prueba</button>
         </form>
         {tempCount > 0 && (
           <form method="post" action="/api/admin/demo">
