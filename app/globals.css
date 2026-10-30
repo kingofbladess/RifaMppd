@@ -421,3 +421,14 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .xmas-page .xmas-card .num, .xmas-page .xmas-name, .xmas-page .xmas-rank, .xmas-page .xmas-count { grid-column: 3; }
 }
 @media (min-width: 1500px) { .xmas-page .container.wide { max-width: 1640px; } .xmas-page .stage { grid-template-columns: 250px minmax(0, 1fr) 360px; } }
+
+/* Carrusel de ganadores: baja de arriba hacia abajo en bucle */
+.winners-rail .rail-window { flex: 1; min-height: 0; overflow: hidden; position: relative;
+  -webkit-mask-image: linear-gradient(transparent, #000 10%, #000 85%, transparent); mask-image: linear-gradient(transparent, #000 10%, #000 85%, transparent); }
+.winners-rail .rail-window ul { overflow: visible; -webkit-mask-image: none; mask-image: none; padding: 0 6px 0 0; gap: 0; }
+.winners-rail .rail-window li { padding: 5px 0; } /* separación con padding (no gap) para que el bucle empalme exacto */
+.winners-rail ul.rolling { animation: railDown linear infinite; }
+.winners-rail ul.rolling li { animation: none; }
+.winners-rail:hover ul.rolling { animation-play-state: paused; }
+@keyframes railDown { from { transform: translateY(-50%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .winners-rail ul.rolling { animation: none; } }

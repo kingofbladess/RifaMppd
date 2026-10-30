@@ -15,7 +15,6 @@ const SIZE = 1000;
 const TAU = Math.PI * 2;
 const SPIN_MS = 26000;     // duración total del giro
 const TURNS = 5;          // vueltas mínimas
-const FACE_MS = 90;       // límite para que la foto no parpadee más rápido de lo que se alcanza a ver
 const BULBS = 28;
 
 // Perfil de una ruleta real: un empujón inicial (0,7 s) y luego la fricción la frena sin parar,
@@ -200,10 +199,16 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     });
   }, [participants, showPhotos, draw]);
 
+  // En reposo el puntero queda en el centro de una porción (nunca sobre una línea),
+  // así el número del recuadro coincide sin dudas con el de la ruleta.
   useEffect(() => {
+    if (n) {
+      const i = indexAtPointer(rotation.current);
+      rotation.current = -Math.PI / 2 - (i + 0.5) * seg;
+      setCurrent(participants[i]);
+    }
     draw();
-    if (n) setCurrent(participants[indexAtPointer(rotation.current)]);
-  }, [draw, n, participants, indexAtPointer]);
+  }, [draw, n, seg, participants, indexAtPointer]);
 
   // Al cerrar la pantalla de ganador, esa persona desaparece de la ruleta.
   const closeWin = useCallback(() => {
@@ -268,7 +273,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       target += Math.ceil((minEnd - target) / TAU) * TAU;
 
       const t0 = performance.now();
-      let lastIdx = -1, lastTick = 0, lastFace = 0, lastBlink = 0;
+      let lastIdx = -1, lastTick = 0, lastBlink = 0;
       await new Promise<void>((done) => {
         const frame = (now: number) => {
           const t = Math.min(1, (now - t0) / SPIN_MS);
@@ -283,7 +288,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
           const i = indexAtPointer(rotation.current);
           if (i !== lastIdx) {
             lastIdx = i;
-            if (now - lastFace > FACE_MS || t > .9) { lastFace = now; setCurrent(participants[i]); }
+            setCurrent(participants[i]); // el recuadro muestra siempre a quien está bajo el puntero, en el mismo cuadro
             // "tic" y golpecito del puntero, limitados para que no suene como un zumbido
             if (now - lastTick > 45) {
               lastTick = now;
@@ -321,17 +326,23 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       <aside className={`winners-rail${history.length ? "" : " empty"}`} ref={railRef} aria-label="Ganadores">
         <div className="xmas-label">🏆 Ganadores</div>
         {history.length ? (
-          <ul>
-            {history.map((h, i) => (
-              <li key={h.id}>
-                <div className="float" style={{ animationDelay: `${-(i % 5) * .6}s` }}>
-                  {face(h, 40, ".85rem")}
-                  <span className="w-num">{pad(h.number)}</span>
-                  <span className="w-name">{h.name}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          // Carrusel: la lista se repite y baja sin parar; al terminar una vuelta empieza de nuevo sin saltos.
+          <div className="rail-window">
+            <ul key={history.length} className={history.length >= 3 ? "rolling" : ""}
+              style={{ animationDuration: `${Math.max(history.length, 10) * 2.4}s` }}>
+              {(history.length >= 3 ? [0, 1] : [0]).flatMap((copy) =>
+                Array.from({ length: history.length >= 3 ? Math.ceil(10 / history.length) : 1 }, (_, rep) =>
+                  history.map((h, i) => (
+                    <li key={`${copy}-${rep}-${h.id}`} aria-hidden={copy + rep > 0 || undefined}>
+                      <div className="float" style={{ animationDelay: `${-(i % 5) * .6}s` }}>
+                        {face(h, 40, ".85rem")}
+                        <span className="w-num">{pad(h.number)}</span>
+                        <span className="w-name">{h.name}</span>
+                      </div>
+                    </li>
+                  ))).flat())}
+            </ul>
+          </div>
         ) : <p className="w-empty">Aquí aparecerán los ganadores 🎁</p>}
       </aside>
 
