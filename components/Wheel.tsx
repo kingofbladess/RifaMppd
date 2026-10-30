@@ -12,13 +12,23 @@ const LIGHT = new Set(["#d4a017", "#f4efe1"]);
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 const SIZE = 1000;
 const TAU = Math.PI * 2;
-const SPIN_MS = 15000;
+const FAST_MS = 8000;      // tramo normal: frena desde rápido hasta una velocidad lenta
+const SLOW_MS = 20000;     // tramo final de 20 s: avanza cada vez más despacio hasta detenerse
+const SLOW_TURNS = 1.1;    // lo que recorre la ruleta en esos 20 s finales
 const TURNS = 5;          // vueltas mínimas: menos vueltas en más tiempo = giro más pausado
 const FACE_MS = 260;      // la foto del recuadro cambia como máximo cada 260 ms para que se alcance a ver
 const BULBS = 28;
 
-// Arranca rápido y frena cada vez más lento al final: el último tramo pasa porción por porción.
-const easeOut = (t: number) => 1 - Math.pow(1 - t, 3.2);
+// Distancia recorrida (0..total) en el tiempo t: primero frena de rápido a lento (velocidad lineal),
+// luego 20 s de arrastre final cuya velocidad cae como (1-u)² hasta cero, sin saltos de velocidad.
+function spinDistance(t: number, total: number) {
+  const d2 = Math.min(total * .4, TAU * SLOW_TURNS), d1 = total - d2;
+  const T1 = FAST_MS / 1000, T2 = SLOW_MS / 1000;
+  const v1 = (3 * d2) / T2, v0 = (2 * d1) / T1 - v1;
+  if (t <= T1) return v0 * t + ((v1 - v0) * t * t) / (2 * T1);
+  const u = Math.min(1, (t - T1) / T2);
+  return d1 + (v1 * T2 * (1 - Math.pow(1 - u, 3))) / 3;
+}
 
 // Sonidos generados con Web Audio (sin archivos): "tic" al pasar cada porción y campanitas al ganar.
 function useSounds() {
@@ -225,8 +235,9 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       let lastIdx = -1, lastTick = 0, lastFace = 0;
       await new Promise<void>((done) => {
         const frame = (now: number) => {
-          const t = Math.min(1, (now - t0) / SPIN_MS);
-          rotation.current = start + (target - start) * easeOut(t);
+          const secs = (now - t0) / 1000;
+          const t = Math.min(1, secs / ((FAST_MS + SLOW_MS) / 1000));
+          rotation.current = start + spinDistance(Math.min(secs, (FAST_MS + SLOW_MS) / 1000), target - start);
           draw();
           const i = indexAtPointer(rotation.current);
           if (i !== lastIdx) {
