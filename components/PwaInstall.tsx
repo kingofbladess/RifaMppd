@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 type BIPEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -11,6 +12,7 @@ export default function PwaInstall() {
   const [showIosHelp, setShowIosHelp] = useState(false);
   const [installed, setInstalled] = useState(true);
   const [dismissed, setDismissed] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -29,7 +31,8 @@ export default function PwaInstall() {
     };
   }, []);
 
-  if (installed || dismissed || (!deferred && !ios)) return null;
+  // La ruleta se proyecta en pantalla grande: ahí no se ofrece instalar.
+  if (installed || dismissed || (!deferred && !ios) || pathname?.startsWith("/ruleta")) return null;
 
   return (
     <div className="install-bar">

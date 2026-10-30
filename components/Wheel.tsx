@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Fireworks from "./Fireworks";
+import WavingFlag from "./WavingFlag";
 
 export type WheelParticipant = { id: string; name: string; number: number; rank: string | null; photoUrl: string | null };
 
@@ -12,22 +13,29 @@ const LIGHT = new Set(["#d4a017", "#f4efe1"]);
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 const SIZE = 1000;
 const TAU = Math.PI * 2;
-const FAST_MS = 8000;      // tramo normal: frena desde rápido hasta una velocidad lenta
-const SLOW_MS = 20000;     // tramo final de 20 s: avanza cada vez más despacio hasta detenerse
-const SLOW_TURNS = 1.1;    // lo que recorre la ruleta en esos 20 s finales
-const TURNS = 5;          // vueltas mínimas: menos vueltas en más tiempo = giro más pausado
-const FACE_MS = 260;      // la foto del recuadro cambia como máximo cada 260 ms para que se alcance a ver
+const SPIN_MS = 26000;     // duración total del giro
+const TURNS = 5;          // vueltas mínimas
+const FACE_MS = 90;       // límite para que la foto no parpadee más rápido de lo que se alcanza a ver
 const BULBS = 28;
 
-// Distancia recorrida (0..total) en el tiempo t: primero frena de rápido a lento (velocidad lineal),
-// luego 20 s de arrastre final cuya velocidad cae como (1-u)² hasta cero, sin saltos de velocidad.
-function spinDistance(t: number, total: number) {
-  const d2 = Math.min(total * .4, TAU * SLOW_TURNS), d1 = total - d2;
-  const T1 = FAST_MS / 1000, T2 = SLOW_MS / 1000;
-  const v1 = (3 * d2) / T2, v0 = (2 * d1) / T1 - v1;
-  if (t <= T1) return v0 * t + ((v1 - v0) * t * t) / (2 * T1);
-  const u = Math.min(1, (t - T1) / T2);
-  return d1 + (v1 * T2 * (1 - Math.pow(1 - u, 3))) / 3;
+// Perfil de una ruleta real: un empujón inicial (0,7 s) y luego la fricción la frena sin parar,
+// con velocidad que cae como (1-u)³: cada vuelta es más lenta que la anterior hasta detenerse.
+// Se integra numéricamente y se normaliza a 0..1 para caer exacto en el ganador.
+const PROFILE = (() => {
+  const N = 2000, T = SPIN_MS / 1000, out = new Float64Array(N + 1);
+  let acc = 0;
+  for (let i = 1; i <= N; i++) {
+    const t = (i / N) * T, u = i / N;
+    const push = Math.min(1, t / .7), ramp = push * push * (3 - 2 * push);
+    acc += ramp * Math.pow(1 - u, 3);
+    out[i] = acc;
+  }
+  for (let i = 0; i <= N; i++) out[i] /= acc;
+  return out;
+})();
+function spinProgress(u: number) {
+  const x = Math.min(1, Math.max(0, u)) * (PROFILE.length - 1), i = Math.floor(x), f = x - i;
+  return i >= PROFILE.length - 1 ? 1 : PROFILE[i] + (PROFILE[i + 1] - PROFILE[i]) * f;
 }
 
 // Sonidos generados con Web Audio (sin archivos): "tic" al pasar cada porción y campanitas al ganar.
@@ -67,6 +75,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   useEffect(() => setParticipants(initial), [initial]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const rotation = useRef(0);
   const images = useRef(new Map<string, HTMLImageElement>());
   const [spinning, setSpinning] = useState(false);
@@ -197,6 +206,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   const closeWin = useCallback(() => {
     setShowWin(false);
     setParticipants((list) => (winner ? list.filter((p) => p.id !== winner.id) : list));
+    // El recuadro vuelve a mostrar a quien señala el puntero; el ganador queda en la lista de abajo.
+    setWinner(null);
   }, [winner]);
   useEffect(() => {
     if (!showWin) return;
@@ -217,6 +228,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     setWinner(null);
     setShowWin(false);
     setSpinning(true);
+    // En el celular el botón queda debajo de la ruleta: la subimos a la vista para ver el giro
+    if (window.innerWidth < 900) boxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     try {
       const res = await fetch("/api/draw", { method: "POST" });
       const json = await res.json();
@@ -232,17 +245,22 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       target += Math.ceil((minEnd - target) / TAU) * TAU;
 
       const t0 = performance.now();
-      let lastIdx = -1, lastTick = 0, lastFace = 0;
+      let lastIdx = -1, lastTick = 0, lastFace = 0, lastBlink = 0;
       await new Promise<void>((done) => {
         const frame = (now: number) => {
-          const secs = (now - t0) / 1000;
-          const t = Math.min(1, secs / ((FAST_MS + SLOW_MS) / 1000));
-          rotation.current = start + spinDistance(Math.min(secs, (FAST_MS + SLOW_MS) / 1000), target - start);
+          const t = Math.min(1, (now - t0) / SPIN_MS);
+          rotation.current = start + (target - start) * spinProgress(t);
+          // Los foquitos parpadean al ritmo de la velocidad de la ruleta
+          if (now - lastBlink > 200 && boxRef.current) {
+            lastBlink = now;
+            const speed = (spinProgress(t + .01) - spinProgress(t)) / .01; // 1 = velocidad media
+            boxRef.current.style.setProperty("--blink", `${Math.min(1, Math.max(.12, .25 / Math.max(speed, .01)))}s`);
+          }
           draw();
           const i = indexAtPointer(rotation.current);
           if (i !== lastIdx) {
             lastIdx = i;
-            if (now - lastFace > FACE_MS || t > .97) { lastFace = now; setCurrent(participants[i]); }
+            if (now - lastFace > FACE_MS || t > .9) { lastFace = now; setCurrent(participants[i]); }
             // "tic" y golpecito del puntero, limitados para que no suene como un zumbido
             if (now - lastTick > 45) {
               lastTick = now;
@@ -276,7 +294,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
 
   return (
     <div className="stage">
-      <div className={`wheel-box xmas-wheel${spinning ? " is-spinning" : ""}${winner && !spinning ? " has-winner" : ""}`}>
+      <div ref={boxRef} className={`wheel-box xmas-wheel${spinning ? " is-spinning" : ""}${winner && !spinning ? " has-winner" : ""}`}>
         <div className="xmas-pointer" ref={pointerRef}><span>⭐</span></div>
         <canvas ref={canvasRef} width={SIZE} height={SIZE} aria-label="Ruleta de participantes" />
         <div className="bulbs" aria-hidden="true">
@@ -314,6 +332,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
 
       {showWin && winner && (
         <div className="win-overlay" role="dialog" aria-modal="true" aria-label={`Ganador ${winner.name}`} onClick={closeWin}>
+          <WavingFlag />
           <Fireworks active />
           <div className="win-content" onClick={(e) => e.stopPropagation()}>
             <div className="win-title">¡GANADOR!</div>
