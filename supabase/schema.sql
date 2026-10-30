@@ -42,7 +42,7 @@ create table if not exists public.participants (
   id_document_path  text,            -- ruta en bucket privado "documentos" (opcional)
   photo_path        text not null,   -- ruta en bucket privado "fotos"
   photo_source      text not null default 'camera' check (photo_source in ('api','camera')),
-  consent_at        timestamptz not null,  -- momento en que aceptó el tratamiento de datos
+  consent_at        timestamptz not null,  -- fecha y hora del registro
   registered_by     uuid references public.app_users(id) on delete set null,
   registered_by_name text,                 -- nombre del operador (se conserva aunque se borre el usuario)
   created_at        timestamptz not null default now(),

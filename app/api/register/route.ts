@@ -11,15 +11,6 @@ function isJpeg(buf: Uint8Array) {
   return buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
 }
 
-function ageFrom(date: string) {
-  const b = new Date(date + "T00:00:00Z");
-  const now = new Date();
-  let age = now.getUTCFullYear() - b.getUTCFullYear();
-  const m = now.getUTCMonth() - b.getUTCMonth();
-  if (m < 0 || (m === 0 && now.getUTCDate() < b.getUTCDate())) age--;
-  return age;
-}
-
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -45,7 +36,6 @@ export async function POST(req: Request) {
     city: s("city"),
     rank: s("rank").slice(0, 80),
   };
-  const consent = form.get("consent") === "on";
   const idDoc = form.get("id_document");
   const photo = form.get("photo");
 
@@ -56,8 +46,6 @@ export async function POST(req: Request) {
   if (data.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email)) errors.push("Correo inválido");
   if (data.phone.replace(/\D/g, "").length < 7) errors.push("Teléfono inválido");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data.birth_date)) errors.push("Fecha de nacimiento inválida");
-  else if (ageFrom(data.birth_date) < 18) errors.push("El participante debe ser mayor de edad");
-  if (!consent) errors.push("Falta la autorización de tratamiento de datos del participante");
   if (!(photo instanceof File)) errors.push("Falta la foto de la persona");
   const photoSource = form.get("photo_source") === "api" ? "api" : "camera";
   if (errors.length) return NextResponse.json({ error: errors.join(". ") }, { status: 400 });

@@ -37,7 +37,6 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   const [newPhoto, setNewPhoto] = useState<Blob | null>(null); // foto tomada con la cámara
   const [camera, setCamera] = useState<"photo" | "id" | null>(null);
   const [idPhoto, setIdPhoto] = useState<Blob | null>(null);
-  const [consent, setConsent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<Saved | null>(null);
@@ -54,7 +53,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
 
   function clear() {
     setLookup(null); setFields(EMPTY); setNewPhoto(null); setIdPhoto(null);
-    setCamera(null); setConsent(false); setError(null);
+    setCamera(null); setError(null);
   }
 
   async function search(e?: React.FormEvent) {
@@ -85,7 +84,6 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
       const photoBlob = newPhoto ?? (await dataUrlToJpeg(lookup!.photo!, 900));
       const fd = new FormData();
       Object.entries(fields).forEach(([k, v]) => fd.set(k, v));
-      if (consent) fd.set("consent", "on");
       fd.set("photo", photoBlob, "foto.jpg");
       fd.set("photo_source", newPhoto ? "camera" : "api");
       if (idPhoto) fd.set("id_document", idPhoto, "documento.jpg");
@@ -210,10 +208,6 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
             <button type="button" className="link" onClick={() => setCamera("id")}>＋ Foto de la cédula (opcional)</button>
           )}
 
-          <label className="check">
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} required />
-            <span>Mayor de edad; autoriza el uso de sus datos y su foto en la rifa.</span>
-          </label>
           {error && <div className="error">{error}</div>}
           <div className="form-actions">
             <button className="btn" type="submit" disabled={saving || camera !== null}>

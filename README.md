@@ -34,7 +34,7 @@ No guarda datos personales en el celular: todo se consulta y se guarda en el ser
    - **Con foto de la API:** se puede usar tal cual o pulsar **Actualizar foto** (si la API informa la fecha de la foto y tiene 5 años o más, se sugiere actualizarla).
    - **Sin foto:** la cámara se abre sola.
    - **No encontrada / API caída:** formulario vacío para registrar a mano.
-4. Teléfono + autorización → **Guardar**. Aparece el número y la casilla de cédula queda lista para la siguiente persona.
+4. Teléfono → **Guardar**. Aparece el número y la casilla de cédula queda lista para la siguiente persona.
 5. Opcional: adjuntar foto de la cédula (queda en un bucket privado).
 
 ## Conectar la API de personas
