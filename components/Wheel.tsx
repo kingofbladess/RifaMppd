@@ -272,6 +272,24 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     return () => window.removeEventListener("keydown", onKey);
   }, [showWin, closeWin]);
 
+  // Espacio o Enter: gira (o, con el cartel de ganador abierto, lo cierra y gira otra vez).
+  // Si hay un botón enfocado, el navegador ya lo activa con esas teclas.
+  const keySpin = useRef<() => void>(() => {});
+  keySpin.current = () => {
+    if (spinning) return;
+    if (showWin) { closeWin(); setQueued(true); } else spin();
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== " " && e.key !== "Enter") return;
+      if (e.repeat || e.target instanceof HTMLButtonElement || e.target instanceof HTMLInputElement || e.target instanceof HTMLAnchorElement) return;
+      e.preventDefault();
+      keySpin.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // La ruleta toma el tamaño más grande que cabe en la pantalla sin scroll:
   // en PC al lado del recuadro; en celular, el alto que deja libre el recuadro de abajo.
   useEffect(() => {
@@ -421,6 +439,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
         <button className="btn xmas-btn" onClick={spin} disabled={spinning}>
           {spinning ? "Girando…" : "🎁 Girar ruleta"}
         </button>
+        <p className="key-hint"><kbd>Espacio</kbd> girar · <kbd>F</kbd> pantalla completa</p>
         {error && <p className="error">{error}</p>}
       </aside>
 

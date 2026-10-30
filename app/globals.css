@@ -379,7 +379,7 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 }
 
 /* ---------- Ganadores a la izquierda + recuadro centrado ---------- */
-.xmas-page .stage { grid-template-columns: clamp(130px, 15vw, 290px) minmax(0, 1fr) clamp(240px, 25vw, 440px); gap: clamp(10px, 2vw, 32px); }
+.xmas-page .stage { grid-template-columns: clamp(130px, 15vw, 18rem) minmax(0, 1fr) clamp(240px, 25vw, 27.5rem); gap: clamp(10px, 2vw, 2rem); }
 .xmas-page .xmas-card.winner { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .xmas-page .xmas-card.winner .xmas-btn { width: 100%; }
 .winners-rail { align-self: stretch; min-height: 0; display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1; }
@@ -416,7 +416,7 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .xmas-page .xmas-face { grid-column: 2; }
   .xmas-page .xmas-card .num, .xmas-page .xmas-name, .xmas-page .xmas-rank, .xmas-page .xmas-count { grid-column: 3; }
 }
-@media (min-width: 1500px) { .xmas-page .container.wide { max-width: min(96vw, 2600px); } }
+@media (min-width: 1500px) { .xmas-page .container.wide { max-width: 96vw; } }
 
 /* Carrusel de ganadores: baja de arriba hacia abajo en bucle */
 .winners-rail .rail-window { flex: 1; min-height: 0; overflow: hidden; position: relative;
@@ -443,8 +443,8 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 /* ---------- Recuadro de caras más alto y animado ---------- */
 @media (min-width: 901px), (min-aspect-ratio: 4001/3000) {
   /* Alto parecido al de la ruleta (Wheel.tsx publica --wheel); el contenido se reparte a lo alto */
-  .xmas-page .xmas-card.winner { align-self: center; height: min(100%, calc(var(--wheel, 520px) * .94), 940px); justify-content: space-evenly; }
-  .xmas-page .xmas-face img, .xmas-page .xmas-face .xmas-initials { width: clamp(56px, min(22dvh, 13vw), 200px) !important; height: clamp(56px, min(22dvh, 13vw), 200px) !important; font-size: clamp(1.2rem, min(5dvh, 3vw), 4rem) !important; }
+  .xmas-page .xmas-card.winner { align-self: center; height: min(100%, calc(var(--wheel, 520px) * .94), 58rem); justify-content: space-evenly; }
+  .xmas-page .xmas-face img, .xmas-page .xmas-face .xmas-initials { width: clamp(56px, min(22dvh, 13vw), 12.5rem) !important; height: clamp(56px, min(22dvh, 13vw), 12.5rem) !important; font-size: clamp(1.2rem, min(5dvh, 3vw), 4rem) !important; }
   .xmas-page .xmas-card .num { font-size: clamp(1.6rem, min(7.5dvh, 4.4vw), 4.2rem); }
   .xmas-page .xmas-name { font-size: clamp(.95rem, min(3.2dvh, 1.8vw), 1.8rem); }
   .xmas-page .xmas-rank { font-size: clamp(.8rem, 2.2dvh, 1.15rem); }
@@ -490,3 +490,21 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .xmas-page .xmas-face img, .xmas-page .xmas-face .xmas-initials { width: 80px !important; height: 80px !important; font-size: 1.6rem !important; }
   .xmas-page .xmas-card .num { font-size: 2rem; }
 }
+
+/* ---------- Pantallas gigantes (2K / 4K): todo crece en proporción ---------- */
+/* La ruleta usa rem, así que subir la letra base agranda recuadro, ganadores, títulos y botones a la vez */
+@media (min-width: 2200px) and (min-height: 1100px) { html:has(.xmas-page) { font-size: .833vw; } }
+.winners-rail .float { grid-template-columns: 2.5rem 1fr; }
+.winners-rail .float img, .winners-rail .float .xmas-initials { width: 2.5rem !important; height: 2.5rem !important; }
+.xmas-page .xmas-card.winner { border-radius: 1.4rem; }
+
+/* ---------- Modo presentador ---------- */
+.presenter-btn { white-space: nowrap; }
+.xmas-page .topbar-tools { display: flex; gap: 8px; align-items: center; }
+.key-hint { font-size: .75rem; color: rgba(255,248,236,.6); text-align: center; margin: 6px 0 0; }
+.key-hint kbd { font: inherit; font-weight: 700; padding: 1px 6px; border: 1px solid rgba(246,211,101,.5); border-radius: 5px; color: #f6d365; }
+html[data-presenter] .xmas-page .topbar-tools, html[data-presenter] .key-hint { display: none; }
+html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xmas-page * { cursor: none; }
+@media (hover: none) { .key-hint { display: none; } }
+.xmas-page .xmas-card .key-hint { grid-column: 1 / -1; }
+@media (max-height: 560px) { .key-hint { display: none; } }

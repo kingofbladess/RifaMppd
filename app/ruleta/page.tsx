@@ -1,5 +1,6 @@
 import Wheel from "@/components/Wheel";
 import Snow from "@/components/Snow";
+import PresenterControls from "@/components/PresenterControls";
 import { getActiveRaffle, getWheelParticipants } from "@/lib/participants";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,10 @@ export default async function RuletaPage() {
             <h1 className="xmas-title">🎄 {raffle?.name ?? "Ruleta"}</h1>
             {raffle?.prize && <p className="sub xmas-sub">🎁 Premio: {raffle.prize}</p>}
           </div>
-          <a className="btn secondary xmas-ghost" href="/admin">Panel</a>
+          <div className="topbar-tools">
+            <PresenterControls />
+            <a className="btn secondary xmas-ghost" href="/admin">Panel</a>
+          </div>
         </div>
         <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} />
       </main>
