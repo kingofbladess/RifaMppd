@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type WheelParticipant = { id: string; name: string; number: number; rank: string | null; photoUrl: string | null };
 
-const COLORS = ["#d6336c", "#f59f00", "#1c7ed6", "#2b8a3e", "#7048e8", "#e8590c", "#0c8599", "#c2255c"];
+const COLORS = ["#ff2e88", "#ffb703", "#00a896", "#7b2ff7", "#ff6b35", "#2f80ff", "#06d6a0", "#c026d3"];
+// Texto oscuro sobre los colores claros (amarillo y verde menta) para que se lea bien.
+const LIGHT = new Set(["#ffb703", "#06d6a0"]);
 const SIZE = 1000;
 const TAU = Math.PI * 2;
 const SPIN_MS = 8000;
@@ -81,7 +83,7 @@ export default function Wheel({ participants, digits }: { participants: WheelPar
         textEnd = px - pr - 10;
       }
       // Nombre y número a lo largo del radio
-      ctx.fillStyle = "#fff";
+      ctx.fillStyle = LIGHT.has(COLORS[i % COLORS.length]) ? "#1f1235" : "#fff";
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       const fs = Math.max(11, Math.min(30, Math.sin(seg / 2) * textEnd * 0.9));
@@ -100,9 +102,9 @@ export default function Wheel({ participants, digits }: { participants: WheelPar
     ctx.fillStyle = "#fff";
     ctx.fill();
     ctx.lineWidth = 6;
-    ctx.strokeStyle = "#1d1b22";
+    ctx.strokeStyle = "#1f1235";
     ctx.stroke();
-    ctx.fillStyle = "#1d1b22";
+    ctx.fillStyle = "#1f1235";
     ctx.font = "800 34px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
