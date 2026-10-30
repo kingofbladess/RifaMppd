@@ -146,7 +146,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
             <div className="photo-col">
               {camera === "photo" ? (
                 <>
-                  <Camera facing="user" guide="face" maxSide={900} onCapture={(b) => { setNewPhoto(b); setCamera(null); }} />
+                  <Camera facing="environment" guide="face" maxSide={900} onCapture={(b) => { setNewPhoto(b); setCamera(null); }} />
                   {shownPhoto && <button type="button" className="link" onClick={() => setCamera(null)}>Cancelar</button>}
                 </>
               ) : (

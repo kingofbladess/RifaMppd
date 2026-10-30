@@ -95,3 +95,20 @@ fieldset:disabled { opacity: .6; }
 .warn-text { color: #9a5b00; text-align: center; }
 .id-thumb { display: flex; align-items: center; gap: 10px; }
 .id-thumb img { height: 70px; border-radius: 8px; }
+/* ---------- Móvil / app instalada ---------- */
+.install-bar { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 50;
+  display: flex; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.18); max-width: 520px; margin: 0 auto; }
+.install-bar img { width: 44px; height: 44px; border-radius: 10px; }
+body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: transparent; }
+@media (max-width: 600px) {
+  .container { padding: 16px 12px 96px; }
+  .card { padding: 16px; }
+  h1 { font-size: 1.4rem; }
+  .topbar { margin-bottom: 12px; }
+  .search-row input { font-size: 1.3rem; }
+  .search-row .btn { min-width: 0; padding: 12px 16px; }
+  .photo-col { max-width: 320px; margin: 0 auto; width: 100%; }
+  input, select { font-size: 16px; } /* evita el zoom automático de iOS */
+  .btn { min-height: 48px; }
+}
