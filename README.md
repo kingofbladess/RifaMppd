@@ -26,6 +26,17 @@ La app es una **PWA**: se instala desde el navegador, sin Play Store ni App Stor
 Se abre en pantalla completa directo en `/registro`, usa la cámara trasera para la foto y muestra un aviso si no hay internet.
 No guarda datos personales en el celular: todo se consulta y se guarda en el servidor.
 
+## Probar desde celulares en la red local
+
+1. Laptop y celulares en la **misma red WiFi**.
+2. En la carpeta del proyecto: `npm run red` (HTTPS en el puerto 3001; la primera vez descarga un certificado de prueba).
+3. Si Windows pregunta por el firewall, permite el acceso en **redes privadas**.
+4. En el celular abre **https://192.168.150.40:3001**. Saldrá un aviso de "conexión no privada" (el certificado es de prueba):
+   Android → *Configuración avanzada → Continuar*; iPhone → *Mostrar detalles → visitar este sitio web*.
+
+Hace falta HTTPS porque los navegadores no permiten usar la cámara en `http://` salvo en `localhost`.
+Para **instalar** la app en el celular se necesita un certificado válido: eso se logra publicándola en Vercel.
+
 ## Flujo de registro
 
 1. El operador escribe la cédula y presiona Enter.
