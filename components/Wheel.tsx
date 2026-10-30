@@ -16,6 +16,9 @@ const TAU = Math.PI * 2;
 const SPIN_MS = 10000;     // duración total del giro
 const TURNS = 5;          // vueltas mínimas
 const BULBS = 28;
+const WIND_UP = 0.07;      // fracción del giro con el pequeño impulso hacia atrás antes de arrancar
+// Debe coincidir con la regla CSS que apila la ruleta y el recuadro (celular vertical)
+const STACKED_MQ = "(max-width: 900px) and (max-aspect-ratio: 4/3)";
 
 // Perfil de una ruleta real: un empujón inicial (0,7 s) y luego la fricción la frena sin parar,
 // con velocidad que cae como (1-u)³: cada vuelta es más lenta que la anterior hasta detenerse.
@@ -112,6 +115,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   const cardRef = useRef<HTMLElement>(null);
   const railRef = useRef<HTMLElement>(null);
   const rotation = useRef(0);
+  const highlight = useRef(-1); // porción ganadora que brilla al detenerse
   const images = useRef(new Map<string, HTMLImageElement>());
   const [spinning, setSpinning] = useState(false);
   const [current, setCurrent] = useState<WheelParticipant | null>(null);
@@ -203,6 +207,16 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       ctx.restore();
     });
 
+    // Porción ganadora: se ilumina en dorado (al menos unos grados de ancho para que se vea con miles)
+    if (highlight.current >= 0) {
+      const w = Math.max(seg, .07), mid = r + (highlight.current + .5) * seg;
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R, mid - w / 2, mid + w / 2); ctx.closePath();
+      ctx.fillStyle = "rgba(255,240,180,.35)"; ctx.fill();
+      ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 30; ctx.lineWidth = 8; ctx.strokeStyle = "#ffe08a"; ctx.stroke();
+      ctx.restore();
+    }
+
     // Centro: esfera roja con estrella dorada
     const hub = ctx.createRadialGradient(c - 20, c - 20, 10, c, c, 80);
     hub.addColorStop(0, "#ff5a6e"); hub.addColorStop(.6, "#c8102e"); hub.addColorStop(1, "#7a0b1c");
@@ -246,6 +260,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   // Al cerrar la pantalla de ganador, esa persona desaparece de la ruleta.
   const closeWin = useCallback(() => {
     setShowWin(false);
+    highlight.current = -1;
     setParticipants((list) => (winner ? list.filter((p) => p.id !== winner.id) : list));
     // El recuadro vuelve a mostrar a quien señala el puntero; el ganador queda en la lista de abajo.
     setWinner(null);
@@ -263,13 +278,14 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     const stage = stageRef.current, card = cardRef.current, box = boxRef.current, rail = railRef.current;
     if (!stage || !card || !box || !rail) return;
     const fit = () => {
-      const stacked = window.innerWidth <= 900;
+      const stacked = window.matchMedia(STACKED_MQ).matches;
       const POINTER = 0.06; // la estrella del puntero sobresale ~6 % por arriba
       const railW = rail.offsetWidth ? rail.offsetWidth + (stacked ? 8 : 24) : 0;
       const availH = stacked ? stage.clientHeight - card.offsetHeight - 8 : stage.clientHeight;
       const availW = stage.clientWidth - railW - (stacked ? 0 : card.offsetWidth + 24);
       const size = Math.max(200, Math.floor(Math.min(availW, availH / (1 + POINTER))));
       box.style.width = `${size}px`;
+      stage.style.setProperty("--wheel", `${size}px`);
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -290,7 +306,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     setShowWin(false);
     setSpinning(true);
     // En el celular el botón queda debajo de la ruleta: la subimos a la vista para ver el giro
-    if (window.innerWidth < 900) boxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    highlight.current = -1;
+    if (window.matchMedia(STACKED_MQ).matches) boxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     try {
       const res = await fetch("/api/draw", { method: "POST" });
       const json = await res.json();
@@ -310,12 +327,15 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       await new Promise<void>((done) => {
         const frame = (now: number) => {
           const t = Math.min(1, (now - t0) / SPIN_MS);
-          rotation.current = start + (target - start) * spinProgress(t);
+          // Antes de arrancar la ruleta retrocede un poquito, como cuando alguien la toma para impulsarla
+          const wind = t < WIND_UP ? -.16 * Math.sin(Math.PI * t / WIND_UP) : 0;
+          rotation.current = start + (target - start) * spinProgress(t) + wind;
           // Los foquitos parpadean al ritmo de la velocidad de la ruleta
           if (now - lastBlink > 200 && boxRef.current) {
             lastBlink = now;
             const speed = (spinProgress(t + .01) - spinProgress(t)) / .01; // 1 = velocidad media
             boxRef.current.style.setProperty("--blink", `${Math.min(1, Math.max(.12, .25 / Math.max(speed, .01)))}s`);
+            boxRef.current.style.setProperty("--glow", `${Math.min(1, speed / 2.5).toFixed(2)}`);
           }
           draw();
           const i = indexAtPointer(rotation.current);
@@ -334,10 +354,13 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
         };
         requestAnimationFrame(frame);
       });
+      boxRef.current?.style.setProperty("--glow", "0");
+      highlight.current = idx;
+      draw();
       const w = participants[idx];
       setWinner(w);
       setHistory((h) => [w, ...h]);
-      setTimeout(() => setShowWin(true), 350);
+      setTimeout(() => setShowWin(true), 1100); // un instante para ver la porción ganadora iluminada
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -388,10 +411,10 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
         </div>
       </div>
 
-      <aside className="xmas-card winner" ref={cardRef}>
+      <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
         <div className="xmas-label">{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 En el puntero"}</div>
-        <div className="xmas-face">{face(shown, 150, "3.2rem")}</div>
-        <div className="num">{shown ? pad(shown.number) : "—"}</div>
+        <div className="xmas-face" key={`f-${shown?.id}`}>{face(shown, 150, "3.2rem")}</div>
+        <div className="num" key={`n-${shown?.id}`}>{shown ? pad(shown.number) : "—"}</div>
         <div className="xmas-name">{shown?.name}</div>
         {shown?.rank && <div className="xmas-rank">{shown.rank}</div>}
         <p className="xmas-count">{n} participantes</p>
