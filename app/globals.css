@@ -508,3 +508,13 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 @media (hover: none) { .key-hint { display: none; } }
 .xmas-page .xmas-card .key-hint { grid-column: 1 / -1; }
 @media (max-height: 560px) { .key-hint { display: none; } }
+
+/* Escudo junto al nombre de la rifa: alto de las dos líneas del título */
+.xmas-brand { display: flex; align-items: center; gap: clamp(8px, 1vw, 1rem); min-width: 0; }
+.xmas-brand > div { min-width: 0; }
+.xmas-logo { height: clamp(52px, 11dvh, 7rem); width: auto; flex: none; filter: drop-shadow(0 4px 10px rgba(0,0,0,.5)); }
+.xmas-brand .xmas-title, .xmas-brand .xmas-sub { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xmas-brand .xmas-sub { margin-top: 2px !important; }
+@media (max-width: 900px) and (max-aspect-ratio: 4/3) { .xmas-logo { height: 46px; } }
+@media (max-height: 520px) { .xmas-logo { height: 40px; } }
+@media (hover: none) and (pointer: coarse) and (max-width: 900px) { .presenter-btn { display: none; } }
