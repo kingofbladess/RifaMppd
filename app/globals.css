@@ -241,3 +241,88 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .demo-add { display: flex; gap: 6px; }
 .demo-add select { width: auto; padding: 6px 8px; }
 @media (max-width: 600px) { .panel-search-wrap { max-width: none; } }
+
+/* ---------- Ruleta navideña ---------- */
+.xmas-page { position: relative; min-height: 100vh; color: #fff8ec; overflow-x: hidden;
+  background: radial-gradient(60rem 40rem at 50% -10%, #1d4f3a 0%, transparent 60%),
+              radial-gradient(40rem 30rem at 100% 100%, #5c0a14 0%, transparent 65%),
+              linear-gradient(180deg, #071a2e 0%, #0a2a1f 100%); }
+.xmas-page .container { position: relative; z-index: 1; padding-top: 34px; }
+.xmas-title { color: #fff8ec; text-shadow: 0 2px 0 #7a0b1c, 0 0 24px rgba(255,209,102,.45); }
+.xmas-sub { color: #f6d365 !important; font-weight: 600; }
+.btn.secondary.xmas-ghost { background: rgba(255,255,255,.08); color: #fff8ec; border-color: rgba(246,211,101,.5); }
+.btn.secondary.xmas-ghost:hover { background: rgba(246,211,101,.18); color: #fff; }
+
+.snow { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.snow span { position: absolute; top: -30px; color: rgba(255,255,255,.85); animation: snowfall linear infinite; text-shadow: 0 0 6px rgba(255,255,255,.6); }
+@keyframes snowfall { to { transform: translate(var(--drift, 0), 110vh) rotate(360deg); } }
+
+.garland { position: absolute; top: 0; left: 0; right: 0; height: 30px; display: flex; justify-content: space-around; z-index: 2;
+  background: radial-gradient(120% 60px at 50% -30px, transparent 70%, transparent 71%); }
+.garland::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 2px; background: #1f3d2c; }
+.garland i { position: relative; top: 6px; width: 10px; height: 16px; border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%; animation: blink 1s ease-in-out infinite alternate; }
+.b0 { --c: #ff3b3b; } .b1 { --c: #2ee59d; } .b2 { --c: #ffd166; } .b3 { --c: #7cc6ff; }
+.garland i, .bulbs i { background: var(--c); box-shadow: 0 0 10px 2px var(--c); }
+@keyframes blink { from { opacity: 1; filter: brightness(1.2); } to { opacity: .35; filter: brightness(.7); box-shadow: none; } }
+
+.xmas-wheel { container-type: inline-size; filter: drop-shadow(0 18px 40px rgba(0,0,0,.55)); }
+.bulbs { position: absolute; inset: 0; pointer-events: none; }
+.bulbs i { position: absolute; left: 50%; top: 50%; width: 2.4cqw; height: 2.4cqw; border-radius: 50%; animation: blink .9s ease-in-out infinite alternate; }
+.xmas-wheel.is-spinning .bulbs i { animation-duration: .18s; }
+.xmas-wheel.has-winner .bulbs i { animation-duration: .35s; }
+.xmas-pointer { position: absolute; top: -3.5%; left: 50%; transform: translateX(-50%); z-index: 3; width: 9%; aspect-ratio: .7;
+  background: linear-gradient(180deg, #fbe7a1, #d4a017 60%, #8a6100); clip-path: polygon(0 0, 100% 0, 50% 100%);
+  filter: drop-shadow(0 4px 4px rgba(0,0,0,.5)); transform-origin: 50% 10%; }
+.xmas-pointer span { position: absolute; left: 50%; top: -55%; transform: translateX(-50%); font-size: 5.5cqw; filter: drop-shadow(0 0 8px #ffd166); }
+.xmas-pointer { clip-path: none; background: none; }
+.xmas-pointer::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, #fbe7a1, #d4a017 60%, #8a6100); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.xmas-pointer.kick { animation: kick .12s ease-out; }
+@keyframes kick { 0% { transform: translateX(-50%) rotate(0); } 40% { transform: translateX(-50%) rotate(-14deg); } 100% { transform: translateX(-50%) rotate(0); } }
+
+.xmas-card { background: linear-gradient(180deg, rgba(122,11,28,.85), rgba(60,8,18,.9)); border: 2px solid rgba(246,211,101,.6); border-radius: 22px;
+  padding: 22px; color: #fff8ec; box-shadow: 0 20px 50px rgba(0,0,0,.45), inset 0 0 0 4px rgba(255,255,255,.04); position: relative; z-index: 1; }
+.xmas-label { font-size: .85rem; color: #f6d365; font-weight: 700; letter-spacing: .04em; }
+.xmas-face { margin: 10px auto 6px; width: max-content; }
+.xmas-face img, .xmas-face .xmas-initials, .win-face img, .win-face .xmas-initials { border-radius: 50%; object-fit: cover; border: 5px solid #f6d365; box-shadow: 0 0 0 5px #0f7b3f, 0 0 30px rgba(246,211,101,.5); }
+.xmas-initials { display: grid; place-items: center; font-weight: 800; color: #fff; background: radial-gradient(circle at 30% 30%, #ff5a6e, #c8102e 60%, #7a0b1c); }
+.xmas-card .num { background: linear-gradient(180deg, #fff3c4, #f6d365 50%, #d4a017); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-size: 3rem; }
+.xmas-name { font-size: 1.35rem; font-weight: 800; }
+.xmas-rank { color: #ffd9a8; font-size: .9rem; }
+.xmas-count { color: rgba(255,248,236,.7); font-size: .85rem; }
+.btn.xmas-btn { width: 100%; font-size: 1.15rem; background: linear-gradient(180deg, #2fbf71, #0f7b3f); box-shadow: 0 8px 20px -6px rgba(46,229,157,.6), inset 0 -3px 0 rgba(0,0,0,.2);
+  border: 2px solid #f6d365; }
+.btn.xmas-btn:hover { background: linear-gradient(180deg, #3ad181, #128a47); box-shadow: 0 12px 26px -6px rgba(46,229,157,.7); }
+.xmas-btn:not(:disabled) { animation: pulse 2.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 8px 20px -6px rgba(46,229,157,.6), 0 0 0 0 rgba(246,211,101,.5); } 50% { box-shadow: 0 8px 20px -6px rgba(46,229,157,.6), 0 0 0 10px rgba(246,211,101,0); } }
+.sound-btn { margin-top: 10px; background: none; border: 0; color: rgba(255,248,236,.75); font: inherit; font-size: .85rem; cursor: pointer; padding: 6px 10px; border-radius: 8px; }
+.sound-btn:hover { background: rgba(255,255,255,.08); color: #fff; }
+.xmas-history { text-align: left; margin-top: 16px; border-top: 1px dashed rgba(246,211,101,.4); padding-top: 12px; }
+.xmas-history ul { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 6px; }
+.xmas-history li { display: flex; gap: 10px; align-items: center; }
+.xmas-history li img, .xmas-history li .xmas-initials { border-radius: 50%; object-fit: cover; flex: none; border: 2px solid #f6d365; }
+.xmas-history strong { color: #f6d365; font-variant-numeric: tabular-nums; }
+
+.win-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
+  background: radial-gradient(circle at 50% 40%, rgba(122,11,28,.75), rgba(5,12,24,.96) 70%), rgba(5,12,24,.6); backdrop-filter: blur(4px); animation: fadeIn .3s ease; }
+.fireworks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.win-content { position: relative; text-align: center; color: #fff8ec; animation: popIn .6s cubic-bezier(.2,1.5,.4,1); }
+.win-title { font-size: clamp(2.6rem, 13vw, 9rem); font-weight: 900; line-height: .95; letter-spacing: .02em;
+  background: linear-gradient(180deg, #fffbe6 0%, #ffd166 45%, #d4a017 70%, #fff3c4 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 0 #7a0b1c) drop-shadow(0 0 30px rgba(255,209,102,.7)); animation: glow 1.4s ease-in-out infinite alternate; }
+.win-face { margin: 18px auto 8px; width: max-content; animation: float 3s ease-in-out infinite; }
+.win-num { font-size: clamp(2.4rem, 10vw, 4.5rem); font-weight: 900; color: #ffd166; font-variant-numeric: tabular-nums; text-shadow: 0 3px 0 #7a0b1c; }
+.win-name { font-size: clamp(1.4rem, 5vw, 2.2rem); font-weight: 800; }
+.win-rank { color: #ffd9a8; font-size: 1.05rem; }
+.win-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+.win-actions .xmas-btn { width: auto; }
+.win-actions .secondary { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.35); }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes popIn { from { transform: scale(.4); opacity: 0; } }
+@keyframes glow { to { filter: drop-shadow(0 4px 0 #7a0b1c) drop-shadow(0 0 50px rgba(255,209,102,1)); } }
+@keyframes float { 50% { transform: translateY(-8px); } }
+@media (max-width: 600px) {
+  .xmas-page .container { padding-top: 30px; }
+  .xmas-card { padding: 16px; }
+  .xmas-card .num { font-size: 2.4rem; }
+  .win-face img, .win-face .xmas-initials { width: 140px !important; height: 140px !important; }
+}
