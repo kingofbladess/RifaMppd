@@ -294,8 +294,6 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .btn.xmas-btn:hover { background: linear-gradient(180deg, #3ad181, #128a47); box-shadow: 0 12px 26px -6px rgba(46,229,157,.7); }
 .xmas-btn:not(:disabled) { animation: pulse 2.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { box-shadow: 0 8px 20px -6px rgba(46,229,157,.6), 0 0 0 0 rgba(246,211,101,.5); } 50% { box-shadow: 0 8px 20px -6px rgba(46,229,157,.6), 0 0 0 10px rgba(246,211,101,0); } }
-.sound-btn { margin-top: 10px; background: none; border: 0; color: rgba(255,248,236,.75); font: inherit; font-size: .85rem; cursor: pointer; padding: 6px 10px; border-radius: 8px; }
-.sound-btn:hover { background: rgba(255,255,255,.08); color: #fff; }
 .xmas-history { text-align: left; margin-top: 16px; border-top: 1px dashed rgba(246,211,101,.4); padding-top: 12px; }
 .xmas-history ul { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 6px; }
 .xmas-history li { display: flex; gap: 10px; align-items: center; }
@@ -346,7 +344,7 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .xmas-page .topbar { flex: none; margin-bottom: 10px; flex-wrap: nowrap; }
 .xmas-page .stage { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 340px; align-items: center; }
 .xmas-page .wheel-box { width: min(100%, calc(100dvh - 150px)); max-width: none; margin: 4% auto 0; } /* el ancho exacto lo calcula Wheel.tsx */
-.xmas-page .xmas-card.winner { max-height: 100%; overflow-y: auto; scrollbar-width: thin; }
+.xmas-page .xmas-card.winner { max-height: 100%; overflow: hidden; }
 .xmas-page .xmas-history ul { max-height: 24dvh; overflow-y: auto; }
 @media (max-width: 900px) {
   .xmas-page .container { padding: 24px 10px 10px; }
@@ -368,8 +366,6 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .xmas-page .xmas-rank { grid-column: 2; font-size: .78rem; }
   .xmas-page .xmas-count { grid-column: 2; margin: 0; font-size: .75rem; }
   .xmas-page .xmas-btn { grid-column: 1 / -1; margin-top: 6px; min-height: 46px; padding: 10px; font-size: 1.05rem; }
-  .xmas-page .sound-btn { position: absolute; top: 4px; right: 6px; margin: 0; padding: 4px 8px; font-size: 1rem; }
-  .xmas-page .sound-text { display: none; }
   .xmas-page .xmas-card > .error { grid-column: 1 / -1; margin: 4px 0 0; }
   /* Ganadores en una fila deslizable */
   .xmas-page .xmas-history { grid-column: 1 / -1; margin-top: 6px; padding-top: 6px; display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -432,3 +428,14 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .winners-rail:hover ul.rolling { animation-play-state: paused; }
 @keyframes railDown { from { transform: translateY(-50%); } to { transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .winners-rail ul.rolling { animation: none; } }
+
+/* Recuadro sin scroll: foto, número y botón se achican con la altura de la pantalla */
+@media (min-width: 901px) {
+  .xmas-page .xmas-card.winner { padding: clamp(10px, 2.4dvh, 22px) clamp(14px, 2dvh, 22px); }
+  .xmas-page .xmas-face { margin: clamp(4px, 1.2dvh, 10px) auto clamp(2px, .8dvh, 6px); }
+  .xmas-page .xmas-face img, .xmas-page .xmas-face .xmas-initials { width: clamp(60px, 19dvh, 150px) !important; height: clamp(60px, 19dvh, 150px) !important; font-size: clamp(1.3rem, 4.2dvh, 3.2rem) !important; }
+  .xmas-page .xmas-card .num { font-size: clamp(1.8rem, 6.5dvh, 3rem); line-height: 1.1; }
+  .xmas-page .xmas-name { font-size: clamp(1rem, 3dvh, 1.35rem); line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .xmas-page .xmas-count { margin: clamp(4px, 1.4dvh, 14px) 0; }
+  .xmas-page .btn.xmas-btn { min-height: 0; padding-block: clamp(8px, 1.8dvh, 14px); }
+}

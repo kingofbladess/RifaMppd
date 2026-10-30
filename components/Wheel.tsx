@@ -43,8 +43,6 @@ function useSounds() {
   const ctxRef = useRef<AudioContext | null>(null);
   const outRef = useRef<AudioNode | null>(null);
   const noiseRef = useRef<AudioBuffer | null>(null);
-  const [muted, setMuted] = useState(false);
-  useEffect(() => { try { setMuted(localStorage.getItem("ruleta-mute") === "1"); } catch {} }, []);
   const audio = () => {
     if (!ctxRef.current) {
       const ac = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -82,15 +80,12 @@ function useSounds() {
     src.start(t, Math.random() * 1.2); src.stop(t + dur + .05);
   };
   return {
-    muted,
-    toggle: () => setMuted((m) => { try { localStorage.setItem("ruleta-mute", m ? "0" : "1"); } catch {} return !m; }),
-    unlock: () => { if (!muted) audio(); },
-    tick: () => { if (!muted) tone(1400, 0, .04, "square", .05); },
+    unlock: () => { audio(); },
+    tick: () => { tone(1400, 0, .04, "square", .05); },
     // Cohete subiendo: soplido suave que sube de tono.
-    launch: (pan: number) => { if (!muted) noise(0, .9, .035, "bandpass", 500, 2200, pan, .25); },
+    launch: (pan: number) => { noise(0, .9, .035, "bandpass", 500, 2200, pan, .25); },
     // Estallido: golpe grave + ruido que se apaga y a veces chisporroteo.
     boom: (pan: number, big = Math.random()) => {
-      if (muted) return;
       const ac = audio(), vol = .45 + big * .4, delay = Math.random() * .08;
       const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + delay;
       o.type = "sine"; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(35, t + .5);
@@ -402,9 +397,6 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
         <p className="xmas-count">{n} participantes</p>
         <button className="btn xmas-btn" onClick={spin} disabled={spinning}>
           {spinning ? "Girando…" : "🎁 Girar ruleta"}
-        </button>
-        <button className="sound-btn" onClick={sounds.toggle} aria-label={sounds.muted ? "Activar sonido" : "Silenciar"}>
-          {sounds.muted ? "🔇" : "🔊"}<span className="sound-text">{sounds.muted ? " Sonido apagado" : " Sonido activado"}</span>
         </button>
         {error && <p className="error">{error}</p>}
       </aside>
