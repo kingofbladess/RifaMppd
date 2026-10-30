@@ -7,6 +7,7 @@ export type WheelParticipant = { id: string; name: string; number: number; rank:
 const COLORS = ["#ff2e88", "#ffb703", "#00a896", "#7b2ff7", "#ff6b35", "#2f80ff", "#06d6a0", "#c026d3"];
 // Texto oscuro sobre los colores claros (amarillo y verde menta) para que se lea bien.
 const LIGHT = new Set(["#ffb703", "#06d6a0"]);
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 const SIZE = 1000;
 const TAU = Math.PI * 2;
 const SPIN_MS = 8000;
@@ -73,6 +74,19 @@ export default function Wheel({ participants, digits }: { participants: WheelPar
           ctx.translate(px, 0);
           ctx.rotate(Math.PI / 2);
           ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        } else {
+          // Sin foto: iniciales sobre el color de la porción
+          ctx.fillStyle = COLORS[i % COLORS.length];
+          ctx.globalAlpha = .25;
+          ctx.fillRect(px - pr, -pr, pr * 2, pr * 2);
+          ctx.globalAlpha = 1;
+          ctx.translate(px, 0);
+          ctx.rotate(Math.PI / 2);
+          ctx.fillStyle = "#1f1235";
+          ctx.font = `800 ${Math.round(pr * .8)}px system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(initials(p.name), 0, 1);
         }
         ctx.restore();
         ctx.beginPath();
@@ -183,7 +197,7 @@ export default function Wheel({ participants, digits }: { participants: WheelPar
         <div className="small">{winner ? "🎉 ¡Ganador!" : spinning ? "Girando…" : "En el puntero"}</div>
         {shown?.photoUrl
           ? <img src={shown.photoUrl} alt={shown.name} />
-          : <div className="avatar" style={{ width: 160, height: 160, margin: "0 auto" }} />}
+          : <div className="avatar initials" style={{ width: 160, height: 160, margin: "0 auto", fontSize: "3.4rem" }}>{shown ? initials(shown.name) : ""}</div>}
         <div className="num">{shown ? pad(shown.number) : "—"}</div>
         <div style={{ fontSize: "1.3rem", fontWeight: 700 }}>{shown?.name}</div>
         {shown?.rank && <div className="small">{shown.rank}</div>}

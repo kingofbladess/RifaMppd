@@ -22,7 +22,10 @@ export default function PanelList({ rows }: { rows: PanelRow[] }) {
   const extra = (r: PanelRow) => r.hasIdDoc
     ? <a href={`/api/admin/document/${r.id}`} target="_blank" rel="noreferrer">Ver cédula</a>
     : <span className="small">{r.photoSource === "api" ? "Foto API" : "Foto nueva"}</span>;
-  const avatar = (r: PanelRow) => r.photoUrl ? <img className="avatar" src={r.photoUrl} alt="" /> : <div className="avatar" />;
+  const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const avatar = (r: PanelRow) => r.photoUrl
+    ? <img className="avatar" src={r.photoUrl} alt="" />
+    : <div className="avatar initials" style={{ fontSize: ".85rem" }}>{initials(r.name)}</div>;
 
   return (
     <>

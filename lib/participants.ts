@@ -22,9 +22,12 @@ export async function getWheelParticipants(): Promise<WheelParticipant[]> {
   if (error) throw error;
   if (!data.length) return [];
 
-  const { data: signed } = await sb.storage.from(BUCKET_PHOTOS)
-    .createSignedUrls(data.map((p) => p.photo_path), 60 * 60);
-  const urlByPath = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
+  // Las personas de prueba usan "temp/…" y no tienen archivo: la ruleta muestra sus iniciales.
+  const paths = data.map((p) => p.photo_path).filter((path) => !path.startsWith("temp/"));
+  const { data: signed } = paths.length
+    ? await sb.storage.from(BUCKET_PHOTOS).createSignedUrls(paths, 60 * 60)
+    : { data: [] };
+  const urlByPath = new Map((signed ?? []).filter((s) => !s.error && s.signedUrl).map((s) => [s.path, s.signedUrl]));
 
   return data.map((p) => ({
     id: p.id, name: p.full_name, number: p.raffle_number, rank: p.rank,

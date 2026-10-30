@@ -230,3 +230,8 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .op-badges .badge { font-size: .78rem; padding: 4px 10px; white-space: nowrap; }
   .panel-search { max-width: none; margin-bottom: 10px; }
 }
+.demo-box { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; }
+.demo-box .small { margin-right: auto; }
+.demo-box .btn { min-height: 0; padding: 8px 12px; font-size: .85rem; }
+.btn.secondary.danger:hover { color: var(--err); border-color: color-mix(in srgb, var(--err) 45%, var(--border)); background: color-mix(in srgb, var(--err) 7%, var(--surface)); }
+.initials { display: grid; place-items: center; color: #fff; font-weight: 800; background: var(--grad); }

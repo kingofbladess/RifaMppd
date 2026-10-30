@@ -5,7 +5,8 @@ import PanelList, { type PanelRow } from "@/components/PanelList";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ demo?: string; n?: string }> }) {
+  const { demo, n } = await searchParams;
   const raffle = await getActiveRaffle();
   const sb = supabaseAdmin();
   const { data: rows } = raffle
@@ -14,10 +15,16 @@ export default async function AdminPage() {
         .eq("raffle_id", raffle.id).order("created_at", { ascending: false })
     : { data: [] };
   const list = rows ?? [];
-  const { data: signed } = list.length
-    ? await sb.storage.from(BUCKET_PHOTOS).createSignedUrls(list.map((r) => r.photo_path), 600)
+  const realPaths = list.map((r) => r.photo_path).filter((path) => !path.startsWith("temp/"));
+  const { data: signed } = realPaths.length
+    ? await sb.storage.from(BUCKET_PHOTOS).createSignedUrls(realPaths, 600)
     : { data: [] };
-  const photo = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
+  const photo = new Map((signed ?? []).filter((s) => !s.error && s.signedUrl).map((s) => [s.path, s.signedUrl]));
+  const tempCount = list.filter((p) => p.document_number.startsWith("TEMP")).length;
+  const demoMsg: Record<string, string> = {
+    agregados: `Se agregaron ${n ?? 0} personas de prueba.`, borrados: "Se borraron las personas de prueba.",
+    error: "No se pudo completar la acción de prueba.", "sin-rifa": "No hay una rifa activa.",
+  };
   const digits = String(raffle?.number_max ?? 9999).length;
   const byOperator = new Map<string, number>();
   list.forEach((p) => byOperator.set(p.registered_by_name ?? "—", (byOperator.get(p.registered_by_name ?? "—") ?? 0) + 1));
@@ -56,7 +63,20 @@ export default async function AdminPage() {
           ))}
         </div>
       )}
+      {demo && demoMsg[demo] && <p className={demo === "error" || demo === "sin-rifa" ? "error" : "small"} style={{ marginTop: 0 }}>{demoMsg[demo]}</p>}
       <PanelList rows={panelRows} />
+      <div className="demo-box">
+        <span className="small">Datos de prueba{tempCount ? ` · ${tempCount} en la rifa` : ""}</span>
+        <form method="post" action="/api/admin/demo">
+          <button className="btn secondary">🧪 Agregar 10 de prueba</button>
+        </form>
+        {tempCount > 0 && (
+          <form method="post" action="/api/admin/demo">
+            <input type="hidden" name="action" value="clear" />
+            <button className="btn secondary danger">🗑️ Borrar prueba</button>
+          </form>
+        )}
+      </div>
     </main>
   );
 }
