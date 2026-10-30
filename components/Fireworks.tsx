@@ -1,14 +1,19 @@
 "use client";
 import { useEffect, useRef } from "react";
 
+type Sound = (pan: number, big?: number) => void;
+
 const COLORS = ["#ffd166", "#ff3b3b", "#2ee59d", "#ffffff", "#ff8fab", "#7cc6ff", "#f5c542"];
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number };
 type Rocket = { x: number; y: number; vx: number; vy: number; targetY: number; color: string };
 
 // Fuegos artificiales en un canvas a pantalla completa: cohetes que suben y estallan con gravedad.
-export default function Fireworks({ active }: { active: boolean }) {
+export default function Fireworks({ active, onLaunch, onBurst }: { active: boolean; onLaunch?: Sound; onBurst?: Sound }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  // Los sonidos se leen por ref para no reiniciar la animación si cambian.
+  const sound = useRef({ onLaunch, onBurst });
+  sound.current = { onLaunch, onBurst };
   useEffect(() => {
     if (!active) return;
     const canvas = ref.current!;
@@ -29,6 +34,7 @@ export default function Fireworks({ active }: { active: boolean }) {
     const explode = (x: number, y: number, color: string) => {
       const count = reduce ? 30 : 70 + Math.floor(Math.random() * 40);
       const ring = Math.random() < .35;
+      sound.current.onBurst?.(Math.max(-1, Math.min(1, (x / w) * 2 - 1)) * .8, Math.max(0, (count - 70) / 40));
       for (let i = 0; i < count; i++) {
         const a = (i / count) * Math.PI * 2 + Math.random() * .2;
         const sp = ring ? 4.2 : 1 + Math.random() * 4.5;
@@ -39,6 +45,7 @@ export default function Fireworks({ active }: { active: boolean }) {
     };
     const launch = () => {
       const x = w * (.15 + Math.random() * .7);
+      sound.current.onLaunch?.(((x / w) * 2 - 1) * .8);
       rockets.push({ x, y: h, vx: (Math.random() - .5) * 1.5, vy: -(9 + Math.random() * 4), targetY: h * (.12 + Math.random() * .35), color: pick() });
     };
     // Primera ráfaga de 3 a la vez

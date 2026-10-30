@@ -37,13 +37,25 @@ function spinProgress(u: number) {
   return i >= PROFILE.length - 1 ? 1 : PROFILE[i] + (PROFILE[i + 1] - PROFILE[i]) * f;
 }
 
-// Sonidos generados con Web Audio (sin archivos): "tic" al pasar cada porción y campanitas al ganar.
+// Sonidos generados con Web Audio (sin archivos): "tic" al pasar cada porción y fuegos artificiales al ganar.
+// Los fuegos se hacen con ruido filtrado (como una explosión real): silbido de subida, estallido grave y chisporroteo.
 function useSounds() {
   const ctxRef = useRef<AudioContext | null>(null);
+  const outRef = useRef<AudioNode | null>(null);
+  const noiseRef = useRef<AudioBuffer | null>(null);
   const [muted, setMuted] = useState(false);
   useEffect(() => { try { setMuted(localStorage.getItem("ruleta-mute") === "1"); } catch {} }, []);
   const audio = () => {
-    if (!ctxRef.current) ctxRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    if (!ctxRef.current) {
+      const ac = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      // Un compresor evita que varias explosiones juntas saturen los parlantes.
+      const comp = ac.createDynamicsCompressor();
+      comp.threshold.value = -14; comp.ratio.value = 6;
+      comp.connect(ac.destination);
+      const buf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      ctxRef.current = ac; outRef.current = comp; noiseRef.current = buf;
+    }
     if (ctxRef.current.state === "suspended") ctxRef.current.resume();
     return ctxRef.current;
   };
@@ -52,18 +64,44 @@ function useSounds() {
     o.type = type; o.frequency.value = freq;
     g.gain.setValueAtTime(vol, ac.currentTime + at);
     g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + at + dur);
-    o.connect(g).connect(ac.destination);
+    o.connect(g).connect(outRef.current!);
     o.start(ac.currentTime + at); o.stop(ac.currentTime + at + dur + .02);
+  };
+  // Ruido que pasa por un filtro y un volumen con forma; pan -1 (izquierda) a 1 (derecha).
+  const noise = (at: number, dur: number, vol: number, filter: BiquadFilterType, f0: number, f1: number, pan: number, attack = .004) => {
+    const ac = audio(), t = ac.currentTime + at;
+    const src = ac.createBufferSource(), bq = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = noiseRef.current; src.playbackRate.value = .8 + Math.random() * .4;
+    bq.type = filter; bq.frequency.setValueAtTime(f0, t); bq.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    let node: AudioNode = g;
+    if (ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = pan; g.connect(p); node = p; }
+    node.connect(outRef.current!);
+    src.connect(bq).connect(g);
+    src.start(t, Math.random() * 1.2); src.stop(t + dur + .05);
   };
   return {
     muted,
     toggle: () => setMuted((m) => { try { localStorage.setItem("ruleta-mute", m ? "0" : "1"); } catch {} return !m; }),
     unlock: () => { if (!muted) audio(); },
     tick: () => { if (!muted) tone(1400, 0, .04, "square", .05); },
-    win: () => {
+    // Cohete subiendo: soplido suave que sube de tono.
+    launch: (pan: number) => { if (!muted) noise(0, .9, .035, "bandpass", 500, 2200, pan, .25); },
+    // Estallido: golpe grave + ruido que se apaga y a veces chisporroteo.
+    boom: (pan: number, big = Math.random()) => {
       if (muted) return;
-      [784, 988, 1175, 1568, 1319, 1568].forEach((f, i) => tone(f, i * .12, .5, "triangle", .18));
-      [2093, 2637, 3136].forEach((f, i) => tone(f, .8 + i * .09, .7, "sine", .08));
+      const ac = audio(), vol = .45 + big * .4, delay = Math.random() * .08;
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + delay;
+      o.type = "sine"; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(35, t + .5);
+      g.gain.setValueAtTime(vol * .9, t); g.gain.exponentialRampToValueAtTime(.0001, t + .55);
+      o.connect(g).connect(outRef.current!); o.start(t); o.stop(t + .6);
+      noise(delay, 1.4 + big, vol, "lowpass", 2600, 180, pan);
+      noise(delay + .03, 2.2, vol * .18, "lowpass", 600, 120, -pan * .5, .05); // eco lejano
+      if (Math.random() < .55) {
+        const n = 14 + Math.floor(Math.random() * 22);
+        for (let i = 0; i < n; i++) noise(delay + .35 + Math.random() * 1.3, .03 + Math.random() * .04, .05 + Math.random() * .08, "highpass", 2500 + Math.random() * 3000, 1800, pan + (Math.random() - .5) * .6, .002);
+      }
     },
   };
 }
@@ -304,7 +342,6 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       const w = participants[idx];
       setWinner(w);
       setHistory((h) => [w, ...h]);
-      sounds.win();
       setTimeout(() => setShowWin(true), 350);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -375,7 +412,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       {showWin && winner && (
         <div className="win-overlay" role="dialog" aria-modal="true" aria-label={`Ganador ${winner.name}`} onClick={closeWin}>
           <WavingFlag />
-          <Fireworks active />
+          <Fireworks active onLaunch={sounds.launch} onBurst={sounds.boom} />
           <div className="win-content" onClick={(e) => e.stopPropagation()}>
             <div className="win-title">¡GANADOR!</div>
             <div className="win-face">{face(winner, 190, "4rem")}</div>
