@@ -78,6 +78,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   const boxRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLElement>(null);
+  const railRef = useRef<HTMLElement>(null);
   const rotation = useRef(0);
   const images = useRef(new Map<string, HTMLImageElement>());
   const [spinning, setSpinning] = useState(false);
@@ -221,19 +222,20 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   // La ruleta toma el tamaño más grande que cabe en la pantalla sin scroll:
   // en PC al lado del recuadro; en celular, el alto que deja libre el recuadro de abajo.
   useEffect(() => {
-    const stage = stageRef.current, card = cardRef.current, box = boxRef.current;
-    if (!stage || !card || !box) return;
+    const stage = stageRef.current, card = cardRef.current, box = boxRef.current, rail = railRef.current;
+    if (!stage || !card || !box || !rail) return;
     const fit = () => {
       const stacked = window.innerWidth <= 900;
       const POINTER = 0.06; // la estrella del puntero sobresale ~6 % por arriba
+      const railW = rail.offsetWidth ? rail.offsetWidth + (stacked ? 8 : 24) : 0;
       const availH = stacked ? stage.clientHeight - card.offsetHeight - 8 : stage.clientHeight;
-      const availW = stacked ? stage.clientWidth : stage.clientWidth - card.offsetWidth - 24;
+      const availW = stage.clientWidth - railW - (stacked ? 0 : card.offsetWidth + 24);
       const size = Math.max(200, Math.floor(Math.min(availW, availH / (1 + POINTER))));
       box.style.width = `${size}px`;
     };
     fit();
     const ro = new ResizeObserver(fit);
-    ro.observe(stage); ro.observe(card);
+    ro.observe(stage); ro.observe(card); ro.observe(rail);
     return () => ro.disconnect();
   }, [n]);
 
@@ -315,6 +317,24 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
 
   return (
     <div className="stage" ref={stageRef}>
+      {/* Ganadores a la izquierda: cada nuevo cae desde arriba y todos flotan suavemente */}
+      <aside className={`winners-rail${history.length ? "" : " empty"}`} ref={railRef} aria-label="Ganadores">
+        <div className="xmas-label">🏆 Ganadores</div>
+        {history.length ? (
+          <ul>
+            {history.map((h, i) => (
+              <li key={h.id}>
+                <div className="float" style={{ animationDelay: `${-(i % 5) * .6}s` }}>
+                  {face(h, 40, ".85rem")}
+                  <span className="w-num">{pad(h.number)}</span>
+                  <span className="w-name">{h.name}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="w-empty">Aquí aparecerán los ganadores 🎁</p>}
+      </aside>
+
       <div ref={boxRef} className={`wheel-box xmas-wheel${spinning ? " is-spinning" : ""}${winner && !spinning ? " has-winner" : ""}`}>
         <div className="xmas-pointer" ref={pointerRef}><span>⭐</span></div>
         <canvas ref={canvasRef} width={SIZE} height={SIZE} aria-label="Ruleta de participantes" />
@@ -339,16 +359,6 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
           {sounds.muted ? "🔇" : "🔊"}<span className="sound-text">{sounds.muted ? " Sonido apagado" : " Sonido activado"}</span>
         </button>
         {error && <p className="error">{error}</p>}
-        {history.length > 0 && (
-          <div className="xmas-history">
-            <div className="xmas-label">Ganadores</div>
-            <ul>
-              {history.map((h, i) => (
-                <li key={i}>{face(h, 36, ".8rem")}<strong>{pad(h.number)}</strong> {h.name}</li>
-              ))}
-            </ul>
-          </div>
-        )}
       </aside>
 
       {showWin && winner && (
