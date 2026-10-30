@@ -14,7 +14,7 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
           <h1>Usuarios</h1>
           <p className="sub" style={{ margin: 0 }}>Cada operador entra con su usuario y pueden registrar al mismo tiempo.</p>
         </div>
-        <a className="btn secondary" href="/admin">← Panel</a>
+        <div className="topbar-actions"><a className="btn secondary" href="/admin">← Panel</a></div>
       </div>
 
       <form className="card" method="post" action="/api/admin/users" style={{ marginBottom: 20 }}>

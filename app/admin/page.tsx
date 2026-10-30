@@ -29,7 +29,7 @@ export default async function AdminPage() {
           <h1>Panel · {raffle?.name ?? "Sin rifa activa"}</h1>
           <p className="sub" style={{ margin: 0 }}>{list.length} inscritos · {total - list.length} números disponibles</p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="topbar-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <a className="btn" href="/ruleta">🎡 Abrir ruleta</a>
           <a className="btn secondary" href="/registro">➕ Registrar</a>
           <a className="btn secondary" href="/admin/usuarios">👥 Usuarios</a>

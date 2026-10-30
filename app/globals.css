@@ -1,10 +1,10 @@
 :root {
   --bg: #f6f4ef; --surface: #ffffff; --text: #1d1b22; --muted: #6b6775; --border: #e3dfd6;
-  --accent: #d6336c; --accent-2: #f59f00; --ok: #2b8a3e; --err: #c92a2a;
+  --accent: #d6336c; --accent-2: #f59f00; --ok: #2b8a3e; --err: #c92a2a; --warn: #9a5b00;
   --radius: 14px; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #121117; --surface: #1c1b23; --text: #f1eff5; --muted: #a29fae; --border: #2e2c38; --shadow: none; }
+  :root { --bg: #121117; --surface: #1c1b23; --text: #f1eff5; --muted: #a29fae; --border: #2e2c38; --shadow: none; --warn: #f5b041; }
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text);
@@ -102,8 +102,8 @@ fieldset:disabled { opacity: .6; }
 .preview .cam-actions .shutter { flex: 2 1 0; padding: 10px; font-size: 1rem; }
 .preview .cam-actions .secondary { flex: 1 1 0; font-size: .8rem; padding: 8px; }
 .preview > .link { justify-self: start; padding: 0; }
-.badge.warn { background: color-mix(in srgb, var(--accent-2) 20%, transparent); color: #9a5b00; }
-.warn-text { color: #9a5b00; }
+.badge.warn { background: color-mix(in srgb, var(--accent-2) 20%, transparent); color: var(--warn); }
+.warn-text { color: var(--warn); }
 .id-thumb { display: flex; align-items: center; gap: 10px; }
 .id-thumb img { height: 70px; border-radius: 8px; }
 /* ---------- Móvil / app instalada ---------- */
@@ -128,7 +128,9 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .grid.two input { padding: 9px 10px; }
   .check { font-size: .78rem; }
   .container { padding: 6px 12px 12px; }
-  .topbar { margin-bottom: 8px; flex-wrap: nowrap; }
+  .topbar { margin-bottom: 8px; }
+  .topbar.compact { flex-wrap: nowrap; }
+  .topbar-actions .btn { min-height: 0; padding: 8px 12px; font-size: .85rem; }
   .topbar h1 { font-size: 1.05rem; margin: 0; }
   .topbar .sub { font-size: .78rem; }
   .top-actions .btn { min-height: 0; padding: 6px 12px; font-size: .85rem; }

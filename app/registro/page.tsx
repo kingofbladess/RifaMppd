@@ -8,7 +8,7 @@ export default async function RegistroPage() {
   const [raffle, session] = await Promise.all([getActiveRaffle(), getSession()]);
   return (
     <main className="container" style={{ maxWidth: 960 }}>
-      <div className="topbar">
+      <div className="topbar compact">
         <div>
           <h1>🎟️ {raffle?.name ?? "Rifa"}</h1>
           <p className="sub" style={{ margin: 0 }}>👤 {session?.name}</p>
