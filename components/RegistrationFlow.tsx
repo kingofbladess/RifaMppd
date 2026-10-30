@@ -1,0 +1,234 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Camera from "./Camera";
+import { dataUrlToJpeg } from "@/lib/image";
+
+type Person = {
+  full_name: string; document_type: string; document_number: string;
+  birth_date: string; city: string; phone: string; email: string;
+};
+type Lookup = {
+  found: boolean; source: "api" | "demo"; person: Person | null; photo: string | null; photoDate: string | null;
+  apiError?: string; existing: { raffle_number: number; full_name: string; registered_by_name: string | null } | null;
+};
+type Saved = { number: number; name: string; photo: string | null };
+
+const EMPTY: Person = { full_name: "", document_type: "CC", document_number: "", birth_date: "", city: "", phone: "", email: "" };
+
+function useObjectUrl(blob: Blob | null) {
+  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob]);
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  return url;
+}
+
+function yearsSince(date: string | null) {
+  if (!date) return null;
+  const y = (Date.now() - Date.parse(date)) / (365.25 * 24 * 3600 * 1000);
+  return Number.isFinite(y) ? Math.floor(y) : null;
+}
+
+export default function RegistrationFlow({ digits }: { digits: number }) {
+  const docRef = useRef<HTMLInputElement>(null);
+  const [doc, setDoc] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [lookup, setLookup] = useState<Lookup | null>(null);
+  const [fields, setFields] = useState<Person>(EMPTY);
+  const [newPhoto, setNewPhoto] = useState<Blob | null>(null); // foto tomada con la cámara
+  const [camera, setCamera] = useState<"photo" | "id" | null>(null);
+  const [idPhoto, setIdPhoto] = useState<Blob | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<Saved | null>(null);
+  const [count, setCount] = useState(0);
+  const newPhotoUrl = useObjectUrl(newPhoto);
+  const idPhotoUrl = useObjectUrl(idPhoto);
+
+  const pad = (n: number) => String(n).padStart(digits, "0");
+  const set = (k: keyof Person, v: string) => setFields((f) => ({ ...f, [k]: v }));
+  const shownPhoto = newPhotoUrl ?? lookup?.photo ?? null;
+  const photoAge = yearsSince(lookup?.photoDate ?? null);
+
+  useEffect(() => { docRef.current?.focus(); }, []);
+
+  function clear() {
+    setLookup(null); setFields(EMPTY); setNewPhoto(null); setIdPhoto(null);
+    setCamera(null); setConsent(false); setError(null);
+  }
+
+  async function search(e?: React.FormEvent) {
+    e?.preventDefault();
+    const clean = doc.replace(/\D/g, "");
+    if (clean.length < 4) return setError("Escribe un número de cédula válido");
+    clear(); setSaved(null); setLoading(true);
+    try {
+      const r = await fetch(`/api/lookup?doc=${clean}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "Error al consultar");
+      setLookup(j);
+      setFields({ ...EMPTY, ...(j.person ?? {}), document_number: clean });
+      if (!j.photo && !j.existing) setCamera("photo"); // sin foto: abrir la cámara directamente
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!shownPhoto) return setError("Falta la foto de la persona. Tómala con la cámara.");
+    setSaving(true);
+    try {
+      const photoBlob = newPhoto ?? (await dataUrlToJpeg(lookup!.photo!, 900));
+      const fd = new FormData();
+      Object.entries(fields).forEach(([k, v]) => fd.set(k, v));
+      if (consent) fd.set("consent", "on");
+      fd.set("photo", photoBlob, "foto.jpg");
+      fd.set("photo_source", newPhoto ? "camera" : "api");
+      if (idPhoto) fd.set("id_document", idPhoto, "documento.jpg");
+      const r = await fetch("/api/register", { method: "POST", body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? "No se pudo guardar");
+      setSaved({ number: j.number, name: j.name, photo: shownPhoto });
+      setCount((c) => c + 1);
+      clear(); setDoc("");
+      setTimeout(() => docRef.current?.focus(), 50);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="flow">
+      {saved && (
+        <div className="card saved">
+          {saved.photo && <img src={saved.photo} alt="" />}
+          <div>
+            <div className="small">✓ Registrado: {saved.name}</div>
+            <div className="num">{pad(saved.number)}</div>
+          </div>
+        </div>
+      )}
+
+      <form className="card search" onSubmit={search}>
+        <label htmlFor="doc">Número de cédula</label>
+        <div className="search-row">
+          <input id="doc" ref={docRef} value={doc} inputMode="numeric" autoComplete="off" placeholder="Ej. 1020456789"
+            onChange={(e) => setDoc(e.target.value.replace(/[^\d.]/g, ""))} />
+          <button className="btn" disabled={loading}>{loading ? <span className="spinner" /> : "Consultar"}</button>
+        </div>
+        {count > 0 && <div className="small" style={{ marginTop: 6 }}>Registrados en esta sesión: {count}</div>}
+        {!lookup && error && <p className="error">{error}</p>}
+      </form>
+
+      {lookup?.existing && (
+        <div className="card error-card">
+          ⚠️ Esta cédula ya está inscrita con el número <strong>{pad(lookup.existing.raffle_number)}</strong> ({lookup.existing.full_name}
+          {lookup.existing.registered_by_name ? `, registrado por ${lookup.existing.registered_by_name}` : ""}).
+        </div>
+      )}
+
+      {lookup && !lookup.existing && (
+        <form className="card preview" onSubmit={save}>
+          <div className="preview-head">
+            {lookup.source === "demo" && <span className="badge">Modo demo</span>}
+            {lookup.found
+              ? <span className="badge on">Encontrado en la API</span>
+              : <span className="badge warn">{lookup.apiError ?? "No encontrado en la API: completa los datos"}</span>}
+          </div>
+
+          <div className="preview-body">
+            <div className="photo-col">
+              {camera === "photo" ? (
+                <>
+                  <Camera facing="user" guide="face" maxSide={900} onCapture={(b) => { setNewPhoto(b); setCamera(null); }} />
+                  {shownPhoto && <button type="button" className="link" onClick={() => setCamera(null)}>Cancelar</button>}
+                </>
+              ) : (
+                <>
+                  <div className="photo-frame">
+                    {shownPhoto ? <img src={shownPhoto} alt="Foto de la persona" /> : <div className="no-photo">Sin foto</div>}
+                    {shownPhoto && <span className="photo-src">{newPhoto ? "Foto nueva" : "Foto de la API"}</span>}
+                  </div>
+                  {!newPhoto && photoAge !== null && photoAge >= 5 && (
+                    <div className="small warn-text">La foto tiene unos {photoAge} años. Considera actualizarla.</div>
+                  )}
+                  <button type="button" className="btn secondary" onClick={() => setCamera("photo")}>
+                    📸 {shownPhoto ? "Actualizar foto" : "Tomar foto"}
+                  </button>
+                  {newPhoto && lookup.photo && (
+                    <button type="button" className="link" onClick={() => setNewPhoto(null)}>Volver a la foto de la API</button>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="grid">
+              <div className="full">
+                <label htmlFor="full_name">Nombre completo</label>
+                <input id="full_name" value={fields.full_name} onChange={(e) => set("full_name", e.target.value)} required minLength={3} />
+              </div>
+              <div>
+                <label htmlFor="document_type">Tipo</label>
+                <select id="document_type" value={fields.document_type} onChange={(e) => set("document_type", e.target.value)}>
+                  <option value="CC">Cédula de ciudadanía</option>
+                  <option value="CE">Cédula de extranjería</option>
+                  <option value="TI">Tarjeta de identidad</option>
+                  <option value="PAS">Pasaporte</option>
+                  <option value="DNI">DNI</option>
+                  <option value="OTRO">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="document_number">Número</label>
+                <input id="document_number" value={fields.document_number} readOnly />
+              </div>
+              <div>
+                <label htmlFor="birth_date">Fecha de nacimiento</label>
+                <input id="birth_date" type="date" value={fields.birth_date} onChange={(e) => set("birth_date", e.target.value)} required />
+              </div>
+              <div>
+                <label htmlFor="city">Ciudad</label>
+                <input id="city" value={fields.city} onChange={(e) => set("city", e.target.value)} />
+              </div>
+              <div>
+                <label htmlFor="phone">Teléfono / WhatsApp</label>
+                <input id="phone" type="tel" value={fields.phone} onChange={(e) => set("phone", e.target.value)} required minLength={7} autoFocus={lookup.found} />
+              </div>
+              <div>
+                <label htmlFor="email">Correo (opcional)</label>
+                <input id="email" type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} />
+              </div>
+              <div className="full">
+                {camera === "id" ? (
+                  <Camera facing="environment" guide="card" maxSide={1800} onCapture={(b) => { setIdPhoto(b); setCamera(null); }} />
+                ) : idPhotoUrl ? (
+                  <div className="id-thumb"><img src={idPhotoUrl} alt="Cédula" />
+                    <button type="button" className="link" onClick={() => setIdPhoto(null)}>Quitar foto de la cédula</button></div>
+                ) : (
+                  <button type="button" className="link" onClick={() => setCamera("id")}>＋ Adjuntar foto de la cédula (opcional)</button>
+                )}
+              </div>
+              <label className="check full">
+                <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} required />
+                <span>El participante es mayor de edad y autoriza el tratamiento de sus datos y el uso de su nombre y foto en la ruleta.</span>
+              </label>
+              {error && <div className="error full">{error}</div>}
+              <div className="full" style={{ display: "flex", gap: 8 }}>
+                <button className="btn" type="submit" disabled={saving || camera !== null} style={{ flex: 1 }}>
+                  {saving ? "Guardando…" : "✓ Guardar y asignar número"}
+                </button>
+                <button type="button" className="btn secondary" onClick={() => { clear(); setDoc(""); docRef.current?.focus(); }}>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
