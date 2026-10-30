@@ -11,7 +11,8 @@ function read(...names: string[]): string | undefined {
 }
 
 export function supabaseEnv() {
-  const url = read("SUPABASE_URL", "NEXT_PUBLIC_" + "SUPABASE_URL");
+  // Acepta también la URL copiada con /rest/v1/ al final: supabase-js necesita solo la base.
+  const url = read("SUPABASE_URL", "NEXT_PUBLIC_" + "SUPABASE_URL")?.replace(/\/(rest|auth|storage)\/v1\/?$/, "").replace(/\/+$/, "");
   const key = read("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_KEY");
   const missing = [!url && "NEXT_PUBLIC_SUPABASE_URL", !key && "SUPABASE_SERVICE_ROLE_KEY"].filter(Boolean) as string[];
   return { url, key, missing };
