@@ -11,9 +11,9 @@ export default async function RegistroPage() {
       <div className="topbar">
         <div>
           <h1>🎟️ {raffle?.name ?? "Rifa"}</h1>
-          <p className="sub" style={{ margin: 0 }}>Operador: <strong>{session?.name}</strong></p>
+          <p className="sub" style={{ margin: 0 }}>👤 {session?.name}</p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="top-actions">
           {session?.role === "admin" && <a className="btn secondary" href="/admin">Panel</a>}
           <form method="post" action="/api/logout"><button className="btn secondary">Salir</button></form>
         </div>

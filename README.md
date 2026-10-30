@@ -79,8 +79,8 @@ cédula terminada en **0** = no encontrada, en número **par** = con foto, **imp
   (en Colombia, Ley 1581 de 2012; las rifas con venta de boletas requieren autorización de Coljuegos).
 - Regenera la clave secreta de Supabase si se compartió por chat, y no subas `.env.local` al repositorio.
 
-## Pendiente de definir
+## Pendiente
 
 - Documentación de la API real (URL, autenticación, formato de respuesta y de la foto).
-- ¿Se debe enviar la foto actualizada de vuelta a la API?
-- Pagos, varios números por persona, exportar a Excel.
+
+Decidido: la foto actualizada **no** se envía de vuelta a la API; no habrá pagos, varios números por persona ni exportación a Excel.

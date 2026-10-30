@@ -77,10 +77,10 @@ export default function Camera({ facing, guide, onCapture, maxSide }: Props) {
       <div className="cam-actions">
         <button type="button" className="btn shutter" onClick={shoot} disabled={!ready}>📸 Tomar foto</button>
         <button type="button" className="btn secondary" onClick={() => setMode(mode === "user" ? "environment" : "user")}>
-          🔄 Cambiar cámara
+          🔄 Cambiar
         </button>
         <label className="btn secondary">
-          📁 Subir archivo
+          📁 Archivo
           <input type="file" accept="image/*" hidden onChange={(e) => fromFile(e.target.files?.[0])} />
         </label>
       </div>

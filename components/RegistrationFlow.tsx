@@ -116,7 +116,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
       )}
 
       <form className="card search" onSubmit={search}>
-        <label htmlFor="doc">Número de cédula</label>
+        <label htmlFor="doc" className="search-label">Número de cédula</label>
         <div className="search-row">
           <input id="doc" ref={docRef} value={doc} inputMode="numeric" autoComplete="off" placeholder="Ej. 1020456789"
             onChange={(e) => setDoc(e.target.value.replace(/[^\d.]/g, ""))} />
@@ -135,98 +135,89 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
 
       {lookup && !lookup.existing && (
         <form className="card preview" onSubmit={save}>
-          <div className="preview-head">
-            {lookup.source === "demo" && <span className="badge">Modo demo</span>}
-            {lookup.found
-              ? <span className="badge on">Encontrado en la API</span>
-              : <span className="badge warn">{lookup.apiError ?? "No encontrado en la API: completa los datos"}</span>}
-          </div>
-
-          <div className="preview-body">
-            <div className="photo-col">
-              {camera === "photo" ? (
-                <>
-                  <Camera facing="environment" guide="face" maxSide={900} onCapture={(b) => { setNewPhoto(b); setCamera(null); }} />
-                  {shownPhoto && <button type="button" className="link" onClick={() => setCamera(null)}>Cancelar</button>}
-                </>
-              ) : (
-                <>
-                  <div className="photo-frame">
-                    {shownPhoto ? <img src={shownPhoto} alt="Foto de la persona" /> : <div className="no-photo">Sin foto</div>}
-                    {shownPhoto && <span className="photo-src">{newPhoto ? "Foto nueva" : "Foto de la API"}</span>}
-                  </div>
-                  {!newPhoto && photoAge !== null && photoAge >= 5 && (
-                    <div className="small warn-text">La foto tiene unos {photoAge} años. Considera actualizarla.</div>
-                  )}
-                  <button type="button" className="btn secondary" onClick={() => setCamera("photo")}>
-                    📸 {shownPhoto ? "Actualizar foto" : "Tomar foto"}
-                  </button>
-                  {newPhoto && lookup.photo && (
-                    <button type="button" className="link" onClick={() => setNewPhoto(null)}>Volver a la foto de la API</button>
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="grid">
-              <div className="full">
-                <label htmlFor="full_name">Nombre completo</label>
-                <input id="full_name" value={fields.full_name} onChange={(e) => set("full_name", e.target.value)} required minLength={3} />
+          <div className="person-head">
+            <button type="button" className="photo-frame" onClick={() => setCamera(camera === "photo" ? null : "photo")}
+              aria-label={shownPhoto ? "Actualizar foto" : "Tomar foto"}>
+              {shownPhoto ? <img src={shownPhoto} alt="Foto de la persona" /> : <span className="no-photo">📸<br />Sin foto</span>}
+              {shownPhoto && <span className="photo-src">{newPhoto ? "Nueva" : "API"}</span>}
+            </button>
+            <div className="person-info">
+              <div className="preview-head">
+                {lookup.source === "demo" && <span className="badge">Demo</span>}
+                {lookup.found
+                  ? <span className="badge on">Encontrado</span>
+                  : <span className="badge warn">{lookup.apiError ? "API no disponible" : "No encontrado"}</span>}
               </div>
-              <div>
-                <label htmlFor="document_type">Tipo</label>
-                <select id="document_type" value={fields.document_type} onChange={(e) => set("document_type", e.target.value)}>
-                  <option value="CC">Cédula de ciudadanía</option>
-                  <option value="CE">Cédula de extranjería</option>
-                  <option value="TI">Tarjeta de identidad</option>
-                  <option value="PAS">Pasaporte</option>
-                  <option value="DNI">DNI</option>
-                  <option value="OTRO">Otro</option>
+              <input className="name-input" aria-label="Nombre completo" placeholder="Nombre completo" value={fields.full_name}
+                onChange={(e) => set("full_name", e.target.value)} required minLength={3} />
+              <div className="doc-line">
+                <select aria-label="Tipo de documento" value={fields.document_type} onChange={(e) => set("document_type", e.target.value)}>
+                  <option value="CC">CC</option><option value="CE">CE</option><option value="TI">TI</option>
+                  <option value="PAS">PAS</option><option value="DNI">DNI</option><option value="OTRO">Otro</option>
                 </select>
+                <strong>{fields.document_number}</strong>
               </div>
-              <div>
-                <label htmlFor="document_number">Número</label>
-                <input id="document_number" value={fields.document_number} readOnly />
-              </div>
-              <div>
-                <label htmlFor="birth_date">Fecha de nacimiento</label>
-                <input id="birth_date" type="date" value={fields.birth_date} onChange={(e) => set("birth_date", e.target.value)} required />
-              </div>
-              <div>
-                <label htmlFor="city">Ciudad</label>
-                <input id="city" value={fields.city} onChange={(e) => set("city", e.target.value)} />
-              </div>
-              <div>
-                <label htmlFor="phone">Teléfono / WhatsApp</label>
-                <input id="phone" type="tel" value={fields.phone} onChange={(e) => set("phone", e.target.value)} required minLength={7} autoFocus={lookup.found} />
-              </div>
-              <div>
-                <label htmlFor="email">Correo (opcional)</label>
-                <input id="email" type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} />
-              </div>
-              <div className="full">
-                {camera === "id" ? (
-                  <Camera facing="environment" guide="card" maxSide={1800} onCapture={(b) => { setIdPhoto(b); setCamera(null); }} />
-                ) : idPhotoUrl ? (
-                  <div className="id-thumb"><img src={idPhotoUrl} alt="Cédula" />
-                    <button type="button" className="link" onClick={() => setIdPhoto(null)}>Quitar foto de la cédula</button></div>
-                ) : (
-                  <button type="button" className="link" onClick={() => setCamera("id")}>＋ Adjuntar foto de la cédula (opcional)</button>
+              <div className="photo-actions">
+                <button type="button" className="link" onClick={() => setCamera(camera === "photo" ? null : "photo")}>
+                  📸 {camera === "photo" ? "Cancelar cámara" : shownPhoto ? "Actualizar foto" : "Tomar foto"}
+                </button>
+                {newPhoto && lookup.photo && camera !== "photo" && (
+                  <button type="button" className="link" onClick={() => setNewPhoto(null)}>↩ Foto API</button>
                 )}
               </div>
-              <label className="check full">
-                <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} required />
-                <span>El participante es mayor de edad y autoriza el tratamiento de sus datos y el uso de su nombre y foto en la ruleta.</span>
-              </label>
-              {error && <div className="error full">{error}</div>}
-              <div className="full" style={{ display: "flex", gap: 8 }}>
-                <button className="btn" type="submit" disabled={saving || camera !== null} style={{ flex: 1 }}>
-                  {saving ? "Guardando…" : "✓ Guardar y asignar número"}
-                </button>
-                <button type="button" className="btn secondary" onClick={() => { clear(); setDoc(""); docRef.current?.focus(); }}>Cancelar</button>
-              </div>
+              {!newPhoto && photoAge !== null && photoAge >= 5 && camera !== "photo" && (
+                <div className="small warn-text">Foto de hace ~{photoAge} años</div>
+              )}
             </div>
           </div>
+
+          {camera === "photo" && (
+            <Camera facing="environment" guide="face" maxSide={900} onCapture={(b) => { setNewPhoto(b); setCamera(null); }} />
+          )}
+
+          {camera !== "photo" && <>
+          {!lookup.found && lookup.apiError && <p className="small warn-text" style={{ textAlign: "left" }}>{lookup.apiError}</p>}
+
+          <div className="grid two">
+            <div>
+              <label htmlFor="birth_date">Nacimiento</label>
+              <input id="birth_date" type="date" value={fields.birth_date} onChange={(e) => set("birth_date", e.target.value)} required />
+            </div>
+            <div>
+              <label htmlFor="city">Ciudad</label>
+              <input id="city" value={fields.city} onChange={(e) => set("city", e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="phone">Teléfono</label>
+              <input id="phone" type="tel" inputMode="tel" value={fields.phone} onChange={(e) => set("phone", e.target.value)} required minLength={7} />
+            </div>
+            <div>
+              <label htmlFor="email">Correo <span className="small">(opc.)</span></label>
+              <input id="email" type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} />
+            </div>
+          </div>
+
+          {camera === "id" ? (
+            <Camera facing="environment" guide="card" maxSide={1800} onCapture={(b) => { setIdPhoto(b); setCamera(null); }} />
+          ) : idPhotoUrl ? (
+            <div className="id-thumb"><img src={idPhotoUrl} alt="Cédula" />
+              <button type="button" className="link" onClick={() => setIdPhoto(null)}>Quitar foto de la cédula</button></div>
+          ) : (
+            <button type="button" className="link" onClick={() => setCamera("id")}>＋ Foto de la cédula (opcional)</button>
+          )}
+
+          <label className="check">
+            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} required />
+            <span>Mayor de edad; autoriza el uso de sus datos y su foto en la rifa.</span>
+          </label>
+          {error && <div className="error">{error}</div>}
+          <div className="form-actions">
+            <button className="btn" type="submit" disabled={saving || camera !== null}>
+              {saving ? "Guardando…" : "✓ Guardar"}
+            </button>
+            <button type="button" className="btn secondary" onClick={() => { clear(); setDoc(""); docRef.current?.focus(); }}>Cancelar</button>
+          </div>
+          </>}
         </form>
       )}
     </div>
