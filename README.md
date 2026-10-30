@@ -16,6 +16,16 @@ Varios operadores pueden registrar **al mismo tiempo**, cada uno con su usuario.
 | `/ruleta` | Admin | Ruleta con nombre, número y foto. El ganador lo elige el servidor y queda guardado |
 | `/privacidad` | Público | Plantilla de política de datos (complétala) |
 
+## App en el celular (operadores)
+
+La app es una **PWA**: se instala desde el navegador, sin Play Store ni App Store, y se actualiza sola con cada despliegue.
+
+- **Android (Chrome):** abre la URL de Vercel, entra y toca **Instalar** en el aviso de abajo (o menú ⋮ → *Instalar app*).
+- **iPhone (Safari):** botón **Compartir** → **Agregar a pantalla de inicio**.
+
+Se abre en pantalla completa directo en `/registro`, usa la cámara trasera para la foto y muestra un aviso si no hay internet.
+No guarda datos personales en el celular: todo se consulta y se guarda en el servidor.
+
 ## Flujo de registro
 
 1. El operador escribe la cédula y presiona Enter.
