@@ -13,7 +13,7 @@ const LIGHT = new Set(["#d4a017", "#f4efe1"]);
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 const SIZE = 1000;
 const TAU = Math.PI * 2;
-const SPIN_MS = 26000;     // duración total del giro
+const SPIN_MS = 10000;     // duración total del giro
 const TURNS = 5;          // vueltas mínimas
 const BULBS = 28;
 
