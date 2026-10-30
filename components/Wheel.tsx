@@ -76,6 +76,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLElement>(null);
   const rotation = useRef(0);
   const images = useRef(new Map<string, HTMLImageElement>());
   const [spinning, setSpinning] = useState(false);
@@ -216,6 +218,25 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     return () => window.removeEventListener("keydown", onKey);
   }, [showWin, closeWin]);
 
+  // La ruleta toma el tamaño más grande que cabe en la pantalla sin scroll:
+  // en PC al lado del recuadro; en celular, el alto que deja libre el recuadro de abajo.
+  useEffect(() => {
+    const stage = stageRef.current, card = cardRef.current, box = boxRef.current;
+    if (!stage || !card || !box) return;
+    const fit = () => {
+      const stacked = window.innerWidth <= 900;
+      const POINTER = 0.06; // la estrella del puntero sobresale ~6 % por arriba
+      const availH = stacked ? stage.clientHeight - card.offsetHeight - 8 : stage.clientHeight;
+      const availW = stacked ? stage.clientWidth : stage.clientWidth - card.offsetWidth - 24;
+      const size = Math.max(200, Math.floor(Math.min(availW, availH / (1 + POINTER))));
+      box.style.width = `${size}px`;
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(stage); ro.observe(card);
+    return () => ro.disconnect();
+  }, [n]);
+
   // "Girar otra vez": espera a que el ganador salga de la ruleta y luego gira con la lista nueva.
   useEffect(() => {
     if (queued && !showWin) { setQueued(false); spin(); }
@@ -293,7 +314,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     : <div className="xmas-initials" style={{ width: size, height: size, fontSize: font }}>{p ? initials(p.name) : "🎁"}</div>;
 
   return (
-    <div className="stage">
+    <div className="stage" ref={stageRef}>
       <div ref={boxRef} className={`wheel-box xmas-wheel${spinning ? " is-spinning" : ""}${winner && !spinning ? " has-winner" : ""}`}>
         <div className="xmas-pointer" ref={pointerRef}><span>⭐</span></div>
         <canvas ref={canvasRef} width={SIZE} height={SIZE} aria-label="Ruleta de participantes" />
@@ -304,7 +325,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
         </div>
       </div>
 
-      <aside className="xmas-card winner">
+      <aside className="xmas-card winner" ref={cardRef}>
         <div className="xmas-label">{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 En el puntero"}</div>
         <div className="xmas-face">{face(shown, 150, "3.2rem")}</div>
         <div className="num">{shown ? pad(shown.number) : "—"}</div>
@@ -315,7 +336,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
           {spinning ? "Girando…" : "🎁 Girar ruleta"}
         </button>
         <button className="sound-btn" onClick={sounds.toggle} aria-label={sounds.muted ? "Activar sonido" : "Silenciar"}>
-          {sounds.muted ? "🔇 Sonido apagado" : "🔊 Sonido activado"}
+          {sounds.muted ? "🔇" : "🔊"}<span className="sound-text">{sounds.muted ? " Sonido apagado" : " Sonido activado"}</span>
         </button>
         {error && <p className="error">{error}</p>}
         {history.length > 0 && (

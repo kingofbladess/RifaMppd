@@ -31,7 +31,7 @@ No guarda datos personales en el celular: todo se consulta y se guarda en el ser
 1. Laptop y celulares en la **misma red WiFi**.
 2. En la carpeta del proyecto: `npm run red` (HTTPS en el puerto 3001; la primera vez descarga un certificado de prueba).
 3. Si Windows pregunta por el firewall, permite el acceso en **redes privadas**.
-4. En el celular abre **https://192.168.150.40:3001**. Saldrá un aviso de "conexión no privada" (el certificado es de prueba):
+4. En el celular abre **https://TU-IP:3001**, usando la IP que muestra la terminal en la línea "Network" (o la de `ipconfig`, "Dirección IPv4"). Si el router te asigna otra IP no hay que cambiar nada en el código. Saldrá un aviso de "conexión no privada" (el certificado es de prueba):
    Android → *Configuración avanzada → Continuar*; iPhone → *Mostrar detalles → visitar este sitio web*.
 
 Hace falta HTTPS porque los navegadores no permiten usar la cámara en `http://` salvo en `localhost`.
