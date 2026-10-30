@@ -12,7 +12,9 @@ const LIGHT = new Set(["#d4a017", "#f4efe1"]);
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 const SIZE = 1000;
 const TAU = Math.PI * 2;
-const SPIN_MS = 12000;
+const SPIN_MS = 15000;
+const TURNS = 5;          // vueltas mínimas: menos vueltas en más tiempo = giro más pausado
+const FACE_MS = 260;      // la foto del recuadro cambia como máximo cada 260 ms para que se alcance a ver
 const BULBS = 28;
 
 // Arranca rápido y frena cada vez más lento al final: el último tramo pasa porción por porción.
@@ -216,11 +218,11 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       // Ángulo final: centro del segmento ganador bajo el puntero (arriba), con un pequeño desvío aleatorio
       const jitter = (Math.random() - 0.5) * seg * 0.6;
       let target = -Math.PI / 2 - (idx + 0.5) * seg + jitter;
-      const minEnd = start + TAU * 8;
+      const minEnd = start + TAU * TURNS;
       target += Math.ceil((minEnd - target) / TAU) * TAU;
 
       const t0 = performance.now();
-      let lastIdx = -1, lastTick = 0;
+      let lastIdx = -1, lastTick = 0, lastFace = 0;
       await new Promise<void>((done) => {
         const frame = (now: number) => {
           const t = Math.min(1, (now - t0) / SPIN_MS);
@@ -229,7 +231,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
           const i = indexAtPointer(rotation.current);
           if (i !== lastIdx) {
             lastIdx = i;
-            setCurrent(participants[i]);
+            if (now - lastFace > FACE_MS || t > .97) { lastFace = now; setCurrent(participants[i]); }
             // "tic" y golpecito del puntero, limitados para que no suene como un zumbido
             if (now - lastTick > 45) {
               lastTick = now;
