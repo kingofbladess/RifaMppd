@@ -1,4 +1,4 @@
-import Wheel from "@/components/Wheel";
+import Tombola from "@/components/Tombola";
 import Snow from "@/components/Snow";
 import { getActiveRaffle, getWheelParticipants } from "@/lib/participants";
 
@@ -15,12 +15,12 @@ export default async function RuletaPage() {
       <main className="container wide">
         <div className="topbar">
           <div>
-            <h1 className="xmas-title">🎄 {raffle?.name ?? "Ruleta"}</h1>
+            <h1 className="xmas-title">🎄 {raffle?.name ?? "Sorteo"}</h1>
             {raffle?.prize && <p className="sub xmas-sub">🎁 Premio: {raffle.prize}</p>}
           </div>
           <a className="btn secondary xmas-ghost" href="/admin">Panel</a>
         </div>
-        <Wheel participants={participants} digits={String(raffle?.number_max ?? 9999).length} />
+        <Tombola participants={participants} digits={String(raffle?.number_max ?? 9999).length} />
       </main>
     </div>
   );
