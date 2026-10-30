@@ -56,6 +56,8 @@ create table if not exists public.draws (
   participant_id  uuid not null references public.participants(id) on delete cascade,
   created_at      timestamptz not null default now()
 );
+-- Una persona no puede ganar dos veces en la misma rifa
+create unique index if not exists draws_one_win_per_person on public.draws (raffle_id, participant_id);
 
 -- Actualización desde la v1 (no hace nada en instalaciones nuevas)
 alter table public.participants alter column email drop not null;

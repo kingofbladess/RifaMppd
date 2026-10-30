@@ -26,11 +26,19 @@ export async function POST() {
   const pool = participants.filter((p) => !won.has(p.id));
   if (!pool.length) return NextResponse.json({ error: "No quedan participantes sin premio" }, { status: 409 });
 
-  const winner = pool[randomInt(pool.length)];
-  const { data: draw, error: e2 } = await sb.from("draws")
-    .insert({ raffle_id: raffle.id, participant_id: winner.id })
-    .select("id, created_at").single();
-  if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
+  // Si dos pantallas sortean a la vez y sale la misma persona, la base lo rechaza (índice único) y se elige otra.
+  let winner = pool[randomInt(pool.length)], draw = null;
+  for (let attempt = 0; attempt < 5 && pool.length; attempt++) {
+    const { data, error: e2 } = await sb.from("draws")
+      .insert({ raffle_id: raffle.id, participant_id: winner.id })
+      .select("id, created_at").single();
+    if (!e2) { draw = data; break; }
+    if (e2.code !== "23505") return NextResponse.json({ error: e2.message }, { status: 500 });
+    pool.splice(pool.indexOf(winner), 1);
+    if (!pool.length) break;
+    winner = pool[randomInt(pool.length)];
+  }
+  if (!draw) return NextResponse.json({ error: "No quedan participantes sin premio" }, { status: 409 });
 
   return NextResponse.json({ participantId: winner.id, drawId: draw.id, at: draw.created_at });
 }

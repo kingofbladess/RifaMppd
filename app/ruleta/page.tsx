@@ -1,11 +1,11 @@
-import Tombola from "@/components/Tombola";
+import Wheel from "@/components/Wheel";
 import Snow from "@/components/Snow";
 import { getActiveRaffle, getWheelParticipants } from "@/lib/participants";
 
 export const dynamic = "force-dynamic";
 
 export default async function RuletaPage() {
-  const [raffle, participants] = await Promise.all([getActiveRaffle(), getWheelParticipants()]);
+  const [raffle, { participants, winners }] = await Promise.all([getActiveRaffle(), getWheelParticipants()]);
   return (
     <div className="xmas-page">
       <Snow />
@@ -15,12 +15,12 @@ export default async function RuletaPage() {
       <main className="container wide">
         <div className="topbar">
           <div>
-            <h1 className="xmas-title">🎄 {raffle?.name ?? "Sorteo"}</h1>
+            <h1 className="xmas-title">🎄 {raffle?.name ?? "Ruleta"}</h1>
             {raffle?.prize && <p className="sub xmas-sub">🎁 Premio: {raffle.prize}</p>}
           </div>
           <a className="btn secondary xmas-ghost" href="/admin">Panel</a>
         </div>
-        <Tombola participants={participants} digits={String(raffle?.number_max ?? 9999).length} />
+        <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} />
       </main>
     </div>
   );
