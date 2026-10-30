@@ -3,6 +3,7 @@ import { timingSafeEqual, createHash } from "node:crypto";
 import { SESSION_COOKIE, createSessionToken, sessionMaxAge, type Session } from "@/lib/session";
 import { verifyPassword } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { adminPassword } from "@/lib/env";
 
 export const runtime = "nodejs";
 
@@ -18,14 +19,19 @@ export async function POST(req: Request) {
   let user: Omit<Session, "exp"> | null = null;
 
   // Cuenta maestra "admin" definida por variable de entorno (sirve para el primer acceso y para crear operadores).
-  const envPass = process.env.ADMIN_PASSWORD ?? "";
+  const envPass = adminPassword();
   if (username === "admin" && envPass && timingSafeEqual(sha(password), sha(envPass))) {
     user = { uid: "env-admin", name: "Administrador", role: "admin" };
-  } else {
-    const { data } = await supabaseAdmin().from("app_users")
-      .select("id, full_name, role, password_hash, is_active").eq("username", username).maybeSingle();
-    if (data?.is_active && verifyPassword(password, data.password_hash)) {
-      user = { uid: data.id, name: data.full_name, role: data.role };
+  } else if (username !== "admin") {
+    try {
+      const { data } = await supabaseAdmin().from("app_users")
+        .select("id, full_name, role, password_hash, is_active").eq("username", username).maybeSingle();
+      if (data?.is_active && verifyPassword(password, data.password_hash)) {
+        user = { uid: data.id, name: data.full_name, role: data.role };
+      }
+    } catch (e) {
+      console.error("login", e);
+      return NextResponse.redirect(new URL(`/login?error=config&next=${encodeURIComponent(next)}`, req.url), 303);
     }
   }
   if (!user) return fail();

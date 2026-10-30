@@ -10,7 +10,8 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <input id="username" name="username" required autoFocus autoCapitalize="none" autoComplete="username" />
         <label htmlFor="password" style={{ marginTop: 12 }}>Contraseña</label>
         <input id="password" name="password" type="password" required autoComplete="current-password" />
-        {error && <p className="error">Usuario o contraseña incorrectos</p>}
+        {error === "config" && <p className="error">El servidor no tiene configurada la conexión con Supabase. Revisa las variables de entorno en Vercel.</p>}
+        {error && error !== "config" && <p className="error">Usuario o contraseña incorrectos</p>}
         <button className="btn" style={{ width: "100%", marginTop: 16 }}>Entrar</button>
       </form>
     </main>
