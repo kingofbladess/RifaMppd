@@ -102,7 +102,11 @@ function useSounds() {
   };
   return {
     unlock: () => { audio(); },
-    tick: () => { tone(1400, 0, .04, "square", .05); },
+    // Tic del puntero contra un clavo: más bajito y agudo cuando la ruleta va rápido, claro y grave al frenar.
+    tick: (speed = 1) => {
+      const s = Math.min(3, Math.max(0, speed));
+      tone(1150 + s * 120, 0, .035, "square", .055 * Math.min(1, Math.max(.3, 1.25 - s * .32)));
+    },
   };
 }
 
@@ -497,7 +501,10 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       target += Math.ceil((minEnd - target) / TAU) * TAU;
 
       const t0 = performance.now();
-      let lastIdx = -1, lastTick = 0, lastBlink = 0, lastShown = 0;
+      let lastIdx = -1, lastTick = 0, lastBlink = 0, lastShown = 0, lastPeg = -1;
+      // El sonido sale de "clavos" fijos en el borde, como en una ruleta real: siempre los mismos (máx. 32)
+      // aunque haya miles de personas. Así no suena como metralleta y los tics se espacian al frenar.
+      const PEGS = Math.min(n, 32), pegArc = TAU / PEGS;
       await new Promise<void>((done) => {
         const frame = (now: number) => {
           const t = Math.min(1, (now - t0) / SPIN_MS);
@@ -518,10 +525,14 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
             // El recuadro muestra a quien está bajo el puntero. Con cientos de personas por segundo nadie alcanza a leerlo,
             // así que se refresca ~20 veces por segundo (y siempre al frenar) para no trabar la TV.
             if (!lightSpin || now - lastShown > 50 || t > .9) { lastShown = now; setCurrent(participants[i]); }
-            // "tic" y golpecito del puntero, limitados para que no suene como un zumbido
-            if (now - lastTick > 45) {
+          }
+          const peg = Math.floor((((-Math.PI / 2 - rotation.current) % TAU) + TAU) % TAU / pegArc);
+          if (peg !== lastPeg) {
+            lastPeg = peg;
+            // Como mucho ~16 tics por segundo en el arranque; al frenar suena cada clavo.
+            if (now - lastTick > 60) {
               lastTick = now;
-              sounds.tick();
+              sounds.tick((spinProgress(t + .01) - spinProgress(t)) / .01);
               // Web Animations: reinicia el golpecito sin forzar al navegador a recalcular la página
               pointerRef.current?.animate(KICK, { duration: 120, easing: "ease-out" });
             }
