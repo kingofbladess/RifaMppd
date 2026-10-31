@@ -87,6 +87,8 @@ export async function lookupPerson(doc: string, nat: "V" | "E" = "V"): Promise<L
   if (process.env.INFOPRESS_API_KEY) return infopressLookup(doc, nat);
   const url = process.env.PERSON_API_URL;
   if (!url) return demoLookup(doc);
+  // Infopress solo funciona con su clave; sin ella, el modo genérico recibe un rechazo y parece "no encontrado".
+  if (/infopress/i.test(url)) throw new Error("falta INFOPRESS_API_KEY en .env.local");
 
   const headers: Record<string, string> = { Accept: "application/json" };
   if (process.env.PERSON_API_TOKEN) headers.Authorization = `Bearer ${process.env.PERSON_API_TOKEN}`;
