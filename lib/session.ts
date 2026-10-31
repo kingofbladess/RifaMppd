@@ -2,7 +2,10 @@
 export const SESSION_COOKIE = "rifa_session";
 export const sessionMaxAge = 60 * 60 * 12; // 12 horas (una jornada de registro)
 
-export type Role = "admin" | "operator";
+export type Role = "admin" | "operator" | "tv";
+
+// Página de inicio de cada rol: el operador registra, la pantalla de TV solo muestra la ruleta.
+export const homeFor = (role: Role) => (role === "admin" ? "/admin" : role === "tv" ? "/ruleta" : "/registro");
 export type Session = { uid: string; name: string; role: Role; exp: number };
 
 const enc = new TextEncoder();

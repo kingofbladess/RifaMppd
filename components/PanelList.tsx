@@ -30,7 +30,9 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
   const caption = query
     ? `${rows.length >= limit ? `Más de ${limit}` : rows.length} resultado${rows.length === 1 ? "" : "s"}${rows.length >= limit ? " (afina la búsqueda)" : ""}`
     : total > rows.length ? `Mostrando los ${rows.length} más recientes de ${total}. Usa el buscador para encontrar a cualquiera.` : "";
-  const date = (s: string) => new Date(s).toLocaleString("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  // Hora de Venezuela fija: el servidor (Vercel, en UTC) y el teléfono deben pintar lo mismo, si no la hora salía
+  // corrida 4 h y React reportaba un error de hidratación.
+  const date = (s: string) => new Date(s).toLocaleString("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Caracas" });
   const extra = (r: PanelRow) => r.hasIdDoc
     ? <a href={`/api/admin/document/${r.id}`} target="_blank" rel="noreferrer">Ver cédula</a>
     : <span className="small">{r.photoSource === "api" ? "Foto API" : "Foto nueva"}</span>;
@@ -60,7 +62,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
       <div className="card table-wrap only-desk">
         <table>
           <thead>
-            <tr><th></th><th>N.º</th><th>Nombre</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Teléfono</th><th>Registró</th><th>Fecha</th><th></th></tr>
+            <tr><th></th><th>N.º</th><th>Nombre</th><th>Tipo</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Registró</th><th>Fecha</th><th></th></tr>
           </thead>
           <tbody>
             {shown.map((r) => (
@@ -68,10 +70,10 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
                 <td>{avatar(r)}</td>
                 <td><strong>{r.number}</strong></td>
                 <td>{r.name}</td>
+                <td>{r.rank ? <span className="badge on">Militar</span> : <span className="badge">Civil</span>}</td>
                 <td>{r.rank || "—"}</td>
                 <td className="nowrap">{r.doc}</td>
                 <td>{age(r.birthDate) ?? "—"}</td>
-                <td className="small">{r.phone || "—"}</td>
                 <td>{r.by ?? "—"}</td>
                 <td className="small">{date(r.createdAt)}</td>
                 <td>{extra(r)}</td>
@@ -88,7 +90,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
             {avatar(r)}
             <div className="p-body">
               <div className="p-name">{r.name}</div>
-              <div className="small">{[r.rank, r.doc, age(r.birthDate) !== null ? `${age(r.birthDate)} años` : ""].filter(Boolean).join(" · ")}</div>
+              <div className="small">{[r.rank || "Civil", r.doc, age(r.birthDate) !== null ? `${age(r.birthDate)} años` : ""].filter(Boolean).join(" · ")}</div>
               <div className="small p-meta">
                 <span>{r.by ?? "—"} · {date(r.createdAt)}</span>
                 {extra(r)}

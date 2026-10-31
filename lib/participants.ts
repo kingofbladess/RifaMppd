@@ -35,7 +35,7 @@ export async function getActiveRaffle() {
   return data;
 }
 
-// Participantes de la rifa activa con URL firmada (1 h) de su foto. Nunca expone el documento.
+// Participantes de la rifa activa con URL firmada (12 h) de su foto. Nunca expone el documento.
 // Los que ya ganaron salen de la ruleta y se devuelven aparte, en orden de sorteo (el más reciente primero).
 export async function getWheelParticipants(): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[] }> {
   const raffle = await getActiveRaffle();
@@ -50,7 +50,8 @@ export async function getWheelParticipants(): Promise<{ participants: WheelParti
   ]);
   if (!data.length) return { participants: [], winners: [] };
 
-  const urlByPath = await signPhotos(data.map((p) => p.photo_path), 60 * 60);
+  // 12 h: la ruleta suele quedar abierta toda la jornada en la TV; con 1 h las fotos dejaban de verse.
+  const urlByPath = await signPhotos(data.map((p) => p.photo_path), 12 * 60 * 60);
   const all = new Map(data.map((p) => [p.id, {
     id: p.id, name: p.full_name, number: p.raffle_number, rank: p.rank,
     photoUrl: urlByPath.get(p.photo_path) ?? null,

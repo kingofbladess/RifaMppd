@@ -14,7 +14,7 @@ type Lookup = {
 };
 type Saved = { number: number; name: string; photo: string | null };
 
-const EMPTY: Person = { full_name: "", document_type: "CC", document_number: "", birth_date: "", city: "", rank: "", phone: "", email: "" };
+const EMPTY: Person = { full_name: "", document_type: "V", document_number: "", birth_date: "", city: "", rank: "", phone: "", email: "" };
 
 function useObjectUrl(blob: Blob | null) {
   const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob]);
@@ -26,6 +26,11 @@ function yearsSince(date: string | null) {
   if (!date) return null;
   const y = (Date.now() - Date.parse(date)) / (365.25 * 24 * 3600 * 1000);
   return Number.isFinite(y) ? Math.floor(y) : null;
+}
+
+// 16239367 -> 16.239.367 (más fácil de comparar con la cédula física)
+function groupDigits(n: string) {
+  return n.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 export default function RegistrationFlow({ digits }: { digits: number }) {
@@ -50,6 +55,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   const set = (k: keyof Person, v: string) => setFields((f) => ({ ...f, [k]: v }));
   const shownPhoto = newPhotoUrl ?? lookup?.photo ?? null;
   const photoAge = yearsSince(lookup?.photoDate ?? null);
+  const age = yearsSince(fields.birth_date || null);
 
   useEffect(() => { docRef.current?.focus(); }, []);
 
@@ -69,7 +75,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Error al consultar");
       setLookup(j);
-      setFields({ ...EMPTY, ...(j.person ?? {}), document_number: clean });
+      setFields({ ...EMPTY, document_type: nat, ...(j.person ?? {}), document_number: clean });
       // Sin foto: abrir la cámara directamente, salvo que la API haya fallado (así se ve el aviso)
       // o que Infopress aún esté preparando la foto (se pide en segundo plano).
       if (!j.photo && !j.existing && !j.apiError && !j.photoPending) setCamera("photo");
@@ -133,16 +139,20 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
       )}
 
       <form className="card search" onSubmit={search}>
-        <label htmlFor="doc" className="search-label">Número de cédula</label>
+        <div className="search-title">
+          <label htmlFor="doc">Consultar cédula</label>
+          {count > 0 && <span className="chip">Registrados: {count}</span>}
+        </div>
         <div className="search-row">
-          <button type="button" className="btn secondary nat-btn" onClick={() => setNat((v) => (v === "V" ? "E" : "V"))}
-            title="Cambiar entre V (venezolano) y E (extranjero)" aria-label={`Nacionalidad ${nat}, tocar para cambiar`}>{nat}</button>
-          <input id="doc" ref={docRef} value={doc} inputMode="numeric" autoComplete="off" placeholder="Ej. 12345678"
-            onChange={(e) => setDoc(e.target.value.replace(/[^\d.]/g, ""))} />
+          <div className="doc-group">
+            <button type="button" className="nat-btn" onClick={() => setNat((v) => (v === "V" ? "E" : "V"))}
+              title="Cambiar entre V (venezolano) y E (extranjero)" aria-label={`Nacionalidad ${nat}, tocar para cambiar`}>{nat}</button>
+            <input id="doc" ref={docRef} value={doc} inputMode="numeric" autoComplete="off" placeholder="Número de cédula"
+              onChange={(e) => setDoc(e.target.value.replace(/[^\d.]/g, ""))} />
+          </div>
           <button className="btn" disabled={loading}>{loading ? <span className="spinner" /> : "Consultar"}</button>
         </div>
-        {loading && <div className="small" style={{ marginTop: 6 }}>Consultando… si la persona no se ha consultado antes, puede tardar hasta 2 minutos.</div>}
-        {count > 0 && <div className="small" style={{ marginTop: 6 }}>Registrados en esta sesión: {count}</div>}
+        {loading && <div className="small search-hint">Consultando… si la persona no se ha consultado antes, puede tardar hasta 2 minutos.</div>}
         {!lookup && error && <p className="error">{error}</p>}
       </form>
 
@@ -165,10 +175,11 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
             </button>
             <div className="person-info">
               <div className="preview-head">
-                {lookup.source === "demo" && <span className="badge">Demo</span>}
                 {lookup.found
-                  ? <span className="badge on">Encontrado</span>
+                  ? <span className="badge on">✓ Encontrado</span>
                   : <span className="badge warn">{lookup.apiError ? "API no disponible" : "No encontrado"}</span>}
+                {lookup.found && <span className="badge">{fields.rank.trim() ? "Militar" : "Civil"}</span>}
+                {lookup.source === "demo" && <span className="badge">Demo</span>}
               </div>
               <input className="name-input" aria-label="Nombre completo" placeholder="Nombre completo" value={fields.full_name}
                 onChange={(e) => set("full_name", e.target.value)} required minLength={3} />
@@ -177,14 +188,14 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
                   <option value="V">V</option><option value="E">E</option><option value="CC">CC</option><option value="CE">CE</option><option value="TI">TI</option>
                   <option value="PAS">PAS</option><option value="DNI">DNI</option><option value="OTRO">Otro</option>
                 </select>
-                <strong>{fields.document_number}</strong>
+                <strong>{groupDigits(fields.document_number)}</strong>
               </div>
               <div className="photo-actions">
                 <button type="button" className="link" onClick={() => setCamera(camera === "photo" ? null : "photo")}>
-                  📸 {camera === "photo" ? "Cancelar cámara" : shownPhoto ? "Actualizar foto" : "Tomar foto"}
+                  📷 {camera === "photo" ? "Cancelar cámara" : shownPhoto ? "Cambiar foto" : "Tomar foto"}
                 </button>
                 {newPhoto && lookup.photo && camera !== "photo" && (
-                  <button type="button" className="link" onClick={() => setNewPhoto(null)}>↩ Foto API</button>
+                  <button type="button" className="link" onClick={() => setNewPhoto(null)}>↩ Usar foto API</button>
                 )}
               </div>
               {!newPhoto && photoAge !== null && photoAge >= 5 && camera !== "photo" && (
@@ -201,22 +212,18 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
 
           {camera !== "photo" && <>
 
-          <div className="grid two">
-            <div className="full">
+          <div className="data-grid">
+            <div className="field full">
               <label htmlFor="rank">Grado</label>
-              <input id="rank" value={fields.rank} onChange={(e) => set("rank", e.target.value)} maxLength={80} placeholder="Ej. Capitán" />
+              <input id="rank" value={fields.rank} onChange={(e) => set("rank", e.target.value)} maxLength={80} placeholder="Vacío si es civil" />
             </div>
-            <div>
-              <label htmlFor="birth_date">Nacimiento</label>
+            <div className="field">
+              <label htmlFor="birth_date">Fecha de nacimiento</label>
               <input id="birth_date" type="date" value={fields.birth_date} onChange={(e) => set("birth_date", e.target.value)} required />
             </div>
-            <div>
-              <label htmlFor="phone">Teléfono</label>
-              <input id="phone" type="tel" inputMode="tel" value={fields.phone} onChange={(e) => set("phone", e.target.value)} required minLength={7} />
-            </div>
-            <div>
-              <label htmlFor="email">Correo <span className="small">(opc.)</span></label>
-              <input id="email" type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} />
+            <div className="field">
+              <span className="field-label">Edad</span>
+              <div className="field-value">{age !== null && age >= 0 ? `${age} años` : "—"}</div>
             </div>
           </div>
 
@@ -226,7 +233,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
             <div className="id-thumb"><img src={idPhotoUrl} alt="Cédula" />
               <button type="button" className="link" onClick={() => setIdPhoto(null)}>Quitar foto de la cédula</button></div>
           ) : (
-            <button type="button" className="link" onClick={() => setCamera("id")}>＋ Foto de la cédula (opcional)</button>
+            <button type="button" className="id-add" onClick={() => setCamera("id")}>＋ Foto de la cédula <span>(opcional)</span></button>
           )}
 
           {error && <div className="error">{error}</div>}

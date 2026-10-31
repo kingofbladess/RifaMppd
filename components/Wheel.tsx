@@ -353,7 +353,10 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     highlight.current = -1;
     if (window.matchMedia(STACKED_MQ).matches) boxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     try {
-      const res = await fetch("/api/draw", { method: "POST" });
+      const res = await fetch("/api/draw", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: participants.map((p) => p.id) }),
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "No se pudo sortear");
       const idx = participants.findIndex((p) => p.id === json.participantId);
@@ -416,8 +419,13 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     }
   }
 
-  const face = (p: WheelParticipant | null, size: number, font: string) => p?.photoUrl
-    ? <img src={p.photoUrl} alt={p.name} style={{ width: size, height: size }} />
+  // Si una foto no carga (enlace vencido o red lenta) se muestran las iniciales, nunca el texto alternativo gigante.
+  const [badPhotos, setBadPhotos] = useState<Set<string>>(() => new Set());
+  const markBad = (u: string) => setBadPhotos((s) => (s.has(u) ? s : new Set(s).add(u)));
+  const face = (p: WheelParticipant | null, size: number, font: string) => p?.photoUrl && !badPhotos.has(p.photoUrl)
+    ? <img src={p.photoUrl} alt="" style={{ width: size, height: size }} onError={() => markBad(p.photoUrl!)}
+        // Una foto que falló antes de que la página terminara de cargar no dispara onError: se revisa al montarla.
+        ref={(el) => { if (el?.complete && !el.naturalWidth) markBad(p.photoUrl!); }} />
     : <div className="xmas-initials" style={{ width: size, height: size, fontSize: font }}>{p ? initials(p.name) : "🎁"}</div>;
 
   // Mientras gira, el recuadro cambia en cada cuadro: las luces y la lista de ganadores se guardan ya armadas
@@ -443,7 +451,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
           )))}
       </ul>
     </div>
-  ) : <p className="w-empty">🎁 Aquí aparecerán los ganadores</p>, [history, rolls, digits]); // eslint-disable-line react-hooks/exhaustive-deps
+  ) : <p className="w-empty">🎁 Aquí aparecerán los ganadores</p>, [history, rolls, digits, badPhotos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sin nadie en la ruleta: pantalla final con todos los ganadores (o aviso si aún no hay inscritos).
   if (!n) return history.length ? (

@@ -3,11 +3,12 @@ import Wheel from "@/components/Wheel";
 import Snow from "@/components/Snow";
 import PresenterControls from "@/components/PresenterControls";
 import { getActiveRaffle, getWheelParticipants } from "@/lib/participants";
+import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 async function RuletaPageContent() {
-  const [raffle, { participants, winners }] = await Promise.all([getActiveRaffle(), getWheelParticipants()]);
+  const [raffle, { participants, winners }, session] = await Promise.all([getActiveRaffle(), getWheelParticipants(), getSession()]);
   return (
     <div className="xmas-page">
       <Snow />
@@ -24,7 +25,9 @@ async function RuletaPageContent() {
           </div>
           <div className="topbar-tools">
             <PresenterControls />
-            <a className="btn secondary xmas-ghost" href="/admin">Panel</a>
+            {session?.role === "tv"
+              ? <form method="post" action="/api/logout"><button className="btn secondary xmas-ghost">Salir</button></form>
+              : <a className="btn secondary xmas-ghost" href="/admin">Panel</a>}
           </div>
         </div>
         <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} />

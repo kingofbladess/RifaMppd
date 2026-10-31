@@ -5,6 +5,10 @@ import { getSession } from "@/lib/auth";
 export const runtime = "nodejs";
 
 const DOC_TYPES = ["CC", "TI", "CE", "PAS", "DNI", "OTRO"];
+// La base solo acepta los tipos de arriba: la cédula venezolana V se guarda como CC y la E como CE
+// (el panel las vuelve a mostrar como V y E).
+const NAT_TO_DOC: Record<string, string> = { V: "CC", E: "CE" };
+const NO_PHONE = "0000000"; // la base exige teléfono hasta que se aplique supabase/schema.sql actualizado
 const MAX_FILE = 3 * 1024 * 1024;
 
 function isJpeg(buf: Uint8Array) {
@@ -28,7 +32,7 @@ export async function POST(req: Request) {
   const s = (k: string) => String(form.get(k) ?? "").trim();
   const data = {
     full_name: s("full_name"),
-    document_type: s("document_type"),
+    document_type: NAT_TO_DOC[s("document_type")] ?? s("document_type"),
     document_number: s("document_number").replace(/[^0-9A-Za-z]/g, ""),
     email: s("email"),
     phone: s("phone"),
@@ -44,7 +48,7 @@ export async function POST(req: Request) {
   if (!DOC_TYPES.includes(data.document_type)) errors.push("Tipo de documento inválido");
   if (data.document_number.length < 4) errors.push("Número de documento inválido");
   if (data.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email)) errors.push("Correo inválido");
-  if (data.phone.replace(/\D/g, "").length < 7) errors.push("Teléfono inválido");
+  if (data.phone && data.phone.replace(/\D/g, "").length < 7) errors.push("Teléfono inválido");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data.birth_date)) errors.push("Fecha de nacimiento inválida");
   if (!(photo instanceof File)) errors.push("Falta la foto de la persona");
   const photoSource = form.get("photo_source") === "api" ? "api" : "camera";
@@ -78,12 +82,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No se pudieron guardar las imágenes" }, { status: 500 });
   }
 
-  const { data: rows, error } = await sb.rpc("register_participant", {
+  const register = (phone: string | null) => sb.rpc("register_participant", {
     p_full_name: data.full_name, p_document_type: data.document_type, p_document_number: data.document_number,
-    p_email: data.email, p_phone: data.phone, p_birth_date: data.birth_date, p_city: data.city,
+    p_email: data.email, p_phone: phone, p_birth_date: data.birth_date, p_city: data.city,
     p_id_document_path: idPath, p_photo_path: photoPath,
     p_registered_by: session.uid === "env-admin" ? null : session.uid, p_registered_by_name: session.name, p_photo_source: photoSource, p_rank: data.rank,
   });
+  // El teléfono ya no se pide. Si la base todavía lo exige (esquema anterior), se guarda un marcador.
+  let { data: rows, error } = await register(data.phone || null);
+  if (error && !data.phone && (error.code === "23502" || error.code === "23514") && /phone/.test(error.message)) {
+    ({ data: rows, error } = await register(NO_PHONE));
+  }
 
   if (error) {
     await cleanup();

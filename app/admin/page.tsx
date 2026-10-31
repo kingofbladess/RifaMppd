@@ -17,13 +17,15 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
   const sb = supabaseAdmin();
 
   let list: Awaited<ReturnType<typeof listQuery>> = [];
-  let byOps: { registered_by_name: string | null; document_number: string }[] = [];
+  let byOps: { registered_by_name: string | null; document_number: string; rank: string | null }[] = [];
   let totalCount = 0;
   async function listQuery(raffleId: string) {
     let query = sb.from("participants").select(COLS).eq("raffle_id", raffleId);
     if (q) {
+      // "V-12345678" o "E12345678": se busca solo el número, que es como se guarda la cédula.
+      const plain = /^[VvEe]-?\d{4,}$/.test(q) ? q.replace(/\D/g, "") : q;
       // Las vocales se vuelven comodín para que "martinez" encuentre "Martínez".
-      const like = `%${q.replace(/[%_,()*]/g, " ").replace(/[aeiouáéíóúü]/gi, "_")}%`;
+      const like = `%${plain.replace(/[%_,()*]/g, " ").replace(/[aeiouáéíóúü]/gi, "_")}%`;
       const ors = [`full_name.ilike.${like}`, `document_number.ilike.${like}`, `rank.ilike.${like}`, `registered_by_name.ilike.${like}`];
       if (/^\d{1,6}$/.test(q)) ors.push(`raffle_number.eq.${Number(q)}`);
       query = query.or(ors.join(","));
@@ -34,12 +36,15 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
   if (raffle) {
     [list, byOps] = await Promise.all([
       listQuery(raffle.id),
-      fetchAll<{ registered_by_name: string | null; document_number: string }>((from, to) =>
-        sb.from("participants").select("registered_by_name, document_number").eq("raffle_id", raffle.id).order("id").range(from, to)),
+      fetchAll<{ registered_by_name: string | null; document_number: string; rank: string | null }>((from, to) =>
+        sb.from("participants").select("registered_by_name, document_number, rank").eq("raffle_id", raffle.id).order("id").range(from, to)),
     ]);
     totalCount = byOps.length;
   }
   const photo = await signPhotos(list.map((r) => r.photo_path), 600);
+  // Militar = tiene grado (lo trae Infopress de IPSFA o Resoluciones); sin grado = civil.
+  const militares = byOps.filter((p) => p.rank?.trim()).length;
+  const civiles = totalCount - militares;
   const tempCount = byOps.filter((p) => p.document_number.startsWith("TEMP")).length;
   const demoMsg: Record<string, string> = {
     agregados: `Se agregaron ${n ?? 0} personas de prueba.`, borrados: "Se borraron las personas de prueba.",
@@ -52,7 +57,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
 
   const panelRows: PanelRow[] = list.map((p) => ({
     id: p.id, number: String(p.raffle_number).padStart(digits, "0"), name: p.full_name, rank: p.rank,
-    doc: `${p.document_type}-${p.document_number}`, phone: p.phone, birthDate: p.birth_date,
+    doc: `${({ CC: "V", CE: "E" } as Record<string, string>)[p.document_type] ?? p.document_type}-${p.document_number}`, phone: p.phone, birthDate: p.birth_date,
     photoUrl: photo.get(p.photo_path) ?? null, hasIdDoc: !!p.id_document_path, photoSource: p.photo_source,
     by: p.registered_by_name, createdAt: p.created_at,
   }));
@@ -62,7 +67,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
       <div className="topbar panel-top">
         <div>
           <h1>Panel · {raffle?.name ?? "Sin rifa activa"}</h1>
-          <p className="sub only-desk" style={{ margin: 0 }}>{totalCount} inscritos · {total - totalCount} números disponibles</p>
+          <p className="sub only-desk" style={{ margin: 0 }}>{totalCount} inscritos ({militares} militares · {civiles} civiles) · {total - totalCount} números disponibles</p>
         </div>
         <div className="panel-actions">
           <a className="btn" href="/ruleta">🎡 <span className="only-desk">Abrir ruleta</span><span className="only-mobile">Ruleta</span></a>
@@ -75,6 +80,8 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
       <div className="stats only-mobile">
         <div><strong>{totalCount}</strong><span>inscritos</span></div>
         <div><strong>{total - totalCount}</strong><span>disponibles</span></div>
+        <div><strong>{militares}</strong><span>militares</span></div>
+        <div><strong>{civiles}</strong><span>civiles</span></div>
       </div>
       {byOperator.size > 0 && (
         <div className="op-badges">
