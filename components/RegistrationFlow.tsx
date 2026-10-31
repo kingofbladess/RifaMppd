@@ -166,6 +166,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
             <div className="person-info">
               <div className="preview-head">
                 {lookup.source === "demo" && <span className="badge">Demo</span>}
+                {lookup.found && <span className="badge">{fields.rank.trim() ? "Militar" : "Civil"}</span>}
                 {lookup.found
                   ? <span className="badge on">Encontrado</span>
                   : <span className="badge warn">{lookup.apiError ? "API no disponible" : "No encontrado"}</span>}
@@ -204,7 +205,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
           <div className="grid two">
             <div className="full">
               <label htmlFor="rank">Grado</label>
-              <input id="rank" value={fields.rank} onChange={(e) => set("rank", e.target.value)} maxLength={80} placeholder="Ej. Capitán" />
+              <input id="rank" value={fields.rank} onChange={(e) => set("rank", e.target.value)} maxLength={80} placeholder="Vacío si es civil" />
             </div>
             <div>
               <label htmlFor="birth_date">Nacimiento</label>

@@ -209,8 +209,8 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .p-meta a { font-size: .75rem; flex: none; }
 .p-num { flex: none; font-weight: 800; font-size: 1.25rem; color: var(--accent); background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-variant-numeric: tabular-nums; }
 .p-empty { padding: 14px 12px; }
-.stats { gap: 8px; margin-bottom: 10px; }
-.stats div { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; display: flex; align-items: baseline; gap: 6px; }
+.stats { gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.stats div { flex: 1 1 40%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; display: flex; align-items: baseline; gap: 6px; }
 .stats strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
 .stats div:first-child { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface)); border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
 .stats div:first-child strong { color: var(--accent); }

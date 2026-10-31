@@ -60,7 +60,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
       <div className="card table-wrap only-desk">
         <table>
           <thead>
-            <tr><th></th><th>N.º</th><th>Nombre</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Registró</th><th>Fecha</th><th></th></tr>
+            <tr><th></th><th>N.º</th><th>Nombre</th><th>Tipo</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Registró</th><th>Fecha</th><th></th></tr>
           </thead>
           <tbody>
             {shown.map((r) => (
@@ -68,6 +68,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
                 <td>{avatar(r)}</td>
                 <td><strong>{r.number}</strong></td>
                 <td>{r.name}</td>
+                <td>{r.rank ? <span className="badge on">Militar</span> : <span className="badge">Civil</span>}</td>
                 <td>{r.rank || "—"}</td>
                 <td className="nowrap">{r.doc}</td>
                 <td>{age(r.birthDate) ?? "—"}</td>
@@ -76,7 +77,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
                 <td>{extra(r)}</td>
               </tr>
             ))}
-            {!shown.length && <tr><td colSpan={9} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
+            {!shown.length && <tr><td colSpan={10} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -87,7 +88,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
             {avatar(r)}
             <div className="p-body">
               <div className="p-name">{r.name}</div>
-              <div className="small">{[r.rank, r.doc, age(r.birthDate) !== null ? `${age(r.birthDate)} años` : ""].filter(Boolean).join(" · ")}</div>
+              <div className="small">{[r.rank || "Civil", r.doc, age(r.birthDate) !== null ? `${age(r.birthDate)} años` : ""].filter(Boolean).join(" · ")}</div>
               <div className="small p-meta">
                 <span>{r.by ?? "—"} · {date(r.createdAt)}</span>
                 {extra(r)}
