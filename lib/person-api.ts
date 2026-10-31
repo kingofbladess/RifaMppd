@@ -66,6 +66,17 @@ export function mapPerson(raw: Record<string, unknown>, doc: string): { person: 
   };
 }
 
+// Tipo real de la imagen según sus primeros bytes (S3 a veces responde "binary/octet-stream").
+// Solo se aceptan formatos que cualquier navegador muestra; JPEG 2000 u otros quedan fuera y se toma foto.
+function sniffImage(b: Buffer): string | null {
+  if (b.length < 12) return null;
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b.subarray(0, 4).toString("hex") === "89504e47") return "image/png";
+  if (b.subarray(0, 3).toString("ascii") === "GIF") return "image/gif";
+  if (b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP") return "image/webp";
+  return null;
+}
+
 // La foto puede venir como base64, data URL o URL. Se devuelve siempre como data URL.
 async function toDataUrl(ref: string, headers: Record<string, string>): Promise<string | null> {
   if (!ref) return null;
@@ -73,8 +84,13 @@ async function toDataUrl(ref: string, headers: Record<string, string>): Promise<
   if (/^https?:\/\//.test(ref)) {
     const r = await fetch(ref, { headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!r.ok) return null;
-    const type = r.headers.get("content-type") ?? "image/jpeg";
-    return `data:${type};base64,${Buffer.from(await r.arrayBuffer()).toString("base64")}`;
+    const buf = Buffer.from(await r.arrayBuffer());
+    const type = sniffImage(buf);
+    if (!type) {
+      console.warn(`foto de la API descartada: formato no compatible (${r.headers.get("content-type") ?? "sin tipo"}, ${buf.length} bytes)`);
+      return null;
+    }
+    return `data:${type};base64,${buf.toString("base64")}`;
   }
   if (/^[A-Za-z0-9+/=\s]+$/.test(ref) && ref.length > 100) {
     const b64 = ref.replace(/\s/g, "");

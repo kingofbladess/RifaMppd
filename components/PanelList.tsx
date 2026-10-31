@@ -67,8 +67,12 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
     return Number.isFinite(a) ? a : null;
   };
   const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-  const avatar = (r: PanelRow) => r.photoUrl
-    ? <img className="avatar" src={r.photoUrl} alt="" />
+  const [badPhotos, setBadPhotos] = useState<Set<string>>(() => new Set());
+  const markBad = (id: string) => setBadPhotos((s) => (s.has(id) ? s : new Set(s).add(id)));
+  // Si la foto no carga (enlace vencido, red que la bloquea, archivo dañado) se muestran las iniciales.
+  const avatar = (r: PanelRow) => r.photoUrl && !badPhotos.has(r.id)
+    ? <img className="avatar" src={r.photoUrl} alt="" onError={() => markBad(r.id)}
+        ref={(el) => { if (el?.complete && !el.naturalWidth) markBad(r.id); }} />
     : <div className="avatar initials" style={{ fontSize: ".85rem" }}>{initials(r.name)}</div>;
 
   return (
