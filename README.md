@@ -58,7 +58,21 @@ El adaptador está en `lib/person-api.ts`. Reconoce nombres de campo comunes (`n
 `cedula`, `fecha_nacimiento`, `municipio`, `rango`/`cargo`, `celular`, `foto`, `foto_url`, `foto_base64`, `fecha_foto`…) y la foto puede venir
 en base64, data URL o URL. Si la API real usa otros nombres o requiere otro método de autenticación, solo se ajusta ese archivo.
 
-**Modo demo:** si `PERSON_API_URL` está vacío, la app responde con datos ficticios para probar el flujo:
+### Infopress (red local)
+
+Si `INFOPRESS_API_KEY` tiene valor, la consulta usa **Infopress** (`GET /v1/consulta/V12345678` con `X-API-Key`) en lugar de `PERSON_API_URL`.
+Infopress **solo se alcanza dentro de la red** donde está `192.168.150.30`, así que la app debe correr en una PC de esa red
+(`npm run red`), no en Vercel. Esa PC también necesita internet para guardar en Supabase; lo que se registre se ve en Vercel al instante.
+
+- Archivo `hosts` de esa PC (Windows: `C:\Windows\System32\drivers\etc\hosts`, como administrador):
+  `192.168.150.30 infopress.sidefensa.nexus.ia.ve` y `192.168.150.30 s3.infopress.sidefensa.nexus.ia.ve`.
+- En la pantalla de registro, el botón **V/E** junto a la cédula elige la nacionalidad (por defecto V).
+- Nombre y fecha de nacimiento salen de SAIME (o IPSFA si SAIME no responde); el grado sale de IPSFA (o Resoluciones).
+- La foto llega como enlace S3 privado: el servidor la descarga y la guarda en Supabase al registrar. Si está `pending`,
+  se vuelve a consultar tras 2 s y 4 s; si sigue sin foto, el operador la toma con la cámara.
+- Cada consulta puede tardar hasta ~2 minutos (timeout de 125 s) y gasta cuota (60 por minuto, 4 simultáneas por clave).
+
+**Modo demo:** si `PERSON_API_URL` e `INFOPRESS_API_KEY` están vacíos, la app responde con datos ficticios para probar el flujo:
 cédula terminada en **0** = no encontrada, en número **par** = con foto, **impar** = sin foto.
 
 ## Instalación
@@ -67,7 +81,7 @@ cédula terminada en **0** = no encontrada, en número **par** = con foto, **imp
    Ajusta la rifa en Table Editor → `raffles` (nombre, premio, rango de números).
 2. **Variables** (`.env.local` en local, o Environment Variables en Vercel) — ver `.env.example`:
    `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (tu `sb_secret_...`), `ADMIN_PASSWORD`, `SESSION_SECRET`,
-   `PERSON_API_URL`, `PERSON_API_TOKEN`.
+   `PERSON_API_URL`, `PERSON_API_TOKEN` (o `INFOPRESS_BASE_URL`, `INFOPRESS_API_KEY`).
 3. Local: `npm install && npm run dev`. Vercel: importa el repo y despliega.
 4. Entra con usuario `admin` y la contraseña de `ADMIN_PASSWORD`, ve a **Usuarios** y crea un usuario por operador.
 

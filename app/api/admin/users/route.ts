@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { seeOther } from "@/lib/redirect";
 import { supabaseAdmin } from "@/lib/supabase";
 import { hashPassword } from "@/lib/auth";
 
@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   const form = await req.formData();
   const action = String(form.get("action") ?? "create");
-  const back = (q: string) => NextResponse.redirect(new URL(`/admin/usuarios?${q}`, req.url), 303);
+  const back = (q: string) => seeOther(`/admin/usuarios?${q}`);
   const sb = supabaseAdmin();
 
   if (action === "toggle") {

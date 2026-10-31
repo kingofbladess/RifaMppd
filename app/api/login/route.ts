@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { seeOther } from "@/lib/redirect";
 import { timingSafeEqual, createHash } from "node:crypto";
 import { SESSION_COOKIE, createSessionToken, sessionMaxAge, type Session } from "@/lib/session";
 import { verifyPassword } from "@/lib/auth";
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const username = String(form.get("username") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
   const next = String(form.get("next") ?? "");
-  const fail = () => NextResponse.redirect(new URL(`/login?error=1&next=${encodeURIComponent(next)}`, req.url), 303);
+  const fail = () => seeOther(`/login?error=1&next=${encodeURIComponent(next)}`);
 
   let user: Omit<Session, "exp"> | null = null;
 
@@ -31,14 +31,14 @@ export async function POST(req: Request) {
       }
     } catch (e) {
       console.error("login", e);
-      return NextResponse.redirect(new URL(`/login?error=config&next=${encodeURIComponent(next)}`, req.url), 303);
+      return seeOther(`/login?error=config&next=${encodeURIComponent(next)}`);
     }
   }
   if (!user) return fail();
 
   const fallback = user.role === "admin" ? "/admin" : "/registro";
   const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : fallback;
-  const res = NextResponse.redirect(new URL(safeNext, req.url), 303);
+  const res = seeOther(safeNext);
   res.cookies.set(SESSION_COOKIE, await createSessionToken(user), {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: sessionMaxAge,
   });

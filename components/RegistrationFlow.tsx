@@ -31,6 +31,7 @@ function yearsSince(date: string | null) {
 export default function RegistrationFlow({ digits }: { digits: number }) {
   const docRef = useRef<HTMLInputElement>(null);
   const [doc, setDoc] = useState("");
+  const [nat, setNat] = useState<"V" | "E">("V"); // cédula venezolana: V o E
   const [loading, setLoading] = useState(false);
   const [lookup, setLookup] = useState<Lookup | null>(null);
   const [fields, setFields] = useState<Person>(EMPTY);
@@ -62,7 +63,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
     if (clean.length < 4) return setError("Escribe un número de cédula válido");
     clear(); setSaved(null); setLoading(true);
     try {
-      const r = await fetch(`/api/lookup?doc=${clean}`);
+      const r = await fetch(`/api/lookup?doc=${clean}&nat=${nat}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Error al consultar");
       setLookup(j);
@@ -116,7 +117,9 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
       <form className="card search" onSubmit={search}>
         <label htmlFor="doc" className="search-label">Número de cédula</label>
         <div className="search-row">
-          <input id="doc" ref={docRef} value={doc} inputMode="numeric" autoComplete="off" placeholder="Ej. 1020456789"
+          <button type="button" className="btn secondary nat-btn" onClick={() => setNat((v) => (v === "V" ? "E" : "V"))}
+            title="Cambiar entre V (venezolano) y E (extranjero)" aria-label={`Nacionalidad ${nat}, tocar para cambiar`}>{nat}</button>
+          <input id="doc" ref={docRef} value={doc} inputMode="numeric" autoComplete="off" placeholder="Ej. 12345678"
             onChange={(e) => setDoc(e.target.value.replace(/[^\d.]/g, ""))} />
           <button className="btn" disabled={loading}>{loading ? <span className="spinner" /> : "Consultar"}</button>
         </div>
@@ -150,7 +153,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
                 onChange={(e) => set("full_name", e.target.value)} required minLength={3} />
               <div className="doc-line">
                 <select aria-label="Tipo de documento" value={fields.document_type} onChange={(e) => set("document_type", e.target.value)}>
-                  <option value="CC">CC</option><option value="CE">CE</option><option value="TI">TI</option>
+                  <option value="V">V</option><option value="E">E</option><option value="CC">CC</option><option value="CE">CE</option><option value="TI">TI</option>
                   <option value="PAS">PAS</option><option value="DNI">DNI</option><option value="OTRO">Otro</option>
                 </select>
                 <strong>{fields.document_number}</strong>
