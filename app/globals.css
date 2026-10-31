@@ -744,3 +744,8 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 .is-mirror .xmas-card .xmas-btn, .is-mirror .key-hint, .is-mirror .w-reset, .is-mirror .w-del, .is-mirror .win-actions { display: none !important; }
 .is-mirror .topbar-tools { opacity: 0; transition: opacity .3s; }
 .is-mirror .topbar-tools:hover, .is-mirror .topbar-tools:focus-within { opacity: 1; }
+
+/* Botón oculto de la TV: zona invisible sobre el escudo; 3 toques muestran "Cerrar sesión" */
+.xmas-brand { position: relative; }
+.hidden-logout-trigger { position: absolute; left: 0; top: 0; width: 5rem; height: 100%; background: transparent; border: 0; padding: 0; cursor: default; z-index: 2; }
+.hidden-logout { position: absolute; left: 0; top: calc(100% + 6px); z-index: 60; }

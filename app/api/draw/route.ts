@@ -9,10 +9,15 @@ export const runtime = "nodejs";
 export async function GET() {
   const raffle = await getActiveRaffle().catch(() => null);
   if (!raffle) return NextResponse.json({ draws: [] }, { headers: { "Cache-Control": "no-store" } });
-  const { data, error } = await supabaseAdmin().from("draws").select("participant_id")
-    .eq("raffle_id", raffle.id).order("created_at", { ascending: true }).limit(10000);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ draws: data.map((d) => ({ participantId: d.participant_id })) }, { headers: { "Cache-Control": "no-store" } });
+  // En tandas: Supabase entrega como máximo 1000 filas por consulta y la TV debe ver la lista completa.
+  const sb = supabaseAdmin();
+  try {
+    const data = await fetchAll<{ participant_id: string }>((from, to) => sb.from("draws").select("participant_id")
+      .eq("raffle_id", raffle.id).order("created_at", { ascending: true }).order("id").range(from, to));
+    return NextResponse.json({ draws: data.map((d) => ({ participantId: d.participant_id })) }, { headers: { "Cache-Control": "no-store" } });
+  } catch (e) {
+    return NextResponse.json({ error: (e as { message?: string }).message ?? "Error" }, { status: 500 });
+  }
 }
 
 // El ganador se elige en el servidor (aleatorio criptográfico) y queda registrado.

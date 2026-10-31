@@ -89,7 +89,7 @@ function useSounds() {
       comp.connect(ac.destination);
       ctxRef.current = ac; outRef.current = comp;
     }
-    if (ctxRef.current.state === "suspended") ctxRef.current.resume();
+    if (ctxRef.current.state === "suspended") ctxRef.current.resume().catch(() => {}); // sin un clic previo el navegador no deja sonar
     return ctxRef.current;
   };
   const tone = (freq: number, at: number, dur: number, type: OscillatorType, vol: number) => {
@@ -142,6 +142,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const [removing, setRemoving] = useState<string | null>(null);
   const [mirrorQueue, setMirrorQueue] = useState<string[]>([]);
   const knownDraws = useRef(new Set(pastWinners.map((w) => w.id)));
+  const winTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined); // espera antes del cartel de ganador
 
   // Solo admin: quitar un ganador (vuelve a la ruleta) o todos, para repetir pruebas.
   const removeWinner = useCallback(async (w: WheelParticipant | null) => {
@@ -160,6 +161,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       setHistory((h) => h.filter((p) => !ids.has(p.id)));
       setParticipants((list) => [...list.filter((p) => !ids.has(p.id)), ...back].sort((a, b) => a.number - b.number));
       setWinner((cur) => (cur && ids.has(cur.id) ? null : cur));
+      clearTimeout(winTimer.current);
       setShowWin(false);
       highlight.current = -1;
     } catch (e) {
@@ -313,6 +315,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
 
   // Al cerrar la pantalla de ganador, esa persona desaparece de la ruleta.
   const closeWin = useCallback(() => {
+    clearTimeout(winTimer.current); // si el cartel aún no salía, ya no sale
     setShowWin(false);
     highlight.current = -1;
     setParticipants((list) => (winner ? list.filter((p) => p.id !== winner.id) : list));
@@ -407,6 +410,18 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     timer = setTimeout(tick, MIRROR_POLL_MS);
     return () => { stop = true; clearTimeout(timer); };
   }, [mirror]);
+  // La TV: el navegador solo deja sonar después de un clic o tecla; además se recarga cada 6 h en reposo
+  // porque los enlaces de las fotos vencen a las 12 h.
+  useEffect(() => {
+    if (!mirror) return;
+    const unlock = () => sounds.unlock();
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    const loadedAt = Date.now();
+    const iv = setInterval(() => { if (Date.now() - loadedAt > 6 * 3600e3 && !busy.current && !document.querySelector(".win-overlay")) location.reload(); }, 60e3);
+    return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); clearInterval(iv); };
+  }, [mirror]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Gira los sorteos pendientes uno por uno; antes cierra el cartel del ganador anterior (y lo saca de la ruleta).
   useEffect(() => {
     if (!mirror || !mirrorQueue.length || spinning || busy.current) return;
@@ -422,6 +437,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     if (busy.current || spinning || winner || !n || (mirror && !mirrored)) return;
     busy.current = true;
     loadedAtStart.current = new Set(loaded.current);
+    clearTimeout(winTimer.current);
     sounds.unlock();
     setError(null);
     setWinner(null);
@@ -508,7 +524,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       const w = participants[idx];
       setWinner(w);
       setHistory((h) => [w, ...h]);
-      setTimeout(() => setShowWin(true), 1100); // un instante para ver la porción ganadora iluminada
+      winTimer.current = setTimeout(() => setShowWin(true), 1100); // un instante para ver la porción ganadora iluminada
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {

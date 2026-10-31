@@ -2,6 +2,7 @@ import DbError from "@/components/DbError";
 import Wheel from "@/components/Wheel";
 import Snow from "@/components/Snow";
 import PresenterControls from "@/components/PresenterControls";
+import HiddenLogout from "@/components/HiddenLogout";
 import { getActiveRaffle, getWheelParticipants } from "@/lib/participants";
 import { getSession } from "@/lib/auth";
 
@@ -20,6 +21,7 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
       <main className="container wide">
         <div className="topbar">
           <div className="xmas-brand">
+            {mirror && <HiddenLogout />}
             <img className="xmas-logo" src="/escudo.png" alt="Escudo" />
             <div>
               <h1 className="xmas-title">{raffle?.name ?? "Ruleta"}</h1>
@@ -27,7 +29,7 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
           </div>
           <div className="topbar-tools">
             <PresenterControls />
-            {session?.role === "tv"
+            {mirror || session?.role === "tv"
               ? <form method="post" action="/api/logout"><button className="btn secondary xmas-ghost">Salir</button></form>
               : <a className="btn secondary xmas-ghost" href="/admin">Panel</a>}
           </div>
