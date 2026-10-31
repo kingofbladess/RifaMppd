@@ -104,7 +104,7 @@ function useSounds() {
   };
 }
 
-export default function Wheel({ participants: initial, pastWinners = [], digits, prize }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number; prize?: string | null }) {
+export default function Wheel({ participants: initial, pastWinners = [], digits }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number }) {
   // Quien gana sale de la ruleta para que no pueda volver a salir.
   const [participants, setParticipants] = useState(initial);
   useEffect(() => setParticipants(initial), [initial]);
@@ -475,7 +475,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
 
       <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
         <div className="xmas-label">{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 En el puntero"}</div>
-        <div className="xmas-face" key={`f-${shown?.id}`}>{face(shown, 150, "3.2rem")}</div>
+        <div className="xmas-face">{face(shown, 150, "3.2rem")}</div>
         <div className="num" key={`n-${shown?.id}`}>{shown ? pad(shown.number) : "—"}</div>
         <div className="xmas-name">{shown?.name}</div>
         {shown?.rank && <div className="xmas-rank">{shown.rank}</div>}
@@ -498,7 +498,6 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
             <div className="win-num">{pad(winner.number)}</div>
             <div className="win-name">{winner.name}</div>
             {winner.rank && <div className="win-rank">{winner.rank}</div>}
-            {prize && <div className="win-prize">🎁 {prize}</div>}
             <div className="win-actions">
               <button className="btn xmas-btn" onClick={() => { closeWin(); setQueued(true); }}>🎁 Girar otra vez</button>
               <button className="btn secondary" onClick={closeWin}>Cerrar</button>
