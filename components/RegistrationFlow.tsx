@@ -68,7 +68,8 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
       if (!r.ok) throw new Error(j.error ?? "Error al consultar");
       setLookup(j);
       setFields({ ...EMPTY, ...(j.person ?? {}), document_number: clean });
-      if (!j.photo && !j.existing) setCamera("photo"); // sin foto: abrir la cámara directamente
+      // Sin foto: abrir la cámara directamente, salvo que la API haya fallado (así se ve el aviso).
+      if (!j.photo && !j.existing && !j.apiError) setCamera("photo");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
     } finally {
@@ -176,8 +177,9 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
             <Camera facing="environment" guide="face" maxSide={900} onCapture={(b) => { setNewPhoto(b); setCamera(null); }} />
           )}
 
-          {camera !== "photo" && <>
           {!lookup.found && lookup.apiError && <p className="small warn-text" style={{ textAlign: "left" }}>{lookup.apiError}</p>}
+
+          {camera !== "photo" && <>
 
           <div className="grid two">
             <div className="full">
