@@ -17,5 +17,5 @@ export async function register() {
   if (process.env.VERCEL || !url) return;
   const ping = () => fetch(`${url}/auth/v1/health`, { cache: "no-store" }).then((r) => r.body?.cancel()).catch(() => {});
   ping();
-  setInterval(ping, 45_000).unref();
+  setInterval(ping, 20_000).unref();
 }
