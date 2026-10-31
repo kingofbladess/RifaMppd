@@ -185,7 +185,10 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
           <div className="person-head">
             <button type="button" className="photo-frame" onClick={() => setCamera(camera === "photo" ? null : "photo")}
               aria-label={shownPhoto ? "Actualizar foto" : "Tomar foto"}>
-              {shownPhoto ? <img src={shownPhoto} alt="Foto de la persona" />
+              {shownPhoto ? <img src={shownPhoto} alt="Foto de la persona"
+                  // Si este teléfono no puede mostrar la foto de la API (p. ej. AVIF en un modelo viejo), se descarta
+                  // y se abre la cámara, en vez de quedar una foto rota o fallar al guardar.
+                  onError={() => { if (!newPhoto) { setLookup((l) => (l ? { ...l, photo: null } : l)); setCamera("photo"); } }} />
                 : lookup.photoPending ? <span className="no-photo"><span className="spinner" /><br />Cargando foto…</span>
                 : <span className="no-photo">📸<br />Sin foto</span>}
               {shownPhoto && <span className="photo-src">{newPhoto ? "Nueva" : "API"}</span>}
