@@ -518,3 +518,47 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 @media (max-width: 900px) and (max-aspect-ratio: 4/3) { .xmas-logo { height: 46px; } }
 @media (max-height: 520px) { .xmas-logo { height: 40px; } }
 @media (hover: none) and (pointer: coarse) and (max-width: 900px) { .presenter-btn { display: none; } }
+
+/* ---------- Pantalla final: todos ganaron ---------- */
+.xmas-done { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; text-align: center; padding: clamp(8px, 3dvh, 40px) 0 0; position: relative; z-index: 1; }
+.xmas-done-title { font-size: clamp(2rem, min(8dvh, 7vw), 5rem); font-weight: 900; line-height: 1.05;
+  background: linear-gradient(180deg, #fff3c4, #f6d365 50%, #d4a017); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 0 #7a0b1c) drop-shadow(0 0 30px rgba(255,209,102,.4)); }
+.xmas-done-sub { color: #fff8ec; opacity: .85; margin: 8px 0 clamp(12px, 3dvh, 32px); font-size: clamp(.95rem, 2.2dvh, 1.3rem); }
+.xmas-done-list { list-style: none; margin: 0; padding: 4px 4px 16px; width: min(100%, 72rem); flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 12px; align-content: start; }
+.xmas-done-list li { display: grid; grid-template-columns: auto auto 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; text-align: left;
+  padding: 10px 14px 10px 10px; border-radius: 18px; background: linear-gradient(135deg, rgba(122,11,28,.8), rgba(15,123,63,.5)); border: 1.5px solid rgba(246,211,101,.6);
+  box-shadow: 0 10px 22px rgba(0,0,0,.35); animation: drop .8s cubic-bezier(.2, 1.35, .4, 1) both; }
+.xmas-done-list li > img, .xmas-done-list li > .xmas-initials { grid-row: span 2; border-radius: 50%; object-fit: cover; border: 3px solid #f6d365; }
+.xmas-done-pos { grid-row: span 2; font-weight: 900; color: #f6d365; font-size: 1.1rem; min-width: 1.4em; text-align: center; }
+.xmas-done-list .w-num { font-weight: 900; color: #f6d365; font-size: 1.25rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.xmas-done-list .w-name { color: #fff8ec; font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xmas-empty { max-width: 32rem; margin: 10dvh auto 0; text-align: center; font-size: 1.1rem; }
+.winners-rail .w-empty { line-height: 1.4; }
+
+/* ---------- Usuarios en celular: tarjetas en vez de tabla ---------- */
+@media (max-width: 700px) {
+  .users-wrap { padding: 4px 14px; overflow: visible; }
+  .users-table thead { display: none; }
+  .users-table, .users-table tbody { display: block; }
+  .users-table tr { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: center; }
+  .users-table tr:last-child { border-bottom: 0; }
+  .users-table td { display: block; padding: 0; border: 0; min-width: 0; }
+  .users-table td:nth-child(1) { font-weight: 700; }
+  .users-table td:nth-child(2) { grid-column: 1; grid-row: 2; color: var(--muted); font-size: .85rem; }
+  .users-table td:nth-child(3) { grid-column: 1 / -1; grid-row: 3; }
+  .users-table td:nth-child(4) { grid-column: 2; grid-row: 1; justify-self: end; }
+  .users-table td:nth-child(5) { grid-column: 1 / -1; }
+  .users-table td:nth-child(5) form { width: 100%; }
+  .users-table td:nth-child(5) input { max-width: none !important; flex: 1; min-width: 0; }
+  .users-table td:nth-child(6) { grid-column: 1 / -1; }
+  .users-table td:nth-child(6) .btn { width: 100%; }
+  /* Datos de prueba: etiqueta arriba y los botones en una fila */
+  .demo-box { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .demo-box .small { grid-column: 1 / -1; }
+  .demo-box .demo-add { grid-column: 1 / -1; }
+  .demo-box .demo-add .btn { flex: 1; }
+  .demo-box > form:not(.demo-add) { grid-column: 1 / -1; }
+  .demo-box > form:not(.demo-add) .btn { width: 100%; }
+}

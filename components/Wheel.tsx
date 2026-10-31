@@ -161,13 +161,15 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       }
     }
     if (showNumbers) participants.forEach((p, i) => {
-      const color = COLORS[i % COLORS.length];
+      // Si la cantidad deja la última porción con el mismo color que la primera, se usa otro.
+      const ci = i === n - 1 && n > 1 && i % COLORS.length === 0 ? 2 : i % COLORS.length;
+      const color = COLORS[ci];
       const a0 = r + i * seg, a1 = a0 + seg, mid = a0 + seg / 2;
       ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R, a0, a1); ctx.closePath();
       ctx.fillStyle = color; ctx.fill();
       ctx.strokeStyle = "rgba(212,160,23,.85)";
       ctx.lineWidth = n <= 150 ? 2.5 : 0.6;
-      ctx.stroke();
+      if (n > 1) ctx.stroke(); // con una sola persona no hay bordes entre porciones
 
       ctx.save();
       ctx.translate(c, c);
@@ -175,7 +177,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       const img = p.photoUrl ? images.current.get(p.photoUrl) : undefined;
       let textEnd = R - 20;
       if (showPhotos) {
-        const pr = Math.min(46, Math.max(14, Math.sin(seg / 2) * (R - 70) * 0.85));
+        const pr = Math.min(46, Math.max(14, Math.sin(Math.min(seg / 2, Math.PI / 2.4)) * (R - 70) * 0.85));
         const px = R - pr - 14;
         ctx.save();
         ctx.beginPath(); ctx.arc(px, 0, pr, 0, TAU); ctx.fillStyle = "#fff"; ctx.fill(); ctx.clip();
@@ -197,7 +199,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       }
       ctx.fillStyle = LIGHT.has(color) ? "#7a0b1c" : "#fff";
       ctx.textAlign = "right"; ctx.textBaseline = "middle";
-      const fs = Math.max(11, Math.min(30, Math.sin(seg / 2) * textEnd * 0.9));
+      const fs = Math.max(11, Math.min(30, Math.sin(Math.min(seg / 2, Math.PI / 2.4)) * textEnd * 0.9));
       ctx.font = `800 ${fs}px system-ui, sans-serif`;
       const first = p.name.split(" ").slice(0, 2).join(" ");
       const label = showNames ? `${pad(p.number)} · ${first}` : pad(p.number);
@@ -386,12 +388,30 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     }
   }
 
-  if (!n) return <div className="xmas-card">{history.length ? "🎉 Todos los participantes ya ganaron un premio." : "Aún no hay participantes inscritos."}</div>;
-
-  const shown = winner ?? current;
   const face = (p: WheelParticipant | null, size: number, font: string) => p?.photoUrl
     ? <img src={p.photoUrl} alt={p.name} style={{ width: size, height: size }} />
     : <div className="xmas-initials" style={{ width: size, height: size, fontSize: font }}>{p ? initials(p.name) : "🎁"}</div>;
+
+  // Sin nadie en la ruleta: pantalla final con todos los ganadores (o aviso si aún no hay inscritos).
+  if (!n) return history.length ? (
+    <div className="xmas-done">
+      <div className="xmas-done-title">🎉 ¡Sorteo terminado!</div>
+      <p className="xmas-done-sub">Todos los participantes ya ganaron un premio. ¡Felicidades!</p>
+      <ul className="xmas-done-list">
+        {[...history].reverse().map((h, i) => (
+          <li key={h.id} style={{ animationDelay: `${i * .08}s` }}>
+            <span className="xmas-done-pos">{i + 1}</span>
+            {face(h, 56, "1rem")}
+            <span className="w-num">{pad(h.number)}</span>
+            <span className="w-name">{h.name}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ) : <div className="xmas-card xmas-empty">🎟️ Aún no hay participantes inscritos.</div>;
+
+  const shown = winner ?? current;
+
 
   return (
     <div className="stage" ref={stageRef}>
@@ -416,7 +436,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
                   ))).flat())}
             </ul>
           </div>
-        ) : <p className="w-empty">Aquí aparecerán los ganadores 🎁</p>}
+        ) : <p className="w-empty">🎁 Aquí aparecerán los ganadores</p>}
       </aside>
 
       <div ref={boxRef} className={`wheel-box xmas-wheel${spinning ? " is-spinning" : ""}${winner && !spinning ? " has-winner" : ""}`}>
@@ -435,7 +455,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
         <div className="num" key={`n-${shown?.id}`}>{shown ? pad(shown.number) : "—"}</div>
         <div className="xmas-name">{shown?.name}</div>
         {shown?.rank && <div className="xmas-rank">{shown.rank}</div>}
-        <p className="xmas-count">{n} participantes</p>
+        <p className="xmas-count">{n} {n === 1 ? "participante" : "participantes"}</p>
         <button className="btn xmas-btn" onClick={spin} disabled={spinning}>
           {spinning ? "Girando…" : "🎁 Girar ruleta"}
         </button>

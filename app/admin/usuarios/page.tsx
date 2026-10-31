@@ -32,8 +32,8 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
         <button className="btn" style={{ marginTop: 12 }}>Crear usuario</button>
       </form>
 
-      <div className="card table-wrap">
-        <table>
+      <div className="card table-wrap users-wrap">
+        <table className="users-table">
           <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th>Nueva contraseña</th><th></th></tr></thead>
           <tbody>
             {(users ?? []).map((u) => (
