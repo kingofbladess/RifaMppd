@@ -30,6 +30,7 @@ No guarda datos personales en el celular: todo se consulta y se guarda en el ser
 
 1. Laptop y celulares en la **misma red WiFi**.
 2. En la carpeta del proyecto: `npm run red` (HTTPS en el puerto 3001; la primera vez descarga un certificado de prueba).
+   Para el evento usa **`npm run rapido`**: compila una vez (1–2 min) y sirve la versión optimizada, mucho más rápida que `npm run red` (que compila cada página al abrirla). Necesita que `npm run red` se haya corrido al menos una vez para tener el certificado. Si no cambiaste código, `npm run rapido:sin-compilar` arranca al instante.
 3. Si Windows pregunta por el firewall, permite el acceso en **redes privadas**.
 4. En el celular abre **https://TU-IP:3001**, usando la IP que muestra la terminal en la línea "Network" (o la de `ipconfig`, "Dirección IPv4"). Si el router te asigna otra IP no hay que cambiar nada en el código. Saldrá un aviso de "conexión no privada" (el certificado es de prueba):
    Android → *Configuración avanzada → Continuar*; iPhone → *Mostrar detalles → visitar este sitio web*.

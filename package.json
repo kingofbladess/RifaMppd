@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "red": "next dev -H 0.0.0.0 -p 3001 --experimental-https",
+    "rapido": "next build && node scripts/servidor-red.mjs",
+    "rapido:sin-compilar": "node scripts/servidor-red.mjs",
     "build": "next build",
     "start": "next start"
   },

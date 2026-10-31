@@ -124,6 +124,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
             onChange={(e) => setDoc(e.target.value.replace(/[^\d.]/g, ""))} />
           <button className="btn" disabled={loading}>{loading ? <span className="spinner" /> : "Consultar"}</button>
         </div>
+        {loading && <div className="small" style={{ marginTop: 6 }}>Consultando… si la persona no se ha consultado antes, puede tardar hasta 2 minutos.</div>}
         {count > 0 && <div className="small" style={{ marginTop: 6 }}>Registrados en esta sesión: {count}</div>}
         {!lookup && error && <p className="error">{error}</p>}
       </form>
