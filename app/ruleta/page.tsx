@@ -27,7 +27,7 @@ export default async function RuletaPage() {
             <a className="btn secondary xmas-ghost" href="/admin">Panel</a>
           </div>
         </div>
-        <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} />
+        <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} prize={raffle?.prize} />
       </main>
     </div>
   );

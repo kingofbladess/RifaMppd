@@ -562,3 +562,19 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
   .demo-box > form:not(.demo-add) { grid-column: 1 / -1; }
   .demo-box > form:not(.demo-add) .btn { width: 100%; }
 }
+
+/* ---------- Vista en TV: posición del ganador y premio ---------- */
+.winners-rail .w-pos { display: inline-block; min-width: 2.4em; margin-right: .4em; padding: 0 .4em; border-radius: 99px; font-size: .85em; line-height: 1.45;
+  text-align: center; vertical-align: .12em; color: #3b0710; background: linear-gradient(180deg, #fff3c4, #f6d365); }
+.win-pos { display: inline-block; margin-bottom: clamp(6px, 1.4dvh, 14px); padding: .3em 1.1em; border-radius: 99px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  font-size: clamp(.9rem, 2.4dvh, 1.5rem); color: #3b0710; background: linear-gradient(180deg, #fff3c4, #f6d365 60%, #d4a017); box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.win-prize { display: inline-block; margin-top: clamp(8px, 1.6dvh, 16px); padding: .4em 1.2em; border-radius: 14px; font-weight: 700;
+  font-size: clamp(1rem, 2.8dvh, 1.7rem); color: #ffe9a8; background: rgba(15,123,63,.55); border: 1.5px solid rgba(246,211,101,.6); }
+.win-face { position: relative; z-index: 1; }
+@media (max-height: 560px) { .win-prize { display: none; } }
+/* El cartel del ganador cabe completo en pantallas bajas (TV 768p o portátil) */
+.win-title { font-size: clamp(2.6rem, min(13vw, 15dvh), 9rem); }
+.win-face img, .win-face .xmas-initials { width: clamp(110px, 22dvh, 15rem) !important; height: clamp(110px, 22dvh, 15rem) !important; }
+.win-num { font-size: clamp(2.4rem, min(10vw, 8dvh), 5.5rem); line-height: 1.1; }
+/* Ganadores quietos (caben todos): sin desvanecido arriba para que el más reciente se lea completo */
+.winners-rail .rail-window:not(.is-rolling) { -webkit-mask-image: none; mask-image: none; }
