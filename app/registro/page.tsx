@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 async function RegistroPageContent() {
   const [raffle, session] = await Promise.all([getActiveRaffle(), getSession()]);
   return (
-    <main className="container reg-page">
+    <main className="container tema reg-page">
       <div className="topbar compact">
         <div>
           <h1>🎟️ {raffle?.name ?? "Rifa"}</h1>

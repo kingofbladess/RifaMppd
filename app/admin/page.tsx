@@ -63,7 +63,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
   }));
 
   return (
-    <main className="container wide">
+    <main className="container wide tema">
       <div className="topbar panel-top">
         <div>
           <h1>Panel · {raffle?.name ?? "Sin rifa activa"}</h1>

@@ -12,7 +12,7 @@ export default function DbError({ error }: { error: unknown }) {
   else if (e?.code === "42P01" || /does not exist/i.test(msg))
     hint = "Faltan tablas en la base de datos: ejecuta supabase/schema.sql en el SQL Editor de Supabase.";
   return (
-    <main className="container">
+    <main className="container tema">
       <div className="card" style={{ marginTop: 40 }}>
         <h1 style={{ marginTop: 0 }}>⚠️ No se pudo conectar con la base de datos</h1>
         <p>{hint}</p>

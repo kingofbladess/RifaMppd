@@ -8,7 +8,7 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
     .select("id, username, full_name, role, is_active, created_at").order("created_at");
 
   return (
-    <main className="container wide">
+    <main className="container wide tema">
       <div className="topbar">
         <div>
           <h1>Usuarios</h1>
