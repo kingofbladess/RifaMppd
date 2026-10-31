@@ -364,8 +364,11 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     const fit = () => {
       const stacked = window.matchMedia(STACKED_MQ).matches;
       const POINTER = 0.06; // la estrella del puntero sobresale ~6 % por arriba
-      const railW = rail.offsetWidth ? rail.offsetWidth + (stacked ? 8 : 24) : 0;
-      const availH = stacked ? stage.clientHeight - card.offsetHeight - 8 : stage.clientHeight;
+      // En celular vertical los ganadores son una fila debajo de la ruleta (le quitan alto, no ancho);
+      // en PC/TV son una columna a la izquierda.
+      const railW = !stacked && rail.offsetWidth ? rail.offsetWidth + 24 : 0;
+      const railH = stacked && rail.offsetHeight ? rail.offsetHeight + 8 : 0;
+      const availH = stacked ? stage.clientHeight - card.offsetHeight - railH - 8 : stage.clientHeight;
       const availW = stage.clientWidth - railW - (stacked ? 0 : card.offsetWidth + 24);
       const size = Math.max(200, Math.floor(Math.min(availW, availH / (1 + POINTER))));
       box.style.width = `${size}px`;
