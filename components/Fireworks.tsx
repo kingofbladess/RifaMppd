@@ -20,10 +20,11 @@ export default function Fireworks({ active, onLaunch, onBurst }: { active: boole
     const ctx = canvas.getContext("2d")!;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let w = 0, h = 0, raf = 0, last = performance.now(), nextLaunch = 0;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // Las chispas no necesitan alta resolución: en TV 4K se dibuja a lo sumo a 1920 px de ancho y se escala.
     const resize = () => {
       w = canvas.clientWidth; h = canvas.clientHeight;
-      canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const dpr = Math.min(2, window.devicePixelRatio || 1, 1920 / Math.max(1, w));
+      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
     window.addEventListener("resize", resize);
