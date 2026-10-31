@@ -29,12 +29,18 @@ export async function POST(req: Request) {
   const username = String(form.get("username") ?? "").trim().toLowerCase();
   const full_name = String(form.get("full_name") ?? "").trim();
   const password = String(form.get("password") ?? "");
-  const role = form.get("role") === "admin" ? "admin" : "operator";
+  const role = form.get("role") === "admin" ? "admin" : form.get("role") === "tv" ? "tv" : "operator";
   if (!/^[a-z0-9._-]{3,32}$/.test(username) || username === "admin") return back("error=Usuario+inválido");
   if (full_name.length < 3) return back("error=Nombre+requerido");
   if (password.length < 8) return back("error=La+contraseña+debe+tener+al+menos+8+caracteres");
 
   const { error } = await sb.from("app_users").insert({ username, full_name, role, password_hash: hashPassword(password) });
-  if (error) return back(`error=${encodeURIComponent(error.code === "23505" ? "Ese usuario ya existe" : "No se pudo crear")}`);
+  if (error) {
+    // La base todavía no conoce el rol "tv": hay que ejecutar supabase/schema.sql actualizado (o solo su bloque de roles).
+    const msg = error.code === "23505" ? "Ese usuario ya existe"
+      : error.code === "23514" && role === "tv" ? "La base aún no acepta el rol Pantalla (TV): ejecuta supabase/schema.sql actualizado en el SQL Editor de Supabase"
+      : "No se pudo crear";
+    return back(`error=${encodeURIComponent(msg)}`);
+  }
   return back("ok=1");
 }
