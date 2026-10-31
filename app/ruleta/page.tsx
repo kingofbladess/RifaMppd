@@ -2,6 +2,7 @@ import DbError from "@/components/DbError";
 import Wheel from "@/components/Wheel";
 import Snow from "@/components/Snow";
 import PresenterControls from "@/components/PresenterControls";
+import HiddenLogout from "@/components/HiddenLogout";
 import { getActiveRaffle, getWheelParticipants } from "@/lib/participants";
 import { getSession } from "@/lib/auth";
 
@@ -34,6 +35,7 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
         </div>
         <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} canManage={session?.role === "admin" && !mirror} mirror={mirror} />
       </main>
+      {session?.role === "tv" && <HiddenLogout />}
     </div>
   );
 }

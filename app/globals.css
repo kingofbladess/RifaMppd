@@ -744,3 +744,10 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 .is-mirror .xmas-card .xmas-btn, .is-mirror .key-hint, .is-mirror .w-reset, .is-mirror .w-del, .is-mirror .win-actions { display: none !important; }
 .is-mirror .topbar-tools { opacity: 0; transition: opacity .3s; }
 .is-mirror .topbar-tools:hover, .is-mirror .topbar-tools:focus-within { opacity: 1; }
+
+/* Espejo (TV): botón oculto para cerrar sesión, esquina inferior izquierda; aparece al acercar el mouse o tocar */
+.hidden-logout { position: fixed; left: 0; bottom: 0; z-index: 60; padding: 10px; }
+.hidden-logout button { opacity: 0; min-width: 72px; min-height: 44px; border-radius: 12px; border: 1px solid rgba(246,211,101,.5);
+  background: rgba(10,20,35,.85); color: #fff8ec; font: inherit; font-weight: 700; cursor: pointer; transition: opacity .25s; }
+.hidden-logout:hover button, .hidden-logout button:focus-visible, .hidden-logout button:active { opacity: 1; }
+html[data-presenter][data-idle] .hidden-logout button { cursor: none; }
