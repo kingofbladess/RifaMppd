@@ -69,7 +69,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Error al consultar");
       setLookup(j);
-      setFields({ ...EMPTY, ...(j.person ?? {}), document_number: clean });
+      setFields({ ...EMPTY, document_type: nat, ...(j.person ?? {}), document_number: clean });
       // Sin foto: abrir la cámara directamente, salvo que la API haya fallado (así se ve el aviso)
       // o que Infopress aún esté preparando la foto (se pide en segundo plano).
       if (!j.photo && !j.existing && !j.apiError && !j.photoPending) setCamera("photo");

@@ -70,7 +70,7 @@ export default function Camera({ facing, guide, onCapture, maxSide }: Props) {
     <div className="camera">
       <div className={`viewport ${mode === "user" ? "mirror" : ""}`}>
         <video ref={videoRef} playsInline muted />
-        <div className={`guide ${guide}`} />
+        {!error && <div className={`guide ${guide}`} />}
         {!ready && !error && <div className="cam-msg">Abriendo cámara…</div>}
         {error && <div className="cam-msg">{error}</div>}
       </div>

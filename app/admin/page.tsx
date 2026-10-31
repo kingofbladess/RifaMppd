@@ -22,8 +22,10 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
   async function listQuery(raffleId: string) {
     let query = sb.from("participants").select(COLS).eq("raffle_id", raffleId);
     if (q) {
+      // "V-12345678" o "E12345678": se busca solo el número, que es como se guarda la cédula.
+      const plain = /^[VvEe]-?\d{4,}$/.test(q) ? q.replace(/\D/g, "") : q;
       // Las vocales se vuelven comodín para que "martinez" encuentre "Martínez".
-      const like = `%${q.replace(/[%_,()*]/g, " ").replace(/[aeiouáéíóúü]/gi, "_")}%`;
+      const like = `%${plain.replace(/[%_,()*]/g, " ").replace(/[aeiouáéíóúü]/gi, "_")}%`;
       const ors = [`full_name.ilike.${like}`, `document_number.ilike.${like}`, `rank.ilike.${like}`, `registered_by_name.ilike.${like}`];
       if (/^\d{1,6}$/.test(q)) ors.push(`raffle_number.eq.${Number(q)}`);
       query = query.or(ors.join(","));

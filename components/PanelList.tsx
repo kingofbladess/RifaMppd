@@ -30,7 +30,9 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
   const caption = query
     ? `${rows.length >= limit ? `Más de ${limit}` : rows.length} resultado${rows.length === 1 ? "" : "s"}${rows.length >= limit ? " (afina la búsqueda)" : ""}`
     : total > rows.length ? `Mostrando los ${rows.length} más recientes de ${total}. Usa el buscador para encontrar a cualquiera.` : "";
-  const date = (s: string) => new Date(s).toLocaleString("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  // Hora de Venezuela fija: el servidor (Vercel, en UTC) y el teléfono deben pintar lo mismo, si no la hora salía
+  // corrida 4 h y React reportaba un error de hidratación.
+  const date = (s: string) => new Date(s).toLocaleString("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Caracas" });
   const extra = (r: PanelRow) => r.hasIdDoc
     ? <a href={`/api/admin/document/${r.id}`} target="_blank" rel="noreferrer">Ver cédula</a>
     : <span className="small">{r.photoSource === "api" ? "Foto API" : "Foto nueva"}</span>;

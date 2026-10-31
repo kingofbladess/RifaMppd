@@ -590,3 +590,11 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 /* Botón V/E junto a la cédula */
 .search-row .btn.nat-btn { min-width: 0; width: 3.2rem; padding-inline: 0; font-size: 1.3rem; font-weight: 800; flex: none; }
 .nowrap { white-space: nowrap; }
+
+/* ---------- Ajustes de la revisión general ---------- */
+/* Celular: el botón "Consultar" ya no se corta; el campo de la cédula es el que se achica */
+.search-row input { flex: 1; min-width: 0; }
+.search-row .btn { flex: none; }
+/* Lista del panel en celular: el operador y la fecha se recortan con "…" y "Ver cédula"/"Foto nueva" se ve completo */
+.p-meta > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-meta > :last-child { flex: none; }
