@@ -16,6 +16,11 @@ const TAU = Math.PI * 2;
 const SPIN_MS = 10000;     // duración total del giro
 const TURNS = 5;          // vueltas mínimas
 const BULBS = 28;
+const KICK: Keyframe[] = [
+  { transform: "translateX(-50%) rotate(0)" },
+  { transform: "translateX(-50%) rotate(-14deg)", offset: .4 },
+  { transform: "translateX(-50%) rotate(0)" },
+];
 const WIND_UP = 0.07;      // fracción del giro con el pequeño impulso hacia atrás antes de arrancar
 // Debe coincidir con la regla CSS que apila la ruleta y el recuadro (celular vertical)
 const STACKED_MQ = "(max-width: 900px) and (max-aspect-ratio: 4/3)";
@@ -35,6 +40,37 @@ const PROFILE = (() => {
   for (let i = 0; i <= N; i++) out[i] /= acc;
   return out;
 })();
+// Aro, centro y estrella no cambian nunca: se dibujan una sola vez en lienzos aparte y en cada cuadro solo se copian.
+const STAR = 140;
+let STATICS: { base: HTMLCanvasElement; hub: HTMLCanvasElement; star: HTMLCanvasElement } | null = null;
+function statics() {
+  if (STATICS) return STATICS;
+  const make = (w: number) => { const cv = document.createElement("canvas"); cv.width = cv.height = w; return [cv, cv.getContext("2d")!] as const; };
+  const c = SIZE / 2, R = c - 40;
+  const [base, b] = make(SIZE);
+  const rim = b.createLinearGradient(0, 0, SIZE, SIZE);
+  rim.addColorStop(0, "#fbe7a1"); rim.addColorStop(.35, "#d4a017"); rim.addColorStop(.65, "#8a6100"); rim.addColorStop(1, "#f6d365");
+  b.beginPath(); b.arc(c, c, c - 4, 0, TAU); b.fillStyle = rim; b.fill();
+  b.beginPath(); b.arc(c, c, R + 4, 0, TAU); b.fillStyle = "#5c0a14"; b.fill();
+  // Centro: esfera roja con borde dorado
+  const [hub, h] = make(SIZE);
+  const g = h.createRadialGradient(c - 20, c - 20, 10, c, c, 80);
+  g.addColorStop(0, "#ff5a6e"); g.addColorStop(.6, "#c8102e"); g.addColorStop(1, "#7a0b1c");
+  h.beginPath(); h.arc(c, c, 78, 0, TAU); h.fillStyle = g; h.fill();
+  h.lineWidth = 8; h.strokeStyle = "#f6d365"; h.stroke();
+  // Estrella dorada con su brillo
+  const [star, s] = make(STAR);
+  s.translate(STAR / 2, STAR / 2);
+  s.beginPath();
+  for (let k = 0; k < 10; k++) {
+    const rad = k % 2 ? 20 : 48, a = -Math.PI / 2 + k * Math.PI / 5;
+    s.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+  }
+  s.closePath();
+  s.fillStyle = "#ffd166"; s.shadowColor = "#ffe9a8"; s.shadowBlur = 18; s.fill();
+  return (STATICS = { base, hub, star });
+}
+
 function spinProgress(u: number) {
   const x = Math.min(1, Math.max(0, u)) * (PROFILE.length - 1), i = Math.floor(x), f = x - i;
   return i >= PROFILE.length - 1 ? 1 : PROFILE[i] + (PROFILE[i + 1] - PROFILE[i]) * f;
@@ -120,9 +156,6 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   const rotation = useRef(0);
   const highlight = useRef(-1); // porción ganadora que brilla al detenerse
   const images = useRef(new Map<string, HTMLImageElement>());
-  const faceRef = useRef<HTMLCanvasElement | null>(null);
-  const faceDirty = useRef(true);
-  const faceFor = useRef<WheelParticipant[] | null>(null);
   const [spinning, setSpinning] = useState(false);
   const [current, setCurrent] = useState<WheelParticipant | null>(null);
   const [winner, setWinner] = useState<WheelParticipant | null>(null);
@@ -148,93 +181,88 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     return Math.floor(a / seg) % n;
   }, [seg, n]);
 
+  // Las porciones con sus nombres y fotos se dibujan una sola vez (sin girar) en un lienzo aparte;
+  // mientras gira, cada cuadro solo copia ese disco rotado, así el giro va fluido aunque haya miles de personas.
+  const disc = useRef<{ key: unknown; canvas: HTMLCanvasElement } | null>(null);
+  const renderDisc = useCallback(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = SIZE;
+    const ctx = canvas.getContext("2d")!;
+    const c = SIZE / 2, RIM = 34, R = c - RIM - 6, r = 0;
+
+    if (!showNumbers) {
+      // Muchos participantes: franjas de color (cada una agrupa varias porciones) para que gire fluido.
+      const BANDS = 24, band = TAU / BANDS;
+      for (let b = 0; b < BANDS; b++) {
+        ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R, r + b * band, r + (b + 1) * band); ctx.closePath();
+        ctx.fillStyle = COLORS[b % COLORS.length]; ctx.fill();
+        ctx.strokeStyle = "rgba(212,160,23,.8)"; ctx.lineWidth = 2; ctx.stroke();
+      }
+    }
+    if (showNumbers) participants.forEach((p, i) => {
+      // Si la cantidad deja la última porción con el mismo color que la primera, se usa otro.
+      const ci = i === n - 1 && n > 1 && i % COLORS.length === 0 ? 2 : i % COLORS.length;
+      const color = COLORS[ci];
+      const a0 = r + i * seg, a1 = a0 + seg, mid = a0 + seg / 2;
+      ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R, a0, a1); ctx.closePath();
+      ctx.fillStyle = color; ctx.fill();
+      ctx.strokeStyle = "rgba(212,160,23,.85)";
+      ctx.lineWidth = n <= 150 ? 2.5 : 0.6;
+      if (n > 1) ctx.stroke(); // con una sola persona no hay bordes entre porciones
+
+      ctx.save();
+      ctx.translate(c, c);
+      ctx.rotate(mid);
+      const img = p.photoUrl ? images.current.get(p.photoUrl) : undefined;
+      let textEnd = R - 20;
+      if (showPhotos) {
+        const pr = Math.min(46, Math.max(14, Math.sin(Math.min(seg / 2, Math.PI / 2.4)) * (R - 70) * 0.85));
+        const px = R - pr - 14;
+        ctx.save();
+        ctx.beginPath(); ctx.arc(px, 0, pr, 0, TAU); ctx.fillStyle = "#fff"; ctx.fill(); ctx.clip();
+        ctx.translate(px, 0);
+        ctx.rotate(Math.PI / 2);
+        if (img?.complete && img.naturalWidth) {
+          const s = Math.max((pr * 2) / img.naturalWidth, (pr * 2) / img.naturalHeight);
+          ctx.drawImage(img, -img.naturalWidth * s / 2, -img.naturalHeight * s / 2, img.naturalWidth * s, img.naturalHeight * s);
+        } else {
+          ctx.fillStyle = "#7a0b1c";
+          ctx.font = `800 ${Math.round(pr * .8)}px system-ui, sans-serif`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(initials(p.name), 0, 1);
+        }
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(px, 0, pr, 0, TAU);
+        ctx.strokeStyle = "#f6d365"; ctx.lineWidth = 4; ctx.stroke();
+        textEnd = px - pr - 10;
+      }
+      ctx.fillStyle = LIGHT.has(color) ? "#7a0b1c" : "#fff";
+      ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      const fs = Math.max(11, Math.min(30, Math.sin(Math.min(seg / 2, Math.PI / 2.4)) * textEnd * 0.9));
+      ctx.font = `800 ${fs}px system-ui, sans-serif`;
+      // Se prueba de más largo a más corto (dos palabras, primer nombre) y solo se corta con "…" si ni el primer nombre cabe.
+      const room = textEnd - 96, words = p.name.split(" ").filter(Boolean);
+      const options = showNames ? [words.slice(0, 2).join(" "), words[0]].map((w) => `${pad(p.number)} · ${w}`) : [pad(p.number)];
+      let t = options.find((o) => ctx.measureText(o).width <= room);
+      if (!t) {
+        t = options.at(-1)!;
+        while (ctx.measureText(t + "…").width > room && t.length > digits + 4) t = t.slice(0, -1);
+        t = t.length > digits + 4 ? t + "…" : pad(p.number);
+      }
+      ctx.fillText(t, textEnd, 0);
+      ctx.restore();
+    });
+    return canvas;
+  }, [participants, n, seg, showPhotos, showNames, showNumbers, digits]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const draw = useCallback(() => {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx || !n) return;
-    const c = SIZE / 2, RIM = 34, R = c - RIM - 6, r = rotation.current;
+    const c = SIZE / 2, R = c - 40, r = rotation.current, s = statics();
+    if (disc.current?.key !== renderDisc) disc.current = { key: renderDisc, canvas: renderDisc() };
     ctx.clearRect(0, 0, SIZE, SIZE);
-
-    // Aro dorado exterior (las luces son elementos HTML encima)
-    const rim = ctx.createLinearGradient(0, 0, SIZE, SIZE);
-    rim.addColorStop(0, "#fbe7a1"); rim.addColorStop(.35, "#d4a017"); rim.addColorStop(.65, "#8a6100"); rim.addColorStop(1, "#f6d365");
-    ctx.beginPath(); ctx.arc(c, c, c - 4, 0, TAU); ctx.fillStyle = rim; ctx.fill();
-    ctx.beginPath(); ctx.arc(c, c, R + 4, 0, TAU); ctx.fillStyle = "#5c0a14"; ctx.fill();
-
-    // Las porciones (colores, fotos y textos) se dibujan una sola vez en un lienzo aparte y en cada cuadro
-    // solo se gira esa imagen: así el giro va fluido aunque el equipo de la TV sea modesto.
-    let face = faceRef.current;
-    if (!face) { face = document.createElement("canvas"); face.width = face.height = SIZE; faceRef.current = face; }
-    if (faceFor.current !== participants) { faceFor.current = participants; faceDirty.current = true; }
-    if (faceDirty.current) {
-      faceDirty.current = false;
-      const ctx = face.getContext("2d")!, r = 0;
-      ctx.clearRect(0, 0, SIZE, SIZE);
-      if (!showNumbers) {
-        // Muchos participantes: franjas de color (cada una agrupa varias porciones) para que gire fluido.
-        const BANDS = 24, band = TAU / BANDS;
-        for (let b = 0; b < BANDS; b++) {
-          ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R, r + b * band, r + (b + 1) * band); ctx.closePath();
-          ctx.fillStyle = COLORS[b % COLORS.length]; ctx.fill();
-          ctx.strokeStyle = "rgba(212,160,23,.8)"; ctx.lineWidth = 2; ctx.stroke();
-        }
-      }
-      if (showNumbers) participants.forEach((p, i) => {
-        // Si la cantidad deja la última porción con el mismo color que la primera, se usa otro.
-        const ci = i === n - 1 && n > 1 && i % COLORS.length === 0 ? 2 : i % COLORS.length;
-        const color = COLORS[ci];
-        const a0 = r + i * seg, a1 = a0 + seg, mid = a0 + seg / 2;
-        ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R, a0, a1); ctx.closePath();
-        ctx.fillStyle = color; ctx.fill();
-        ctx.strokeStyle = "rgba(212,160,23,.85)";
-        ctx.lineWidth = n <= 150 ? 2.5 : 0.6;
-        if (n > 1) ctx.stroke(); // con una sola persona no hay bordes entre porciones
-
-        ctx.save();
-        ctx.translate(c, c);
-        ctx.rotate(mid);
-        const img = p.photoUrl ? images.current.get(p.photoUrl) : undefined;
-        let textEnd = R - 20;
-        if (showPhotos) {
-          const pr = Math.min(46, Math.max(14, Math.sin(Math.min(seg / 2, Math.PI / 2.4)) * (R - 70) * 0.85));
-          const px = R - pr - 14;
-          ctx.save();
-          ctx.beginPath(); ctx.arc(px, 0, pr, 0, TAU); ctx.fillStyle = "#fff"; ctx.fill(); ctx.clip();
-          ctx.translate(px, 0);
-          ctx.rotate(Math.PI / 2);
-          if (img?.complete && img.naturalWidth) {
-            const s = Math.max((pr * 2) / img.naturalWidth, (pr * 2) / img.naturalHeight);
-            ctx.drawImage(img, -img.naturalWidth * s / 2, -img.naturalHeight * s / 2, img.naturalWidth * s, img.naturalHeight * s);
-          } else {
-            ctx.fillStyle = "#7a0b1c";
-            ctx.font = `800 ${Math.round(pr * .8)}px system-ui, sans-serif`;
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(initials(p.name), 0, 1);
-          }
-          ctx.restore();
-          ctx.beginPath(); ctx.arc(px, 0, pr, 0, TAU);
-          ctx.strokeStyle = "#f6d365"; ctx.lineWidth = 4; ctx.stroke();
-          textEnd = px - pr - 10;
-        }
-        ctx.fillStyle = LIGHT.has(color) ? "#7a0b1c" : "#fff";
-        ctx.textAlign = "right"; ctx.textBaseline = "middle";
-        const fs = Math.max(11, Math.min(30, Math.sin(Math.min(seg / 2, Math.PI / 2.4)) * textEnd * 0.9));
-        ctx.font = `800 ${fs}px system-ui, sans-serif`;
-        // Se prueba de más largo a más corto (dos palabras, primer nombre) y solo se corta con "…" si ni el primer nombre cabe.
-        const room = textEnd - 96, words = p.name.split(" ").filter(Boolean);
-        const options = showNames ? [words.slice(0, 2).join(" "), words[0]].map((w) => `${pad(p.number)} · ${w}`) : [pad(p.number)];
-        let t = options.find((o) => ctx.measureText(o).width <= room);
-        if (!t) {
-          t = options.at(-1)!;
-          while (ctx.measureText(t + "…").width > room && t.length > digits + 4) t = t.slice(0, -1);
-          t = t.length > digits + 4 ? t + "…" : pad(p.number);
-        }
-        ctx.fillText(t, textEnd, 0);
-        ctx.restore();
-      });
-    }
-    ctx.save();
-    ctx.translate(c, c); ctx.rotate(r); ctx.drawImage(face, -c, -c);
-    ctx.restore();
+    ctx.drawImage(s.base, 0, 0);
+    ctx.save(); ctx.translate(c, c); ctx.rotate(r); ctx.drawImage(disc.current.canvas, -c, -c); ctx.restore();
 
     // Porción ganadora: se ilumina en dorado (al menos unos grados de ancho para que se vea con miles)
     if (highlight.current >= 0) {
@@ -247,29 +275,16 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     }
 
     // Centro: esfera roja con estrella dorada
-    const hub = ctx.createRadialGradient(c - 20, c - 20, 10, c, c, 80);
-    hub.addColorStop(0, "#ff5a6e"); hub.addColorStop(.6, "#c8102e"); hub.addColorStop(1, "#7a0b1c");
-    ctx.beginPath(); ctx.arc(c, c, 78, 0, TAU); ctx.fillStyle = hub; ctx.fill();
-    ctx.lineWidth = 8; ctx.strokeStyle = "#f6d365"; ctx.stroke();
-    ctx.save();
-    ctx.translate(c, c);
-    ctx.rotate(r * .25);
-    ctx.beginPath();
-    for (let k = 0; k < 10; k++) {
-      const rad = k % 2 ? 20 : 48, a = -Math.PI / 2 + k * Math.PI / 5;
-      ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
-    }
-    ctx.closePath();
-    ctx.fillStyle = "#ffd166"; ctx.shadowColor = "#ffe9a8"; ctx.shadowBlur = 18; ctx.fill();
-    ctx.restore();
-  }, [participants, n, seg, showPhotos, showNames, showNumbers, digits]); // eslint-disable-line react-hooks/exhaustive-deps
+    ctx.drawImage(s.hub, 0, 0);
+    ctx.save(); ctx.translate(c, c); ctx.rotate(r * .25); ctx.drawImage(s.star, -STAR / 2, -STAR / 2); ctx.restore();
+  }, [renderDisc, n, seg]);
 
   useEffect(() => {
     if (!showPhotos) return;
     participants.forEach((p) => {
       if (!p.photoUrl || images.current.has(p.photoUrl)) return;
       const img = new Image();
-      img.onload = () => { faceDirty.current = true; draw(); };
+      img.onload = () => { disc.current = null; draw(); }; // la foto llegó: se vuelve a dibujar el disco con ella
       img.src = p.photoUrl;
       images.current.set(p.photoUrl, img);
     });
@@ -388,7 +403,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       target += Math.ceil((minEnd - target) / TAU) * TAU;
 
       const t0 = performance.now();
-      let lastIdx = -1, lastTick = 0, lastBlink = 0;
+      let lastIdx = -1, lastTick = 0, lastBlink = 0, lastShown = 0;
       await new Promise<void>((done) => {
         const frame = (now: number) => {
           const t = Math.min(1, (now - t0) / SPIN_MS);
@@ -406,13 +421,15 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
           const i = indexAtPointer(rotation.current);
           if (i !== lastIdx) {
             lastIdx = i;
-            setCurrent(participants[i]); // el recuadro muestra siempre a quien está bajo el puntero, en el mismo cuadro
+            // El recuadro muestra a quien está bajo el puntero. Con cientos de personas por segundo nadie alcanza a leerlo,
+            // así que se refresca ~20 veces por segundo (y siempre al frenar) para no trabar la TV.
+            if (!lightSpin || now - lastShown > 50 || t > .9) { lastShown = now; setCurrent(participants[i]); }
             // "tic" y golpecito del puntero, limitados para que no suene como un zumbido
             if (now - lastTick > 45) {
               lastTick = now;
               sounds.tick();
-              const el = pointerRef.current;
-              if (el) { el.classList.remove("kick"); void el.offsetWidth; el.classList.add("kick"); }
+              // Web Animations: reinicia el golpecito sin forzar al navegador a recalcular la página
+              pointerRef.current?.animate(KICK, { duration: 120, easing: "ease-out" });
             }
           }
           if (t < 1) requestAnimationFrame(frame); else done();
@@ -437,39 +454,30 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     ? <img src={p.photoUrl} alt={p.name} style={{ width: size, height: size }} />
     : <div className="xmas-initials" style={{ width: size, height: size, fontSize: font }}>{p ? initials(p.name) : "🎁"}</div>;
 
-  // Mientras gira, el recuadro cambia en casi cada cuadro: la lista de ganadores y las luces se guardan
-  // para que React no las vuelva a armar cada vez (en equipos modestos eso trababa el giro).
-  const rail = useMemo(() => (
-    <aside className={`winners-rail${history.length ? "" : " empty"}`} ref={railRef} aria-label="Ganadores">
-      <div className="xmas-label">🏆 Ganadores{history.length ? ` (${history.length})` : ""}</div>
-      {history.length ? (
-        // Si los ganadores no caben, la lista se duplica y baja sin parar (al terminar una vuelta empieza de nuevo sin saltos).
-        // Si caben, se muestran quietos y una sola vez, para que en la TV nadie crea que hay ganadores repetidos.
-        <div className={`rail-window${rolls ? " is-rolling" : ""}`} ref={railWindowRef}>
-          <ul key={`${history.length}-${rolls}`} ref={railListRef} className={rolls ? "rolling" : ""}
-            style={rolls ? { animationDuration: `${Math.max(history.length, 6) * 2.4}s` } : undefined}>
-            {(rolls ? [0, 1] : [0]).flatMap((copy) =>
-              history.map((h, i) => (
-                <li key={`${copy}-${h.id}`} aria-hidden={copy > 0 || undefined}>
-                  <div className="float" style={{ animationDelay: `${-(i % 5) * .6}s` }}>
-                    {face(h, 40, ".85rem")}
-                    <span className="w-num"><span className="w-pos">{history.length - i}.º</span>{pad(h.number)}</span>
-                    <span className="w-name">{h.name}</span>
-                  </div>
-                </li>
-              )))}
-          </ul>
-        </div>
-      ) : <p className="w-empty">🎁 Aquí aparecerán los ganadores</p>}
-    </aside>
-  ), [history, rolls]); // eslint-disable-line react-hooks/exhaustive-deps
-  const bulbs = useMemo(() => (
-    <div className="bulbs" aria-hidden="true">
-      {Array.from({ length: BULBS }, (_, i) => (
-        <i key={i} style={{ transform: `translate(-50%, -50%) rotate(${(i * 360) / BULBS}deg) translateY(-48cqw)`, animationDelay: `${(i % 4) * .18}s` }} className={`b${i % 4}`} />
-      ))}
+  // Mientras gira, el recuadro cambia en cada cuadro: las luces y la lista de ganadores se guardan ya armadas
+  // para que React no las vuelva a recorrer 60 veces por segundo.
+  const bulbs = useMemo(() => Array.from({ length: BULBS }, (_, i) => (
+    <i key={i} style={{ transform: `translate(-50%, -50%) rotate(${(i * 360) / BULBS}deg) translateY(-48cqw)`, animationDelay: `${(i % 4) * .18}s` }} className={`b${i % 4}`} />
+  )), []);
+  const rail = useMemo(() => history.length ? (
+    // Si los ganadores no caben, la lista se duplica y baja sin parar (al terminar una vuelta empieza de nuevo sin saltos).
+    // Si caben, se muestran quietos y una sola vez, para que en la TV nadie crea que hay ganadores repetidos.
+    <div className={`rail-window${rolls ? " is-rolling" : ""}`} ref={railWindowRef}>
+      <ul key={`${history.length}-${rolls}`} ref={railListRef} className={rolls ? "rolling" : ""}
+        style={rolls ? { animationDuration: `${Math.max(history.length, 6) * 2.4}s` } : undefined}>
+        {(rolls ? [0, 1] : [0]).flatMap((copy) =>
+          history.map((h, i) => (
+            <li key={`${copy}-${h.id}`} aria-hidden={copy > 0 || undefined}>
+              <div className="float" style={{ animationDelay: `${-(i % 5) * .6}s` }}>
+                {face(h, 40, ".85rem")}
+                <span className="w-num"><span className="w-pos">{history.length - i}.º</span>{pad(h.number)}</span>
+                <span className="w-name">{h.name}</span>
+              </div>
+            </li>
+          )))}
+      </ul>
     </div>
-  ), []);
+  ) : <p className="w-empty">🎁 Aquí aparecerán los ganadores</p>, [history, rolls, digits]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sin nadie en la ruleta: pantalla final con todos los ganadores (o aviso si aún no hay inscritos).
   if (!n) return history.length ? (
@@ -495,12 +503,15 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   return (
     <div className="stage" ref={stageRef}>
       {/* Ganadores a la izquierda: cada nuevo cae desde arriba y todos flotan suavemente */}
-      {rail}
+      <aside className={`winners-rail${history.length ? "" : " empty"}`} ref={railRef} aria-label="Ganadores">
+        <div className="xmas-label">🏆 Ganadores{history.length ? ` (${history.length})` : ""}</div>
+        {rail}
+      </aside>
 
       <div ref={boxRef} className={`wheel-box xmas-wheel${spinning ? " is-spinning" : ""}${winner && !spinning ? " has-winner" : ""}`}>
         <div className="xmas-pointer" ref={pointerRef}><span>⭐</span></div>
         <canvas ref={canvasRef} width={SIZE} height={SIZE} aria-label="Ruleta de participantes" />
-        {bulbs}
+        <div className="bulbs" aria-hidden="true">{bulbs}</div>
       </div>
 
       <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
@@ -523,7 +534,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
           <Fireworks active onLaunch={sounds.launch} onBurst={sounds.boom} />
           <div className="win-content" onClick={(e) => e.stopPropagation()}>
             <div className="win-pos">Ganador n.º {history.length}</div>
-            <div className="win-title">¡GANADOR!</div>
+            <div className="win-title" data-text="¡GANADOR!">¡GANADOR!</div>
             <div className="win-face">{face(winner, 190, "4rem")}</div>
             <div className="win-num">{pad(winner.number)}</div>
             <div className="win-name">{winner.name}</div>

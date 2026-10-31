@@ -20,10 +20,11 @@ export default function Fireworks({ active, onLaunch, onBurst }: { active: boole
     const ctx = canvas.getContext("2d")!;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let w = 0, h = 0, raf = 0, last = performance.now(), nextLaunch = 0;
-    // Las chispas no necesitan alta resolución: en TV 4K se dibuja a lo sumo a 1920 px de ancho y se escala.
+    const MAX_PARTS = 1400; // tope para que varias explosiones juntas no traben la TV
     const resize = () => {
       w = canvas.clientWidth; h = canvas.clientHeight;
-      const dpr = Math.min(2, window.devicePixelRatio || 1, 1920 / Math.max(1, w));
+      // Como mucho ~1280 px de ancho interno: en TV grande se estira y las chispas siguen viéndose igual de brillantes
+      const dpr = Math.min(1.5, window.devicePixelRatio || 1, 1280 / Math.max(1, w));
       canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
@@ -33,7 +34,7 @@ export default function Fireworks({ active, onLaunch, onBurst }: { active: boole
     const pick = () => COLORS[Math.floor(Math.random() * COLORS.length)];
 
     const explode = (x: number, y: number, color: string) => {
-      const count = reduce ? 30 : 70 + Math.floor(Math.random() * 40);
+      const count = Math.min(reduce ? 30 : 70 + Math.floor(Math.random() * 40), Math.max(20, MAX_PARTS - parts.length));
       const ring = Math.random() < .35;
       sound.current.onBurst?.(Math.max(-1, Math.min(1, (x / w) * 2 - 1)) * .8, Math.max(0, (count - 70) / 40));
       for (let i = 0; i < count; i++) {
@@ -73,7 +74,8 @@ export default function Fireworks({ active, onLaunch, onBurst }: { active: boole
         if (p.life <= 0) { parts.splice(i, 1); continue; }
         ctx.globalAlpha = Math.max(0, p.life / p.max);
         ctx.fillStyle = p.color;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+        // Chispas como cuadraditos: a este tamaño se ven igual que círculos y cuestan mucho menos
+        ctx.fillRect(p.x - p.size * .9, p.y - p.size * .9, p.size * 1.8, p.size * 1.8);
       }
       ctx.globalAlpha = 1;
       raf = requestAnimationFrame(frame);

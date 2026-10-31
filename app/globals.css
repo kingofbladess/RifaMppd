@@ -254,7 +254,7 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .btn.secondary.xmas-ghost:hover { background: rgba(246,211,101,.18); color: #fff; }
 
 .snow { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
-.snow span { position: absolute; top: -30px; color: rgba(255,255,255,.85); animation: snowfall linear infinite; text-shadow: 0 0 6px rgba(255,255,255,.6); }
+.snow span { position: absolute; top: -30px; color: rgba(255,255,255,.85); animation: snowfall linear infinite; text-shadow: 0 0 6px rgba(255,255,255,.6); will-change: transform; }
 @keyframes snowfall { to { transform: translate(var(--drift, 0), 110vh) rotate(360deg); } }
 
 .garland { position: absolute; top: 0; left: 0; right: 0; height: 30px; display: flex; justify-content: space-around; z-index: 1;
@@ -262,27 +262,23 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .garland::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 2px; background: #1f3d2c; }
 .garland i { position: relative; top: 6px; width: 10px; height: 16px; border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%; animation: blink 1s ease-in-out infinite alternate; }
 .b0 { --c: #ff3b3b; } .b1 { --c: #2ee59d; } .b2 { --c: #ffd166; } .b3 { --c: #7cc6ff; }
-.garland i, .bulbs i { background: var(--c); box-shadow: 0 0 10px 2px var(--c); }
-@keyframes blink { from { opacity: 1; } to { opacity: .3; } } /* solo opacidad: la anima la tarjeta gráfica sin redibujar */
-.garland i, .bulbs i { will-change: opacity; }
+.garland i, .bulbs i { background: var(--c); box-shadow: 0 0 10px 2px var(--c); will-change: opacity; }
+/* Solo opacidad: la tarjeta gráfica la anima sin volver a pintar el brillo de cada foquito */
+@keyframes blink { from { opacity: 1; } to { opacity: .3; } }
 
+/* Sombra de la ruleta en una capa fija detrás (un filtro sobre el lienzo que gira se recalculaba en cada cuadro) */
 .xmas-wheel { container-type: inline-size; }
-/* Sombra fija detrás de la ruleta (un filtro sobre el lienzo se recalcularía en cada cuadro del giro) */
-.xmas-wheel::before { content: ""; position: absolute; inset: 1%; border-radius: 50%; box-shadow: 0 18px 40px rgba(0,0,0,.55); pointer-events: none; }
-.xmas-wheel canvas { position: relative; z-index: 1; }
-.xmas-wheel .bulbs { z-index: 2; }
+.xmas-wheel::before { content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; box-shadow: 0 18px 40px rgba(0,0,0,.55); }
 .bulbs { position: absolute; inset: 0; pointer-events: none; }
 .bulbs i { position: absolute; left: 50%; top: 50%; width: 2.4cqw; height: 2.4cqw; border-radius: 50%; animation: blink .9s ease-in-out infinite alternate; }
 .xmas-wheel.is-spinning .bulbs i { animation-duration: var(--blink, .18s); }
 .xmas-wheel.has-winner .bulbs i { animation-duration: .35s; }
 .xmas-pointer { position: absolute; top: -3.5%; left: 50%; transform: translateX(-50%); z-index: 3; width: 9%; aspect-ratio: .7;
   background: linear-gradient(180deg, #fbe7a1, #d4a017 60%, #8a6100); clip-path: polygon(0 0, 100% 0, 50% 100%);
-  filter: drop-shadow(0 4px 4px rgba(0,0,0,.5)); transform-origin: 50% 10%; }
+  filter: drop-shadow(0 4px 4px rgba(0,0,0,.5)); transform-origin: 50% 10%; will-change: transform; }
 .xmas-pointer span { position: absolute; left: 50%; top: -55%; transform: translateX(-50%); font-size: 5.5cqw; filter: drop-shadow(0 0 8px #ffd166); }
 .xmas-pointer { clip-path: none; background: none; }
 .xmas-pointer::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, #fbe7a1, #d4a017 60%, #8a6100); clip-path: polygon(0 0, 100% 0, 50% 100%); }
-.xmas-pointer.kick { animation: kick .12s ease-out; }
-@keyframes kick { 0% { transform: translateX(-50%) rotate(0); } 40% { transform: translateX(-50%) rotate(-14deg); } 100% { transform: translateX(-50%) rotate(0); } }
 
 .xmas-card { background: linear-gradient(180deg, rgba(122,11,28,.85), rgba(60,8,18,.9)); border: 2px solid rgba(246,211,101,.6); border-radius: 22px;
   padding: 22px; color: #fff8ec; box-shadow: 0 20px 50px rgba(0,0,0,.45), inset 0 0 0 4px rgba(255,255,255,.04); position: relative; z-index: 1; }
@@ -313,9 +309,13 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .fireworks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .win-content { position: relative; text-align: center; color: #fff8ec; animation: popIn .6s cubic-bezier(.2,1.5,.4,1); }
 .win-title { font-size: clamp(2.6rem, 13vw, 9rem); font-weight: 900; line-height: .95; letter-spacing: .02em;
-  background: linear-gradient(180deg, #fffbe6 0%, #ffd166 45%, #d4a017 70%, #fff3c4 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 4px 0 #7a0b1c) drop-shadow(0 0 30px rgba(255,209,102,.7)); animation: titlePulse 1.4s ease-in-out infinite alternate; will-change: transform; }
-@keyframes titlePulse { to { transform: scale(1.04); } }
+  /* Sombra y brillo como text-shadow (se pintan una vez); el degradado dorado va encima en ::after.
+     Antes era un filtro drop-shadow de 40px que la TV recalculaba en cada cuadro. */
+  position: relative; color: transparent; -webkit-text-fill-color: transparent;
+  text-shadow: 0 4px 0 #7a0b1c, 0 0 40px rgba(255,209,102,.85); animation: glow 1.4s ease-in-out infinite alternate; will-change: transform; }
+/* padding abajo: el degradado debe cubrir también la parte del "¡" que baja de la línea */
+.win-title::after { content: attr(data-text); position: absolute; top: 0; left: 0; right: 0; padding-bottom: .3em; text-shadow: none;
+  background: linear-gradient(180deg, #fffbe6 0%, #ffd166 45%, #d4a017 70%, #fff3c4 100%); -webkit-background-clip: text; background-clip: text; }
 .win-face { margin: 18px auto 8px; width: max-content; animation: float 3s ease-in-out infinite; }
 .win-num { font-size: clamp(2.4rem, 10vw, 4.5rem); font-weight: 900; color: #ffd166; font-variant-numeric: tabular-nums; text-shadow: 0 3px 0 #7a0b1c; }
 .win-name { font-size: clamp(1.4rem, 5vw, 2.2rem); font-weight: 800; }
@@ -325,6 +325,8 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .win-actions .secondary { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.35); }
 @keyframes fadeIn { from { opacity: 0; } }
 @keyframes popIn { from { transform: scale(.4); opacity: 0; } }
+/* "¡GANADOR!" late suavemente: animar el filtro de brillo sobre letras tan grandes trababa la TV */
+@keyframes glow { to { transform: scale(1.05); } }
 @keyframes float { 50% { transform: translateY(-8px); } }
 @media (max-width: 600px) {
   .xmas-page .container { padding-top: 30px; }
@@ -336,15 +338,8 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 
 /* Bandera ondeando detrás del cartel de ganador (marca de agua) */
 .flag-wave { position: absolute; left: 50%; top: 50%; width: min(92vw, 1100px); aspect-ratio: 3 / 2; transform: translate(-50%, -50%) rotate(-4deg);
-  opacity: .22; pointer-events: none; filter: saturate(1.1); animation: fadeIn 1.2s ease;
-  -webkit-mask-image: radial-gradient(ellipse at center, #000 50%, transparent 78%); mask-image: radial-gradient(ellipse at center, #000 50%, transparent 78%); }
-.flag-wave span { position: absolute; top: 0; height: 100%; background-image: url(/bandera-venezuela.svg); background-repeat: no-repeat;
-  animation: wave 2.6s ease-in-out infinite; }
-@keyframes wave {
-  0%, 100% { transform: translateY(-2.2%); }
-  50% { transform: translateY(2.2%); }
-}
-@media (prefers-reduced-motion: reduce) { .flag-wave span { animation: none; } }
+  opacity: .22; pointer-events: none; animation: fadeIn 1.2s ease; display: block; }
+/* El ondeo, los pliegues y el desvanecido de los bordes los dibuja WavingFlag.tsx en un solo lienzo */
 
 /* ---------- Ruleta a pantalla completa, sin scroll ---------- */
 .xmas-page { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
@@ -472,11 +467,15 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .xmas-card .num { animation: numDrop .18s ease-out; }
 @keyframes numDrop { from { transform: translateY(-15%); opacity: .55; } to { transform: none; opacity: 1; } }
 .xmas-card.is-spinning { border-color: #f6d365; box-shadow: 0 0 0 3px rgba(246,211,101,.25), 0 20px 50px rgba(0,0,0,.45); }
-.xmas-card.is-win { border-color: #ffe08a; box-shadow: 0 0 0 5px rgba(246,211,101,.5), 0 0 50px rgba(246,211,101,.45); }
-/* Mientras gira, un halo dorado alrededor de la ruleta que se apaga al frenar */
+.xmas-card.is-win { border-color: #ffe08a; box-shadow: 0 0 0 3px rgba(246,211,101,.35), 0 0 30px rgba(246,211,101,.25); }
+/* El brillo del ganador vive en una capa aparte y solo cambia su opacidad (repintar una sombra de 60px trababa) */
+.xmas-card.is-win::after { content: ""; position: absolute; inset: -2px; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 6px rgba(246,211,101,.6), 0 0 60px rgba(246,211,101,.55); animation: cardGlow 1s ease-in-out infinite alternate; will-change: opacity; }
+@keyframes cardGlow { from { opacity: 0; } to { opacity: 1; } }
+/* Mientras gira, un halo dorado alrededor de la ruleta que se apaga al frenar (sombra fija, solo cambia la opacidad) */
 .xmas-wheel::after { content: ""; position: absolute; inset: -2%; border-radius: 50%; pointer-events: none; opacity: var(--glow, 0);
   box-shadow: 0 0 60px 12px rgba(255,209,102,.55); transition: opacity .3s; will-change: opacity; }
-@media (prefers-reduced-motion: reduce) { .xmas-card .num, .xmas-card.is-win { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .xmas-card .num, .xmas-card.is-win::after { animation: none; } }
 /* Pantallas angostas acostadas (celular horizontal): ganadores solo con foto y número */
 @media (max-width: 760px) and (min-aspect-ratio: 4001/3000) {
   .xmas-page .container { padding-left: 10px; padding-right: 10px; }
@@ -580,3 +579,5 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 .winners-rail .rail-window:not(.is-rolling) { -webkit-mask-image: none; mask-image: none; }
 /* Cartel de ganador con fondo opaco: la ruleta de atrás no se transparenta (se veía como una bola navideña); solo queda la bandera */
 .win-overlay { background: radial-gradient(circle at 50% 40%, #3d0a16, #08101d 70%); backdrop-filter: none; }
+/* Con el cartel abierto (es opaco) lo de atrás no se ve: se oculta para que la TV no siga animando nieve, luces y ganadores */
+.xmas-page:has(.win-overlay) :is(.snow, .garland, .winners-rail, .wheel-box, .xmas-card) { visibility: hidden; }
