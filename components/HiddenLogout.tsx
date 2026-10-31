@@ -1,29 +1,22 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
-// Pantalla espejo (TV): no se ve ningún botón. Tocar el escudo 3 veces seguidas muestra "Cerrar sesión" por 8 s.
+// Pantalla espejo (TV): botón oculto para cerrar sesión. Está en la esquina inferior izquierda, invisible hasta
+// acercar el mouse o tocar ahí; pide confirmación para que un toque accidental no saque la TV.
+// Funciona también en pantalla completa. Atajo: Ctrl + Shift + S.
 export default function HiddenLogout() {
-  const [open, setOpen] = useState(false);
-  const taps = useRef<number[]>([]);
-  const hide = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const tap = () => {
-    const now = Date.now();
-    taps.current = [...taps.current.filter((t) => now - t < 2000), now];
-    if (taps.current.length >= 3) {
-      taps.current = [];
-      setOpen(true);
-      clearTimeout(hide.current);
-      hide.current = setTimeout(() => setOpen(false), 8000);
-    }
-  };
+  const form = useRef<HTMLFormElement>(null);
+  const ask = () => { if (confirm("¿Cerrar sesión de esta pantalla?")) form.current?.requestSubmit(); };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === "S" || e.key === "s")) { e.preventDefault(); ask(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   return (
-    <>
-      <button type="button" className="hidden-logout-trigger" onClick={tap} aria-label="Opciones de la pantalla" />
-      {open && (
-        <form method="post" action="/api/logout" className="hidden-logout">
-          <button className="btn secondary xmas-ghost">Cerrar sesión</button>
-        </form>
-      )}
-    </>
+    <form ref={form} method="post" action="/api/logout" className="hidden-logout">
+      <button type="button" onClick={ask} title="Cerrar sesión (Ctrl + Shift + S)" aria-label="Cerrar sesión">⏻ Salir</button>
+    </form>
   );
 }

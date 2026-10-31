@@ -3,6 +3,7 @@ import { randomInt } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getActiveRaffle, fetchAll } from "@/lib/participants";
 import { readWheelState } from "@/lib/wheel-state";
+import { getSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -29,6 +30,8 @@ export async function GET() {
 // El ganador se elige en el servidor (aleatorio criptográfico) y queda registrado.
 // La ruleta del navegador solo anima hasta el resultado.
 export async function POST(req: Request) {
+  // Solo el admin sortea: la TV es un espejo y nunca gira por su cuenta.
+  if ((await getSession())?.role !== "admin") return NextResponse.json({ error: "Solo el admin puede girar la ruleta" }, { status: 403 });
   // Siempre responde JSON (nunca una página de error), para que la ruleta sepa qué pasó y no se quede pegada.
   try {
     return await drawWinner(req);

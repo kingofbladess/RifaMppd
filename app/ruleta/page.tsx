@@ -21,7 +21,6 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
       <main className="container wide">
         <div className="topbar">
           <div className="xmas-brand">
-            {mirror && <HiddenLogout />}
             <img className="xmas-logo" src="/escudo.png" alt="Escudo" />
             <div>
               <h1 className="xmas-title">{raffle?.name ?? "Ruleta"}</h1>
@@ -36,6 +35,7 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
         </div>
         <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} canManage={session?.role === "admin" && !mirror} mirror={mirror} />
       </main>
+      {mirror && <HiddenLogout />}
     </div>
   );
 }
