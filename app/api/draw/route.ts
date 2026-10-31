@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { randomInt } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getActiveRaffle, fetchAll } from "@/lib/participants";
+import { readWheelState } from "@/lib/wheel-state";
+import { getSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -9,15 +11,27 @@ export const runtime = "nodejs";
 export async function GET() {
   const raffle = await getActiveRaffle().catch(() => null);
   if (!raffle) return NextResponse.json({ draws: [] }, { headers: { "Cache-Control": "no-store" } });
-  const { data, error } = await supabaseAdmin().from("draws").select("participant_id")
-    .eq("raffle_id", raffle.id).order("created_at", { ascending: true }).limit(10000);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ draws: data.map((d) => ({ participantId: d.participant_id })) }, { headers: { "Cache-Control": "no-store" } });
+  // En tandas: Supabase entrega como máximo 1000 filas por consulta y la TV debe ver la lista completa.
+  const sb = supabaseAdmin();
+  try {
+    const [data, state] = await Promise.all([
+      fetchAll<{ participant_id: string }>((from, to) => sb.from("draws").select("participant_id")
+        .eq("raffle_id", raffle.id).order("created_at", { ascending: true }).order("id").range(from, to)),
+      readWheelState(),
+    ]);
+    // closed: el último ganador al que el admin le cerró el cartel (la TV cierra el suyo igual).
+    return NextResponse.json({ draws: data.map((d) => ({ participantId: d.participant_id })), closed: state?.closed ?? null },
+      { headers: { "Cache-Control": "no-store" } });
+  } catch (e) {
+    return NextResponse.json({ error: (e as { message?: string }).message ?? "Error" }, { status: 500 });
+  }
 }
 
 // El ganador se elige en el servidor (aleatorio criptográfico) y queda registrado.
 // La ruleta del navegador solo anima hasta el resultado.
 export async function POST(req: Request) {
+  // Solo el admin sortea: la TV es un espejo y nunca gira por su cuenta.
+  if ((await getSession())?.role !== "admin") return NextResponse.json({ error: "Solo el admin puede girar la ruleta" }, { status: 403 });
   // Siempre responde JSON (nunca una página de error), para que la ruleta sepa qué pasó y no se quede pegada.
   try {
     return await drawWinner(req);

@@ -6,6 +6,8 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   // En Vercel no se toca nada: cada función vive poco y, con Node 26, cambiar el despachador rompe el fetch de toda la app.
   if (process.env.VERCEL) return;
+  // Probado con Node 20-22. En versiones más nuevas (Vercel usa 26) el despachador cambió y se deja el de fábrica.
+  const nodeMajor = Number(process.versions.node.split(".")[0]);
 
   // El fetch de Node usa este "despachador" global; se reemplaza por uno igual pero con keep-alive largo.
   await fetch("data:,").catch(() => {});
@@ -15,7 +17,7 @@ export async function register() {
   // Si la versión de Node no lo acepta, se deja el de fábrica (más lento en Infopress, pero funciona).
   const original = g[sym];
   try {
-    if (Agent) g[sym] = new Agent({ keepAliveTimeout: 120_000, keepAliveMaxTimeout: 600_000 }) as never;
+    if (Agent && nodeMajor <= 24) g[sym] = new Agent({ keepAliveTimeout: 120_000, keepAliveMaxTimeout: 600_000 }) as never;
     await fetch("data:,");
   } catch {
     g[sym] = original;

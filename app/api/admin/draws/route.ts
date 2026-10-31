@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getActiveRaffle } from "@/lib/participants";
+import { writeWheelState } from "@/lib/wheel-state";
 
 export const runtime = "nodejs";
 
@@ -16,5 +17,7 @@ export async function DELETE(req: Request) {
   else if (body?.all !== true) return NextResponse.json({ error: "Falta el ganador" }, { status: 400 });
   const { error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Un ganador quitado puede volver a salir: se olvida el último cierre para que la TV no cierre su cartel antes de tiempo.
+  await writeWheelState({ closed: null, at: new Date().toISOString() }).catch(() => {});
   return NextResponse.json({ ok: true });
 }
