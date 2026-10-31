@@ -65,13 +65,17 @@ export async function POST(req: Request) {
   }
 
   const sb = supabaseAdmin();
-  const key = crypto.randomUUID();
+  // El navegador manda un código por cada persona que se intenta guardar. Si se vuelve a presionar Guardar
+  // (o la red se cortó después de guardar y la conexión se reintenta), se reconoce el mismo registro en vez
+  // de responder "ya está inscrita" y borrar la foto de una inscripción que sí quedó guardada.
+  const reqId = s("request_id").toLowerCase();
+  const key = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(reqId) ? reqId : crypto.randomUUID();
   const idPath = idBuf ? `${key}.jpg` : null;
   const photoPath = `${key}.jpg`;
 
-  const up1 = await sb.storage.from(BUCKET_PHOTOS).upload(photoPath, photoBuf, { contentType: "image/jpeg" });
+  const up1 = await sb.storage.from(BUCKET_PHOTOS).upload(photoPath, photoBuf, { contentType: "image/jpeg", upsert: true });
   const up2 = up1.error || !idBuf || !idPath ? up1
-    : await sb.storage.from(BUCKET_DOCS).upload(idPath, idBuf, { contentType: "image/jpeg" });
+    : await sb.storage.from(BUCKET_DOCS).upload(idPath, idBuf, { contentType: "image/jpeg", upsert: true });
   const cleanup = () => Promise.all([
     sb.storage.from(BUCKET_PHOTOS).remove([photoPath]),
     idPath ? sb.storage.from(BUCKET_DOCS).remove([idPath]) : null,
@@ -95,9 +99,15 @@ export async function POST(req: Request) {
   }
 
   if (error) {
+    // Antes de borrar nada: ¿quedó guardada esta misma inscripción (misma foto)? Pasa cuando la red corta la
+    // respuesta y la consulta se repite: la segunda vez la base dice "duplicada" aunque la primera funcionó.
+    const { data: prev } = await sb.from("participants").select("raffle_number, full_name, registered_by_name, photo_path")
+      .eq("document_number", data.document_number).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (prev?.photo_path === photoPath) return NextResponse.json({ number: prev.raffle_number, name: prev.full_name });
     await cleanup();
     if (error.code === "23505") {
-      return NextResponse.json({ error: "Esta cédula ya está inscrita en la rifa" }, { status: 409 });
+      const who = prev ? ` con el número ${prev.raffle_number}${prev.registered_by_name ? ` (la registró ${prev.registered_by_name})` : ""}` : "";
+      return NextResponse.json({ error: `Esta cédula ya está inscrita en la rifa${who}` }, { status: 409 });
     }
     if (error.message.includes("RAFFLE_FULL")) {
       return NextResponse.json({ error: "Ya no hay números disponibles" }, { status: 409 });
