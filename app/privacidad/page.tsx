@@ -1,7 +1,7 @@
 // PLANTILLA: ajústala con los datos reales del organizador y la ley de tu país antes de publicar.
 export default function Privacidad() {
   return (
-    <main className="container">
+    <main className="container tema">
       <h1>Política de tratamiento de datos</h1>
       <div className="card">
         <p><strong>Responsable:</strong> [Nombre del organizador], [correo de contacto].</p>

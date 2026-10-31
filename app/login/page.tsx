@@ -1,7 +1,7 @@
 export default async function Login({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const { next = "", error } = await searchParams;
   return (
-    <main className="container" style={{ maxWidth: 420 }}>
+    <main className="container tema" style={{ maxWidth: 420 }}>
       <h1>🎟️ Ingresar</h1>
       <p className="sub">Operadores de registro y administradores.</p>
       <form className="card" method="post" action="/api/login">
