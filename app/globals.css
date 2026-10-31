@@ -370,10 +370,10 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 
 /* ---------- Ruleta a pantalla completa, sin scroll ---------- */
 .xmas-page { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-.xmas-page .container { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; padding: 30px 20px 14px; }
+.xmas-page .container { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; padding: 22px 20px 14px; }
 .xmas-page .topbar { flex: none; margin-bottom: 10px; flex-wrap: nowrap; }
 .xmas-page .stage { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 340px; align-items: center; }
-.xmas-page .wheel-box { width: min(100%, calc(100dvh - 150px)); max-width: none; margin: 4% auto 0; } /* el ancho exacto lo calcula Wheel.tsx */
+.xmas-page .wheel-box { width: min(100%, calc(100dvh - 150px)); max-width: none; margin: 0 auto; align-self: center; } /* el ancho exacto lo calcula Wheel.tsx */
 .xmas-page .xmas-card.winner { max-height: 100%; overflow: hidden; }
 .xmas-page .xmas-history ul { max-height: 24dvh; overflow-y: auto; }
 @media (max-width: 900px) and (max-aspect-ratio: 4/3) {
@@ -484,7 +484,7 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 @media (min-width: 901px), (min-aspect-ratio: 4001/3000) {
   /* Alto parecido al de la ruleta (Wheel.tsx publica --wheel); el contenido se reparte a lo alto */
   .xmas-page .xmas-card.winner { align-self: center; height: min(100%, calc(var(--wheel, 520px) * .94), 58rem); justify-content: space-evenly; }
-  .xmas-page .xmas-face img, .xmas-page .xmas-face .xmas-initials { width: clamp(56px, min(22dvh, 13vw), 12.5rem) !important; height: clamp(56px, min(22dvh, 13vw), 12.5rem) !important; font-size: clamp(1.2rem, min(5dvh, 3vw), 4rem) !important; }
+  .xmas-page .xmas-face img, .xmas-page .xmas-face .xmas-initials { width: clamp(56px, min(29dvh, 16vw), 19rem) !important; height: clamp(56px, min(29dvh, 16vw), 19rem) !important; font-size: clamp(1.2rem, min(7dvh, 4vw), 5.5rem) !important; }
   .xmas-page .xmas-card .num { font-size: clamp(1.6rem, min(7.5dvh, 4.4vw), 4.2rem); }
   .xmas-page .xmas-name { font-size: clamp(.95rem, min(3.2dvh, 1.8vw), 1.8rem); }
   .xmas-page .xmas-rank { font-size: clamp(.8rem, 2.2dvh, 1.15rem); }
@@ -620,7 +620,7 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 .win-face { position: relative; z-index: 1; }
 /* El cartel del ganador cabe completo en pantallas bajas (TV 768p o portátil) */
 .win-title { font-size: clamp(2.6rem, min(13vw, 15dvh), 9rem); }
-.win-face img, .win-face .xmas-initials { width: clamp(110px, 22dvh, 15rem) !important; height: clamp(110px, 22dvh, 15rem) !important; }
+.win-face img, .win-face .xmas-initials { width: clamp(110px, min(34dvh, 70vw), 24rem) !important; height: clamp(110px, min(34dvh, 70vw), 24rem) !important; font-size: clamp(2.4rem, 8dvh, 6rem) !important; }
 .win-num { font-size: clamp(2.4rem, min(10vw, 8dvh), 5.5rem); line-height: 1.1; }
 /* Ganadores quietos (caben todos): sin desvanecido arriba para que el más reciente se lea completo */
 .winners-rail .rail-window:not(.is-rolling) { -webkit-mask-image: none; mask-image: none; }
@@ -733,3 +733,9 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
   .tema .field input, .tema .field-value { padding: 9px 10px; }
   .tema .form-actions .btn { min-height: 48px; }
 }
+
+/* Foto encima de las iniciales: se ve solo cuando terminó de cargar (nunca un círculo vacío) */
+.face-stack { position: relative; display: inline-block; vertical-align: top; line-height: 0; }
+.face-stack > img { position: absolute; inset: 0; opacity: 0; transition: opacity .15s; }
+.face-stack > img.ok { opacity: 1; }
+.face-stack > .xmas-initials { line-height: normal; }
