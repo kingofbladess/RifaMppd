@@ -501,8 +501,13 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .winners-rail .float img, .winners-rail .float .xmas-initials { width: 30px !important; height: 30px !important; }
 }
 /* Cada cara entra con un pequeño salto; el número cae como en una máquina tragamonedas */
-.xmas-card .num { animation: numDrop .18s ease-out; }
+/* Foto y número entran deslizándose; la duración (--flip) la pone la ruleta según su ritmo:
+   rápida mientras gira fuerte y cada vez más suave al frenar */
+.xmas-card .num { animation: numDrop var(--flip, .18s) ease-out; }
+.xmas-card.is-spinning .xmas-face { animation: faceDrop var(--flip, .18s) ease-out; }
 @keyframes numDrop { from { transform: translateY(-15%); opacity: .55; } to { transform: none; opacity: 1; } }
+@keyframes faceDrop { from { transform: translateY(-10%) scale(.96); opacity: .6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .xmas-card .xmas-face { animation: none !important; } }
 .xmas-card.is-spinning { border-color: #f6d365; box-shadow: 0 0 0 3px rgba(246,211,101,.25), 0 20px 50px rgba(0,0,0,.45); }
 .xmas-card.is-win { border-color: #ffe08a; box-shadow: 0 0 0 3px rgba(246,211,101,.35), 0 0 30px rgba(246,211,101,.25); }
 /* El brillo del ganador vive en una capa aparte y solo cambia su opacidad (repintar una sombra de 60px trababa) */
