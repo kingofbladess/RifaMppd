@@ -30,7 +30,7 @@ async function RuletaPageContent() {
               : <a className="btn secondary xmas-ghost" href="/admin">Panel</a>}
           </div>
         </div>
-        <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} />
+        <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} canManage={session?.role === "admin"} />
       </main>
     </div>
   );

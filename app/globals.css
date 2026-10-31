@@ -251,6 +251,10 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .demo-box { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; }
 .demo-box .small { margin-right: auto; }
 .demo-box .btn { min-height: 0; padding: 8px 12px; font-size: .85rem; }
+.row-del { font: inherit; font-size: .8rem; padding: 4px 8px; border-radius: 8px; cursor: pointer; color: var(--err); background: transparent;
+  border: 1px solid color-mix(in srgb, var(--err) 35%, var(--border)); white-space: nowrap; }
+.row-del:hover { background: color-mix(in srgb, var(--err) 8%, var(--surface)); }
+.row-del:disabled { opacity: .5; cursor: default; }
 .btn.secondary.danger:hover { color: var(--err); border-color: color-mix(in srgb, var(--err) 45%, var(--border)); background: color-mix(in srgb, var(--err) 7%, var(--surface)); }
 .initials { display: grid; place-items: center; color: #fff; font-weight: 800; background: var(--grad); }
 .panel-search-wrap { position: relative; max-width: 420px; }
@@ -419,6 +423,16 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .winners-rail .float img, .winners-rail .float .xmas-initials { grid-row: span 2; border-radius: 50%; object-fit: cover; border: 2px solid #f6d365; }
 .winners-rail .w-num { font-weight: 900; color: #f6d365; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .winners-rail .w-name { font-size: .82rem; color: #fff8ec; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
+/* Solo admin: quitar ganadores */
+.winners-rail > .xmas-label { display: flex; align-items: center; gap: 8px; }
+.winners-rail .w-reset { margin-left: auto; font: inherit; font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; cursor: pointer;
+  color: #fff8ec; background: rgba(255,255,255,.08); border: 1px solid rgba(246,211,101,.45); }
+.winners-rail .float { position: relative; }
+.winners-rail .float:has(.w-del) { padding-right: 38px; }
+.winners-rail .w-del { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center; font-size: .75rem; line-height: 1; color: #fff; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.35); opacity: .55; }
+.winners-rail .w-del:hover, .winners-rail .w-del:focus-visible, .winners-rail .w-reset:hover { opacity: 1; background: #c62828; border-color: #ffcdd2; }
+.winners-rail .w-del:disabled, .winners-rail .w-reset:disabled { opacity: .3; cursor: default; background: rgba(0,0,0,.45); }
 .winners-rail .w-empty { color: rgba(255,248,236,.55); font-size: .85rem; margin: 0; }
 @keyframes drop { 0% { transform: translateY(-140px) rotate(-8deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: none; } }
 @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
@@ -560,6 +574,16 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 .xmas-done-list .w-num { font-weight: 900; color: #f6d365; font-size: 1.25rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .xmas-done-list .w-name { color: #fff8ec; font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xmas-empty { max-width: 32rem; margin: 10dvh auto 0; text-align: center; font-size: 1.1rem; }
+/* Solo admin: quitar ganadores */
+.winners-rail > .xmas-label { display: flex; align-items: center; gap: 8px; }
+.winners-rail .w-reset { margin-left: auto; font: inherit; font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; cursor: pointer;
+  color: #fff8ec; background: rgba(255,255,255,.08); border: 1px solid rgba(246,211,101,.45); }
+.winners-rail .float { position: relative; }
+.winners-rail .float:has(.w-del) { padding-right: 38px; }
+.winners-rail .w-del { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center; font-size: .75rem; line-height: 1; color: #fff; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.35); opacity: .55; }
+.winners-rail .w-del:hover, .winners-rail .w-del:focus-visible, .winners-rail .w-reset:hover { opacity: 1; background: #c62828; border-color: #ffcdd2; }
+.winners-rail .w-del:disabled, .winners-rail .w-reset:disabled { opacity: .3; cursor: default; background: rgba(0,0,0,.45); }
 .winners-rail .w-empty { line-height: 1.4; }
 
 /* ---------- Usuarios en celular: tarjetas en vez de tabla ---------- */

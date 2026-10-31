@@ -106,7 +106,7 @@ function useSounds() {
   };
 }
 
-export default function Wheel({ participants: initial, pastWinners = [], digits }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number }) {
+export default function Wheel({ participants: initial, pastWinners = [], digits, canManage = false }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number; canManage?: boolean }) {
   // Quien gana sale de la ruleta para que no pueda volver a salir.
   const [participants, setParticipants] = useState(initial);
   useEffect(() => setParticipants(initial), [initial]);
@@ -130,6 +130,33 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   const [error, setError] = useState<string | null>(null);
   const sounds = useSounds();
   const [queued, setQueued] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
+
+  // Solo admin: quitar un ganador (vuelve a la ruleta) o todos, para repetir pruebas.
+  const removeWinner = useCallback(async (w: WheelParticipant | null) => {
+    if (spinning || removing) return;
+    if (!confirm(w ? `¿Quitar a ${w.name} de los ganadores? Vuelve a la ruleta.` : "¿Quitar a TODOS los ganadores? Vuelven a la ruleta.")) return;
+    setRemoving(w?.id ?? "all"); setError(null);
+    try {
+      const res = await fetch("/api/admin/draws", {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(w ? { participantId: w.id } : { all: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "No se pudo quitar el ganador");
+      const back = w ? [w] : history;
+      const ids = new Set(back.map((p) => p.id));
+      setHistory((h) => h.filter((p) => !ids.has(p.id)));
+      setParticipants((list) => [...list.filter((p) => !ids.has(p.id)), ...back].sort((a, b) => a.number - b.number));
+      setWinner((cur) => (cur && ids.has(cur.id) ? null : cur));
+      setShowWin(false);
+      highlight.current = -1;
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRemoving(null);
+    }
+  }, [spinning, removing, history]);
 
   const n = participants.length;
   const seg = n ? TAU / n : TAU;
@@ -446,12 +473,16 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
                 {face(h, 40, ".85rem")}
                 <span className="w-num"><span className="w-pos">{history.length - i}.º</span>{pad(h.number)}</span>
                 <span className="w-name">{h.name}</span>
+                {canManage && (
+                  <button type="button" className="w-del" title="Quitar ganador" aria-label={`Quitar a ${h.name} de los ganadores`}
+                    tabIndex={copy > 0 ? -1 : undefined} disabled={spinning || !!removing} onClick={() => removeWinner(h)}>✕</button>
+                )}
               </div>
             </li>
           )))}
       </ul>
     </div>
-  ) : <p className="w-empty">🎁 Aquí aparecerán los ganadores</p>, [history, rolls, digits, badPhotos]); // eslint-disable-line react-hooks/exhaustive-deps
+  ) : <p className="w-empty">🎁 Aquí aparecerán los ganadores</p>, [history, rolls, digits, badPhotos, canManage, spinning, removing, removeWinner]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sin nadie en la ruleta: pantalla final con todos los ganadores (o aviso si aún no hay inscritos).
   if (!n) return history.length ? (
@@ -468,6 +499,12 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
           </li>
         ))}
       </ul>
+      {canManage && (
+        <button type="button" className="btn secondary xmas-ghost" onClick={() => removeWinner(null)} disabled={!!removing}>
+          Reiniciar ganadores
+        </button>
+      )}
+      {error && <p className="error">{error}</p>}
     </div>
   ) : <div className="xmas-card xmas-empty">🎟️ Aún no hay participantes inscritos.</div>;
 
@@ -478,7 +515,11 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     <div className="stage" ref={stageRef}>
       {/* Ganadores a la izquierda: cada nuevo cae desde arriba y todos flotan suavemente */}
       <aside className={`winners-rail${history.length ? "" : " empty"}`} ref={railRef} aria-label="Ganadores">
-        <div className="xmas-label">🏆 Ganadores{history.length ? ` (${history.length})` : ""}</div>
+        <div className="xmas-label">🏆 Ganadores{history.length ? ` (${history.length})` : ""}
+          {canManage && history.length > 0 && (
+            <button type="button" className="w-reset" onClick={() => removeWinner(null)} disabled={spinning || !!removing}>Reiniciar</button>
+          )}
+        </div>
         {rail}
       </aside>
 

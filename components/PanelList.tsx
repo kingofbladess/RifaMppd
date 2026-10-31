@@ -26,7 +26,30 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
       startTransition(() => router.replace(t ? `${pathname}?q=${encodeURIComponent(t)}` : pathname, { scroll: false }));
     }, 350);
   }
-  const shown = rows;
+  // Borrar inscrito (el panel solo lo abre el admin). Si había ganado, también sale de los ganadores.
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set());
+  const [deleting, setDeleting] = useState<string | null>(null);
+  async function onDelete(r: PanelRow) {
+    if (deleting || !confirm(`¿Borrar a ${r.name} (n.º ${r.number})? Si ganó, también sale de los ganadores. No se puede deshacer.`)) return;
+    setDeleting(r.id);
+    try {
+      const res = await fetch(`/api/admin/participants/${r.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok && res.status !== 404) throw new Error(data.error ?? "No se pudo borrar");
+      setHidden((h) => new Set(h).add(r.id));
+      router.refresh();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setDeleting(null);
+    }
+  }
+  const del = (r: PanelRow) => (
+    <button type="button" className="row-del" onClick={() => onDelete(r)} disabled={!!deleting} title="Borrar inscrito" aria-label={`Borrar a ${r.name}`}>
+      {deleting === r.id ? "…" : "🗑️"}
+    </button>
+  );
+  const shown = rows.filter((r) => !hidden.has(r.id));
   const caption = query
     ? `${rows.length >= limit ? `Más de ${limit}` : rows.length} resultado${rows.length === 1 ? "" : "s"}${rows.length >= limit ? " (afina la búsqueda)" : ""}`
     : total > rows.length ? `Mostrando los ${rows.length} más recientes de ${total}. Usa el buscador para encontrar a cualquiera.` : "";
@@ -62,7 +85,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
       <div className="card table-wrap only-desk">
         <table>
           <thead>
-            <tr><th></th><th>N.º</th><th>Nombre</th><th>Tipo</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Registró</th><th>Fecha</th><th></th></tr>
+            <tr><th></th><th>N.º</th><th>Nombre</th><th>Tipo</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Registró</th><th>Fecha</th><th></th><th></th></tr>
           </thead>
           <tbody>
             {shown.map((r) => (
@@ -77,9 +100,10 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
                 <td>{r.by ?? "—"}</td>
                 <td className="small">{date(r.createdAt)}</td>
                 <td>{extra(r)}</td>
+                <td>{del(r)}</td>
               </tr>
             ))}
-            {!shown.length && <tr><td colSpan={10} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
+            {!shown.length && <tr><td colSpan={11} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -94,6 +118,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
               <div className="small p-meta">
                 <span>{r.by ?? "—"} · {date(r.createdAt)}</span>
                 {extra(r)}
+                {del(r)}
               </div>
             </div>
             <div className="p-num">{r.number}</div>
