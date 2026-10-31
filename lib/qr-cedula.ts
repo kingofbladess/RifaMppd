@@ -53,3 +53,15 @@ export function parseCedula(raw: string): QrCedula | null {
   const nums = [...new Set([...plain.matchAll(/(?<![\d/-])(\d{6,9})(?![\d/-])/g)].map((m) => m[1]).filter(valid))];
   return nums.length === 1 ? { nat: "V", number: nums[0] } : null;
 }
+
+// QR del carnet SIDEFENSA: https://sidefensa.nexus.ia.ve/v/{codigo}. Se devuelve solo el código (sin cambiar
+// mayúsculas/minúsculas), que el servidor envía a Infopress. Cualquier otro sitio, usuario, query o # se rechaza.
+const SIDEFENSA_CODE = /^[A-Za-z0-9_-]{16,64}$/;
+export function parseSidefensaCode(raw: string): string | null {
+  const text = (raw ?? "").trim();
+  let url: URL;
+  try { url = new URL(text); } catch { return null; }
+  const m = /^\/v\/([A-Za-z0-9_-]{16,64})\/?$/.exec(url.pathname);
+  if (url.origin !== "https://sidefensa.nexus.ia.ve" || url.username || url.password || url.search || url.hash || !m) return null;
+  return SIDEFENSA_CODE.test(m[1]) ? m[1] : null;
+}

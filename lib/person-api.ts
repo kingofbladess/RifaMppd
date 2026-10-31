@@ -153,7 +153,12 @@ const INFOPRESS_TIMEOUT_MS = 125_000;           // Infopress puede tardar hasta 
 
 type Source = { status?: string; data?: Record<string, unknown> | null };
 type InfopressPhoto = { source?: string; status?: string; url?: string };
-type InfopressResponse = { sources?: Record<string, Source | undefined>; photos?: InfopressPhoto[]; error?: string };
+type InfopressResponse = { sources?: Record<string, Source | undefined>; photos?: InfopressPhoto[]; error?: unknown; code?: unknown; cedula?: string };
+// Código de error de Infopress: "error": "qr_not_found", o "error": {"code": ...}, o "code": ...
+const errCode = (b: InfopressResponse): string => {
+  const e = b.error as { code?: unknown } | string | undefined;
+  return String((typeof e === "object" && e ? e.code : e) ?? b.code ?? "");
+};
 
 // IPSFA conserva los tipos del proveedor: un grado puede venir como texto o como objeto con su descripción.
 function text(v: unknown): string {
@@ -167,8 +172,12 @@ function text(v: unknown): string {
 }
 
 async function infopressFetch(cedula: string): Promise<{ status: number; body: InfopressResponse }> {
+  return infopressGet(`/v1/consulta/${encodeURIComponent(cedula)}`, { 400: "cédula inválida" });
+}
+
+async function infopressGet(path: string, extra: Record<number, string> = {}, byCode: Record<string, string> = {}): Promise<{ status: number; body: InfopressResponse }> {
   const base = process.env.INFOPRESS_BASE_URL || "https://infopress.sidefensa.nexus.ia.ve";
-  const r = await fetch(new URL(`/v1/consulta/${encodeURIComponent(cedula)}`, base), {
+  const r = await fetch(new URL(path, base), {
     headers: { Accept: "application/json", "X-API-Key": process.env.INFOPRESS_API_KEY! },
     signal: AbortSignal.timeout(INFOPRESS_TIMEOUT_MS), redirect: "error", cache: "no-store",
   });
@@ -176,11 +185,16 @@ async function infopressFetch(cedula: string): Promise<{ status: number; body: I
   if (r.status === 200 || r.status === 404) return { status: r.status, body };
   const reqId = r.headers.get("x-request-id");
   const why: Record<number, string> = {
-    400: "cédula inválida", 401: "API key de Infopress inválida o vencida",
+    401: "API key de Infopress inválida o vencida",
     429: `límite de consultas alcanzado, espera ${r.headers.get("retry-after") ?? "unos"} s`,
     503: "Infopress no disponible por ahora",
+    ...extra,
   };
-  throw new Error(`Infopress: ${why[r.status] ?? `respondió ${r.status}`}${reqId ? ` (request ${reqId})` : ""}`);
+  const code = errCode(body);
+  const msg = (code && byCode[code]) || why[r.status] || `respondió ${r.status}`;
+  // Solo estado y request id en el registro: nunca el código QR, la cédula ni el cuerpo.
+  console.warn(`Infopress ${r.status}${code ? ` ${code}` : ""}${reqId ? ` request ${reqId}` : ""}`);
+  throw new Error(`Infopress: ${msg}${reqId ? ` (request ${reqId})` : ""}`);
 }
 
 const found = (s: Source | undefined) => (s?.status === "found" && s.data ? s.data : null);
@@ -209,8 +223,35 @@ function mapInfopress(body: InfopressResponse, doc: string, nat: "V" | "E"): Per
 }
 
 async function infopressLookup(doc: string, nat: "V" | "E"): Promise<LookupResult> {
-  const cedula = `${nat}${doc}`;
-  const { status, body } = await infopressFetch(cedula);
+  return infopressResult(await infopressFetch(`${nat}${doc}`), doc, nat);
+}
+
+// ---------- QR del carnet (SIDEFENSA → Infopress) ----------
+// El QR trae https://sidefensa.nexus.ia.ve/v/{codigo}; solo se envía el código a Infopress, que devuelve la cédula
+// y los mismos datos que una consulta normal. Errores propios del QR con mensajes claros para el operador.
+export type QrLookup = { nat: "V" | "E"; doc: string; result: LookupResult };
+
+export async function lookupByQr(code: string): Promise<QrLookup> {
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(code)) throw new Error("código QR inválido");
+  if (!process.env.INFOPRESS_API_KEY) throw new Error("la consulta por QR solo funciona en la laptop conectada a Infopress (falta INFOPRESS_API_KEY)");
+  const res = await infopressGet(`/v1/consulta/qr/${encodeURIComponent(code)}`,
+    { 400: "el QR no es válido, vuelve a escanearlo", 405: "método no permitido" },
+    {
+      invalid_qr_code: "el QR no es válido, vuelve a escanearlo",
+      qr_not_found: "este carnet no está en la lista de la actividad",
+      qr_lookup_unavailable: "la lista de carnets de Infopress no está disponible o venció; avisa al administrador",
+    });
+  // 404 sin cédula = carnet desconocido; 404 con cédula = se resolvió pero los proveedores no tienen datos.
+  const m = /^([VEve])-?(\d{4,15})$/.exec(String(res.body.cedula ?? "").trim());
+  if (!m) {
+    if (res.status === 404) throw new Error("Infopress: este carnet no está en la lista de la actividad");
+    throw new Error("Infopress: la respuesta del QR no trae la cédula");
+  }
+  const nat = m[1].toUpperCase() as "V" | "E", doc = m[2];
+  return { nat, doc, result: await infopressResult(res, doc, nat) };
+}
+
+async function infopressResult({ status, body }: { status: number; body: InfopressResponse }, doc: string, nat: "V" | "E"): Promise<LookupResult> {
   const none: LookupResult = { found: false, source: "api", person: null, photo: null, photoDate: null };
   if (status === 404) return none;
   const person = mapInfopress(body, doc, nat);
