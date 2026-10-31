@@ -589,3 +589,4 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 
 /* Botón V/E junto a la cédula */
 .search-row .btn.nat-btn { min-width: 0; width: 3.2rem; padding-inline: 0; font-size: 1.3rem; font-weight: 800; flex: none; }
+.nowrap { white-space: nowrap; }

@@ -181,16 +181,12 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
 
           <div className="grid two">
             <div className="full">
-              <label htmlFor="rank">Rango / cargo</label>
-              <input id="rank" value={fields.rank} onChange={(e) => set("rank", e.target.value)} maxLength={80} placeholder="Ej. Coordinador" />
+              <label htmlFor="rank">Grado</label>
+              <input id="rank" value={fields.rank} onChange={(e) => set("rank", e.target.value)} maxLength={80} placeholder="Ej. Capitán" />
             </div>
             <div>
               <label htmlFor="birth_date">Nacimiento</label>
               <input id="birth_date" type="date" value={fields.birth_date} onChange={(e) => set("birth_date", e.target.value)} required />
-            </div>
-            <div>
-              <label htmlFor="city">Ciudad</label>
-              <input id="city" value={fields.city} onChange={(e) => set("city", e.target.value)} />
             </div>
             <div>
               <label htmlFor="phone">Teléfono</label>

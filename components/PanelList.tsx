@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 export type PanelRow = {
   id: string; number: string; name: string; rank: string | null;
-  doc: string; phone: string | null; email: string | null; city: string | null;
+  doc: string; phone: string | null; birthDate: string | null;
   photoUrl: string | null; hasIdDoc: boolean; photoSource: string | null;
   by: string | null; createdAt: string;
 };
@@ -34,6 +34,13 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
   const extra = (r: PanelRow) => r.hasIdDoc
     ? <a href={`/api/admin/document/${r.id}`} target="_blank" rel="noreferrer">Ver cédula</a>
     : <span className="small">{r.photoSource === "api" ? "Foto API" : "Foto nueva"}</span>;
+  // Edad a partir de la fecha de nacimiento (YYYY-MM-DD), que es lo que entrega Infopress.
+  const age = (d: string | null) => {
+    if (!d) return null;
+    const [y, m, day] = d.split("-").map(Number), now = new Date();
+    const a = now.getFullYear() - y - (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < day) ? 1 : 0);
+    return Number.isFinite(a) ? a : null;
+  };
   const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   const avatar = (r: PanelRow) => r.photoUrl
     ? <img className="avatar" src={r.photoUrl} alt="" />
@@ -53,23 +60,24 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
       <div className="card table-wrap only-desk">
         <table>
           <thead>
-            <tr><th></th><th>N.º</th><th>Nombre</th><th>Documento</th><th>Contacto</th><th>Ciudad</th><th>Registró</th><th>Fecha</th><th></th></tr>
+            <tr><th></th><th>N.º</th><th>Nombre</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Teléfono</th><th>Registró</th><th>Fecha</th><th></th></tr>
           </thead>
           <tbody>
             {shown.map((r) => (
               <tr key={r.id}>
                 <td>{avatar(r)}</td>
                 <td><strong>{r.number}</strong></td>
-                <td>{r.name}{r.rank && <><br /><span className="small">{r.rank}</span></>}</td>
-                <td>{r.doc}</td>
-                <td>{r.phone}<br /><span className="small">{r.email ?? ""}</span></td>
-                <td>{r.city ?? "—"}</td>
+                <td>{r.name}</td>
+                <td>{r.rank || "—"}</td>
+                <td className="nowrap">{r.doc}</td>
+                <td>{age(r.birthDate) ?? "—"}</td>
+                <td className="small">{r.phone || "—"}</td>
                 <td>{r.by ?? "—"}</td>
                 <td className="small">{date(r.createdAt)}</td>
                 <td>{extra(r)}</td>
               </tr>
             ))}
-            {!shown.length && <tr><td colSpan={9} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
+            {!shown.length && <tr><td colSpan={10} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -80,7 +88,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
             {avatar(r)}
             <div className="p-body">
               <div className="p-name">{r.name}</div>
-              <div className="small">{[r.rank, r.doc].filter(Boolean).join(" · ")}</div>
+              <div className="small">{[r.rank, r.doc, age(r.birthDate) !== null ? `${age(r.birthDate)} años` : ""].filter(Boolean).join(" · ")}</div>
               <div className="small p-meta">
                 <span>{r.by ?? "—"} · {date(r.createdAt)}</span>
                 {extra(r)}
