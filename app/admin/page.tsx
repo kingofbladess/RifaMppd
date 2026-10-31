@@ -52,7 +52,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
 
   const panelRows: PanelRow[] = list.map((p) => ({
     id: p.id, number: String(p.raffle_number).padStart(digits, "0"), name: p.full_name, rank: p.rank,
-    doc: `${p.document_type}-${p.document_number}`, phone: p.phone, birthDate: p.birth_date,
+    doc: `${({ CC: "V", CE: "E" } as Record<string, string>)[p.document_type] ?? p.document_type}-${p.document_number}`, phone: p.phone, birthDate: p.birth_date,
     photoUrl: photo.get(p.photo_path) ?? null, hasIdDoc: !!p.id_document_path, photoSource: p.photo_source,
     by: p.registered_by_name, createdAt: p.created_at,
   }));

@@ -14,7 +14,7 @@ type Lookup = {
 };
 type Saved = { number: number; name: string; photo: string | null };
 
-const EMPTY: Person = { full_name: "", document_type: "CC", document_number: "", birth_date: "", city: "", rank: "", phone: "", email: "" };
+const EMPTY: Person = { full_name: "", document_type: "V", document_number: "", birth_date: "", city: "", rank: "", phone: "", email: "" };
 
 function useObjectUrl(blob: Blob | null) {
   const url = useMemo(() => (blob ? URL.createObjectURL(blob) : null), [blob]);
@@ -209,14 +209,6 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
             <div>
               <label htmlFor="birth_date">Nacimiento</label>
               <input id="birth_date" type="date" value={fields.birth_date} onChange={(e) => set("birth_date", e.target.value)} required />
-            </div>
-            <div>
-              <label htmlFor="phone">Teléfono</label>
-              <input id="phone" type="tel" inputMode="tel" value={fields.phone} onChange={(e) => set("phone", e.target.value)} required minLength={7} />
-            </div>
-            <div>
-              <label htmlFor="email">Correo <span className="small">(opc.)</span></label>
-              <input id="email" type="email" value={fields.email} onChange={(e) => set("email", e.target.value)} />
             </div>
           </div>
 

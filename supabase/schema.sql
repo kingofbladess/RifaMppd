@@ -35,7 +35,7 @@ create table if not exists public.participants (
   document_type     text not null check (document_type in ('CC','TI','CE','PAS','DNI','OTRO')),
   document_number   text not null check (char_length(document_number) between 4 and 30),
   email             text check (email is null or email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
-  phone             text not null check (char_length(phone) between 7 and 20),
+  phone             text check (phone is null or char_length(phone) between 7 and 20),  -- opcional (Infopress no lo trae)
   birth_date        date not null,
   city              text,
   rank              text,            -- rango o cargo administrativo (viene de la API o se escribe)
@@ -69,6 +69,10 @@ alter table public.participants add column if not exists registered_by_name text
 alter table public.participants alter column id_document_path drop not null;
 alter table public.participants add column if not exists photo_source text not null default 'camera';
 alter table public.participants add column if not exists rank text;
+-- El teléfono pasó a ser opcional: Infopress no lo entrega y el formulario ya no lo pide.
+alter table public.participants alter column phone drop not null;
+alter table public.participants drop constraint if exists participants_phone_check;
+alter table public.participants add constraint participants_phone_check check (phone is null or char_length(phone) between 7 and 20);
 
 create index if not exists participants_raffle_idx on public.participants(raffle_id);
 
@@ -125,7 +129,7 @@ begin
     registered_by, registered_by_name, photo_source, rank
   ) values (
     r.id, n, trim(p_full_name), p_document_type, trim(p_document_number),
-    nullif(lower(trim(p_email)), ''), trim(p_phone), p_birth_date, nullif(trim(p_city), ''),
+    nullif(lower(trim(p_email)), ''), nullif(trim(p_phone), ''), p_birth_date, nullif(trim(p_city), ''),
     p_id_document_path, p_photo_path, now(), p_registered_by, p_registered_by_name, p_photo_source,
     nullif(trim(p_rank), '')
   ) returning id into pid;
