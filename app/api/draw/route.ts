@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomInt } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getActiveRaffle, fetchAll } from "@/lib/participants";
+import { readWheelState } from "@/lib/wheel-state";
 
 export const runtime = "nodejs";
 
@@ -12,9 +13,14 @@ export async function GET() {
   // En tandas: Supabase entrega como máximo 1000 filas por consulta y la TV debe ver la lista completa.
   const sb = supabaseAdmin();
   try {
-    const data = await fetchAll<{ participant_id: string }>((from, to) => sb.from("draws").select("participant_id")
-      .eq("raffle_id", raffle.id).order("created_at", { ascending: true }).order("id").range(from, to));
-    return NextResponse.json({ draws: data.map((d) => ({ participantId: d.participant_id })) }, { headers: { "Cache-Control": "no-store" } });
+    const [data, state] = await Promise.all([
+      fetchAll<{ participant_id: string }>((from, to) => sb.from("draws").select("participant_id")
+        .eq("raffle_id", raffle.id).order("created_at", { ascending: true }).order("id").range(from, to)),
+      readWheelState(),
+    ]);
+    // closed: el último ganador al que el admin le cerró el cartel (la TV cierra el suyo igual).
+    return NextResponse.json({ draws: data.map((d) => ({ participantId: d.participant_id })), closed: state?.closed ?? null },
+      { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return NextResponse.json({ error: (e as { message?: string }).message ?? "Error" }, { status: 500 });
   }

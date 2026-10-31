@@ -142,6 +142,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const [removing, setRemoving] = useState<string | null>(null);
   const [mirrorQueue, setMirrorQueue] = useState<string[]>([]);
   const knownDraws = useRef(new Set(pastWinners.map((w) => w.id)));
+  const closedRef = useRef<string | null>(null); // último cartel que cerró el admin (espejo)
+  const [closedTick, setClosedTick] = useState(0);
   const winTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined); // espera antes del cartel de ganador
 
   // Solo admin: quitar un ganador (vuelve a la ruleta) o todos, para repetir pruebas.
@@ -316,12 +318,14 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   // Al cerrar la pantalla de ganador, esa persona desaparece de la ruleta.
   const closeWin = useCallback(() => {
     clearTimeout(winTimer.current); // si el cartel aún no salía, ya no sale
+    // Admin: avisa que cerró este cartel para que la TV espejo lo cierre también (si falla, la TV lo cierra al siguiente giro).
+    if (!mirror && winner) fetch("/api/draw/cerrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ participantId: winner.id }) }).catch(() => {});
     setShowWin(false);
     highlight.current = -1;
     setParticipants((list) => (winner ? list.filter((p) => p.id !== winner.id) : list));
     // El recuadro vuelve a mostrar a quien señala el puntero; el ganador queda en la lista de abajo.
     setWinner(null);
-  }, [winner]);
+  }, [winner, mirror]);
   useEffect(() => {
     if (!showWin) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeWin(); };
@@ -398,11 +402,13 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       try {
         const res = await fetch("/api/draw", { cache: "no-store" });
         if (res.ok) {
-          const { draws } = (await res.json()) as { draws: { participantId: string }[] };
+          const { draws, closed } = (await res.json()) as { draws: { participantId: string }[]; closed?: string | null };
+          closedRef.current = closed ?? null;
           const ids = draws.map((d) => d.participantId), now = new Set(ids);
           if ([...knownDraws.current].some((id) => !now.has(id))) { if (!busy.current) location.reload(); return; }
           const fresh = ids.filter((id) => !knownDraws.current.has(id));
           if (fresh.length) { fresh.forEach((id) => knownDraws.current.add(id)); setMirrorQueue((q) => [...q, ...fresh]); }
+          else setClosedTick((t) => t + 1); // revisa si el admin cerró el cartel del ganador actual
         }
       } catch { /* sin red: se reintenta en el siguiente ciclo */ }
       if (!stop) timer = setTimeout(tick, MIRROR_POLL_MS);
@@ -421,6 +427,11 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     const iv = setInterval(() => { if (Date.now() - loadedAt > 6 * 3600e3 && !busy.current && !document.querySelector(".win-overlay")) location.reload(); }, 60e3);
     return () => { window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); clearInterval(iv); };
   }, [mirror]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Espejo: si el admin ya cerró el cartel de este ganador, la TV lo cierra igual (solo cuando ya terminó de girar).
+  useEffect(() => {
+    if (mirror && winner && showWin && !spinning && !busy.current && closedRef.current === winner.id) closeWin();
+  }, [mirror, winner, showWin, spinning, closedTick, closeWin]);
 
   // Gira los sorteos pendientes uno por uno; antes cierra el cartel del ganador anterior (y lo saca de la ruleta).
   useEffect(() => {
