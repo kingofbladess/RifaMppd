@@ -309,8 +309,8 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .xmas-face img, .xmas-face .xmas-initials, .win-face img, .win-face .xmas-initials { border-radius: 50%; object-fit: cover; border: 5px solid #f6d365; box-shadow: 0 0 0 5px #0f7b3f, 0 0 30px rgba(246,211,101,.5); }
 .xmas-initials { display: grid; place-items: center; font-weight: 800; color: #fff; background: radial-gradient(circle at 30% 30%, #ff5a6e, #c8102e 60%, #7a0b1c); }
 .xmas-card .num { background: linear-gradient(180deg, #fff3c4, #f6d365 50%, #d4a017); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-size: 3rem; }
-.xmas-name { font-size: 1.35rem; font-weight: 800; }
-.xmas-rank { color: #ffd9a8; font-size: .9rem; }
+.xmas-name { font-size: 1.35rem; font-weight: 800; line-height: 1.2; min-height: 2.4em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.xmas-rank { color: #ffd9a8; font-size: .9rem; line-height: 1.3; min-height: 1.3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .xmas-count { color: rgba(255,248,236,.7); font-size: .85rem; }
 .btn.xmas-btn { width: 100%; font-size: 1.15rem; background: linear-gradient(180deg, #2fbf71, #0f7b3f); box-shadow: 0 8px 20px -6px rgba(46,229,157,.6), inset 0 -3px 0 rgba(0,0,0,.2);
   border: 2px solid #f6d365; }
@@ -392,7 +392,7 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .xmas-page .xmas-face { grid-column: 1; grid-row: 2 / span 4; margin: 0; align-self: center; }
   .xmas-page .xmas-face img, .xmas-page .xmas-face .xmas-initials { width: 60px !important; height: 60px !important; font-size: 1.3rem !important; border-width: 3px; box-shadow: 0 0 0 3px #0f7b3f; }
   .xmas-page .xmas-card .num { grid-column: 2; font-size: 1.7rem; line-height: 1.05; }
-  .xmas-page .xmas-name { grid-column: 2; font-size: 1rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .xmas-page .xmas-name { grid-column: 2; font-size: 1rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; min-height: 1.2em; }
   .xmas-page .xmas-rank { grid-column: 2; font-size: .78rem; }
   .xmas-page .xmas-count { grid-column: 2; margin: 0; font-size: .75rem; }
   .xmas-page .xmas-btn { grid-column: 1 / -1; margin-top: 6px; min-height: 46px; padding: 10px; font-size: 1.05rem; }
@@ -475,7 +475,7 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .xmas-page .xmas-face { margin: clamp(4px, 1.2dvh, 10px) auto clamp(2px, .8dvh, 6px); }
   .xmas-page .xmas-face img, .xmas-page .xmas-face .xmas-initials { width: clamp(60px, 19dvh, 150px) !important; height: clamp(60px, 19dvh, 150px) !important; font-size: clamp(1.3rem, 4.2dvh, 3.2rem) !important; }
   .xmas-page .xmas-card .num { font-size: clamp(1.8rem, 6.5dvh, 3rem); line-height: 1.1; }
-  .xmas-page .xmas-name { font-size: clamp(1rem, 3dvh, 1.35rem); line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .xmas-page .xmas-name { font-size: clamp(1rem, 3dvh, 1.35rem); line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; min-height: 1.2em; }
   .xmas-page .xmas-count { margin: clamp(4px, 1.4dvh, 14px) 0; }
   .xmas-page .btn.xmas-btn { min-height: 0; padding-block: clamp(8px, 1.8dvh, 14px); }
 }

@@ -533,8 +533,9 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
         <div className="xmas-label">{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 En el puntero"}</div>
         <div className="xmas-face">{face(shown, 150, "3.2rem")}</div>
         <div className="num" key={`n-${shown?.id}`}>{shown ? pad(shown.number) : "—"}</div>
-        <div className="xmas-name">{shown?.name}</div>
-        {shown?.rank && <div className="xmas-rank">{shown.rank}</div>}
+        {/* Nombre y grado ocupan siempre el mismo alto: la tarjeta no salta mientras gira. */}
+        <div className="xmas-name">{shown?.name ?? "\u00a0"}</div>
+        <div className="xmas-rank">{shown ? shown.rank || "Civil" : "\u00a0"}</div>
         <p className="xmas-count">{n} en la ruleta{history.length ? ` · ${history.length} ${history.length === 1 ? "ganador" : "ganadores"}` : ""}</p>
         <button className="btn xmas-btn" onClick={spin} disabled={spinning}>
           {spinning ? "Girando…" : "🎁 Girar ruleta"}
@@ -553,7 +554,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
             <div className="win-face">{face(winner, 190, "4rem")}</div>
             <div className="win-num">{pad(winner.number)}</div>
             <div className="win-name">{winner.name}</div>
-            {winner.rank && <div className="win-rank">{winner.rank}</div>}
+            <div className="win-rank">{winner.rank || "Civil"}</div>
             <div className="win-actions">
               <button className="btn xmas-btn" onClick={() => { closeWin(); setQueued(true); }}>🎁 Girar otra vez</button>
               <button className="btn secondary" onClick={closeWin}>Cerrar</button>
