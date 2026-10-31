@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // Con miles de inscritos la lista muestra los más recientes; el buscador consulta toda la rifa en el servidor.
 const LIST_LIMIT = 200;
-const COLS = "id, raffle_number, full_name, rank, document_type, document_number, email, phone, city, photo_path, id_document_path, photo_source, registered_by_name, created_at";
+const COLS = "id, raffle_number, full_name, rank, document_type, document_number, phone, birth_date, photo_path, id_document_path, photo_source, registered_by_name, created_at";
 
 async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo?: string; n?: string; q?: string }> }) {
   const { demo, n, q: rawQ } = await searchParams;
@@ -52,7 +52,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
 
   const panelRows: PanelRow[] = list.map((p) => ({
     id: p.id, number: String(p.raffle_number).padStart(digits, "0"), name: p.full_name, rank: p.rank,
-    doc: `${p.document_type} ${p.document_number}`, phone: p.phone, email: p.email, city: p.city,
+    doc: `${p.document_type}-${p.document_number}`, phone: p.phone, birthDate: p.birth_date,
     photoUrl: photo.get(p.photo_path) ?? null, hasIdDoc: !!p.id_document_path, photoSource: p.photo_source,
     by: p.registered_by_name, createdAt: p.created_at,
   }));
