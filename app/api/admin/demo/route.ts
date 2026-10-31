@@ -9,7 +9,7 @@ export const maxDuration = 60;
 
 // Personas temporales para probar la ruleta. Se reconocen por la cédula "TEMP…" y se borran juntas.
 const TEMP_PREFIX = "TEMP";
-const ALLOWED = [100, 1000, 5000];
+const ALLOWED = [5, 100, 1000, 5000];
 const CHUNK = 500;
 const FIRST = ["Ana", "Bruno", "Carla", "Diego", "Elena", "Fabián", "Gabriela", "Héctor", "Irene", "Julián",
   "Karen", "Luis", "María", "Nicolás", "Olga", "Pablo", "Rosa", "Samuel", "Tatiana", "Víctor"];
