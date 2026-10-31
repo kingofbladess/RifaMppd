@@ -13,14 +13,19 @@ export async function GET(req: Request) {
   const nat = params.get("nat") === "E" ? "E" : "V"; // cédula venezolana: V (venezolano) o E (extranjero)
   if (doc.length < 4 || doc.length > 15) return NextResponse.json({ error: "Número de cédula inválido" }, { status: 400 });
 
-  const raffle = await getActiveRaffle();
-  const [existing, lookup] = await Promise.all([
-    raffle
-      ? supabaseAdmin().from("participants").select("raffle_number, full_name, registered_by_name")
-          .eq("raffle_id", raffle.id).eq("document_number", doc).maybeSingle().then((r) => r.data)
-      : null,
-    lookupPerson(doc, nat).catch((e: Error) => ({ error: e.message })),
-  ]);
+  // La consulta a la API arranca de inmediato; la rifa activa y la inscripción previa se buscan en paralelo.
+  const t0 = Date.now();
+  let apiMs = 0;
+  const lookupP = lookupPerson(doc, nat)
+    .catch((e: Error) => ({ error: e.message }))
+    .finally(() => { apiMs = Date.now() - t0; });
+  const existingP = getActiveRaffle().then((raffle) => raffle
+    ? supabaseAdmin().from("participants").select("raffle_number, full_name, registered_by_name")
+        .eq("raffle_id", raffle.id).eq("document_number", doc).maybeSingle().then((r) => r.data)
+    : null).catch(() => null);
+  const [existing, lookup] = await Promise.all([existingP, lookupP]);
+  // Tiempos en la terminal: muestra cuánto tardó la API externa y cuánto la app.
+  console.log(`lookup ${nat}${doc.slice(0, 2)}***: API ${(apiMs / 1000).toFixed(1)} s, total ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 
   if ("error" in lookup) {
     console.error("lookup", lookup.error);

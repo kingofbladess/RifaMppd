@@ -20,6 +20,7 @@ export type LookupResult = {
   person: Person | null;
   photo: string | null;      // data URL (se descarga en el servidor para evitar CORS y no exponer el token)
   photoDate: string | null;  // fecha de la foto si la API la informa (para saber si es vieja)
+  photoPending?: boolean;    // Infopress aún prepara la foto: el navegador la vuelve a pedir sin bloquear el formulario
 };
 
 const TIMEOUT_MS = 8000;
@@ -110,7 +111,6 @@ export async function lookupPerson(doc: string, nat: "V" | "E" = "V"): Promise<L
 // consulta funciona cuando la app corre en una laptop de esa red, no desde Vercel. Las fotos llegan como
 // enlaces S3 privados: el servidor las descarga y las entrega como data URL, igual que con la API genérica.
 const INFOPRESS_TIMEOUT_MS = 125_000;           // Infopress puede tardar hasta 110 s consultando a los proveedores
-const PHOTO_RETRY_MS = [2000, 4000];            // fotos "pending": se vuelve a consultar un par de veces (cada consulta gasta cuota)
 
 type Source = { status?: string; data?: Record<string, unknown> | null };
 type InfopressPhoto = { source?: string; status?: string; url?: string };
@@ -171,23 +171,19 @@ function mapInfopress(body: InfopressResponse, doc: string, nat: "V" | "E"): Per
 
 async function infopressLookup(doc: string, nat: "V" | "E"): Promise<LookupResult> {
   const cedula = `${nat}${doc}`;
-  let { status, body } = await infopressFetch(cedula);
+  const { status, body } = await infopressFetch(cedula);
   const none: LookupResult = { found: false, source: "api", person: null, photo: null, photoDate: null };
   if (status === 404) return none;
   const person = mapInfopress(body, doc, nat);
   if (!person) return none;
 
-  const ready = (b: InfopressResponse) =>
-    ["saime", "ipsfa"].map((src) => b.photos?.find((p) => p.source === src && p.status === "ready" && p.url)).find(Boolean);
-  for (const wait of PHOTO_RETRY_MS) {
-    if (ready(body) || !body.photos?.some((p) => p.status === "pending")) break;
-    await new Promise((res) => setTimeout(res, wait));
-    ({ status, body } = await infopressFetch(cedula).catch(() => ({ status, body })));
-  }
+  // La foto lista se descarga de una vez; si está "pending" se responde ya con los datos y el navegador
+  // la vuelve a pedir en segundo plano, para que el operador no espere sin ver nada.
+  const ready = ["saime", "ipsfa"].map((src) => body.photos?.find((p) => p.source === src && p.status === "ready" && p.url)).find(Boolean);
   // El enlace S3 firmado se usa tal cual (con todos sus parámetros X-Amz-*) y sin la API key.
-  const url = ready(body)?.url;
-  const photo = url ? await toDataUrl(url, {}).catch(() => null) : null;
-  return { found: true, source: "api", person, photo, photoDate: null };
+  const photo = ready?.url ? await toDataUrl(ready.url, {}).catch(() => null) : null;
+  const photoPending = !photo && !!body.photos?.some((p) => p.status === "pending");
+  return { found: true, source: "api", person, photo, photoDate: null, photoPending };
 }
 
 // ---------- Modo demo (sin PERSON_API_URL) ----------

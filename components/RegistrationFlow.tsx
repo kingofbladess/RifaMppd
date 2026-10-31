@@ -10,7 +10,7 @@ type Person = {
 };
 type Lookup = {
   found: boolean; source: "api" | "demo"; person: Person | null; photo: string | null; photoDate: string | null;
-  apiError?: string; existing: { raffle_number: number; full_name: string; registered_by_name: string | null } | null;
+  apiError?: string; photoPending?: boolean; existing: { raffle_number: number; full_name: string; registered_by_name: string | null } | null;
 };
 type Saved = { number: number; name: string; photo: string | null };
 
@@ -42,6 +42,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<Saved | null>(null);
   const [count, setCount] = useState(0);
+  const searchId = useRef(0); // para ignorar respuestas de una consulta anterior
   const newPhotoUrl = useObjectUrl(newPhoto);
   const idPhotoUrl = useObjectUrl(idPhoto);
 
@@ -54,7 +55,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
 
   function clear() {
     setLookup(null); setFields(EMPTY); setNewPhoto(null); setIdPhoto(null);
-    setCamera(null); setError(null);
+    setCamera(null); setError(null); searchId.current++;
   }
 
   async function search(e?: React.FormEvent) {
@@ -62,19 +63,35 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
     const clean = doc.replace(/\D/g, "");
     if (clean.length < 4) return setError("Escribe un número de cédula válido");
     clear(); setSaved(null); setLoading(true);
+    const id = ++searchId.current;
     try {
       const r = await fetch(`/api/lookup?doc=${clean}&nat=${nat}`);
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Error al consultar");
       setLookup(j);
       setFields({ ...EMPTY, ...(j.person ?? {}), document_number: clean });
-      // Sin foto: abrir la cámara directamente, salvo que la API haya fallado (así se ve el aviso).
-      if (!j.photo && !j.existing && !j.apiError) setCamera("photo");
+      // Sin foto: abrir la cámara directamente, salvo que la API haya fallado (así se ve el aviso)
+      // o que Infopress aún esté preparando la foto (se pide en segundo plano).
+      if (!j.photo && !j.existing && !j.apiError && !j.photoPending) setCamera("photo");
+      if (j.photoPending && !j.existing) void waitPhoto(id, clean);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
     } finally {
       setLoading(false);
     }
+  }
+
+  // Infopress a veces entrega la foto unos segundos después: se vuelve a pedir sin bloquear el formulario.
+  async function waitPhoto(id: number, clean: string) {
+    for (const ms of [3000, 5000, 8000]) {
+      await new Promise((r) => setTimeout(r, ms));
+      if (searchId.current !== id) return;
+      const j = await fetch(`/api/lookup?doc=${clean}&nat=${nat}`).then((r) => r.json()).catch(() => null);
+      if (searchId.current !== id) return;
+      if (j?.photo) return setLookup((l) => (l ? { ...l, photo: j.photo, photoPending: false } : l));
+      if (!j?.photoPending) break;
+    }
+    if (searchId.current === id) setLookup((l) => (l ? { ...l, photoPending: false } : l));
   }
 
   async function save(e: React.FormEvent) {
@@ -141,7 +158,9 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
           <div className="person-head">
             <button type="button" className="photo-frame" onClick={() => setCamera(camera === "photo" ? null : "photo")}
               aria-label={shownPhoto ? "Actualizar foto" : "Tomar foto"}>
-              {shownPhoto ? <img src={shownPhoto} alt="Foto de la persona" /> : <span className="no-photo">📸<br />Sin foto</span>}
+              {shownPhoto ? <img src={shownPhoto} alt="Foto de la persona" />
+                : lookup.photoPending ? <span className="no-photo"><span className="spinner" /><br />Cargando foto…</span>
+                : <span className="no-photo">📸<br />Sin foto</span>}
               {shownPhoto && <span className="photo-src">{newPhoto ? "Nueva" : "API"}</span>}
             </button>
             <div className="person-info">
