@@ -74,6 +74,9 @@ function sniffImage(b: Buffer): string | null {
   if (b.subarray(0, 4).toString("hex") === "89504e47") return "image/png";
   if (b.subarray(0, 3).toString("ascii") === "GIF") return "image/gif";
   if (b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP") return "image/webp";
+  // AVIF (Infopress empezó a entregar las fotos así): caja "ftyp" con marca avif/avis. Los navegadores actuales
+  // la muestran y al registrar el teléfono la convierte a JPEG (dataUrlToJpeg), que es lo que guarda Supabase.
+  if (b.subarray(4, 8).toString("ascii") === "ftyp" && /avi[fs]/.test(b.subarray(8, 32).toString("ascii"))) return "image/avif";
   return null;
 }
 
