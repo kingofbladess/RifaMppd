@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { seeOther } from "@/lib/redirect";
 import { randomInt } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getActiveRaffle, fetchAll } from "@/lib/participants";
@@ -22,7 +22,7 @@ const nameFor = (i: number) => `${FIRST[i % 20]} ${LAST[Math.floor(i / 20) % 25]
 
 export async function POST(req: Request) {
   const form = await req.formData();
-  const back = (q: string) => NextResponse.redirect(new URL(`/admin?${q}`, req.url), 303);
+  const back = (q: string) => seeOther(`/admin?${q}`);
   const sb = supabaseAdmin();
   const raffle = await getActiveRaffle();
   if (!raffle) return back("demo=sin-rifa");
