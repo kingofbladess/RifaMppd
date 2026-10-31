@@ -263,9 +263,14 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .garland i { position: relative; top: 6px; width: 10px; height: 16px; border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%; animation: blink 1s ease-in-out infinite alternate; }
 .b0 { --c: #ff3b3b; } .b1 { --c: #2ee59d; } .b2 { --c: #ffd166; } .b3 { --c: #7cc6ff; }
 .garland i, .bulbs i { background: var(--c); box-shadow: 0 0 10px 2px var(--c); }
-@keyframes blink { from { opacity: 1; filter: brightness(1.2); } to { opacity: .35; filter: brightness(.7); box-shadow: none; } }
+@keyframes blink { from { opacity: 1; } to { opacity: .3; } } /* solo opacidad: la anima la tarjeta gráfica sin redibujar */
+.garland i, .bulbs i { will-change: opacity; }
 
-.xmas-wheel { container-type: inline-size; filter: drop-shadow(0 18px 40px rgba(0,0,0,.55)); }
+.xmas-wheel { container-type: inline-size; }
+/* Sombra fija detrás de la ruleta (un filtro sobre el lienzo se recalcularía en cada cuadro del giro) */
+.xmas-wheel::before { content: ""; position: absolute; inset: 1%; border-radius: 50%; box-shadow: 0 18px 40px rgba(0,0,0,.55); pointer-events: none; }
+.xmas-wheel canvas { position: relative; z-index: 1; }
+.xmas-wheel .bulbs { z-index: 2; }
 .bulbs { position: absolute; inset: 0; pointer-events: none; }
 .bulbs i { position: absolute; left: 50%; top: 50%; width: 2.4cqw; height: 2.4cqw; border-radius: 50%; animation: blink .9s ease-in-out infinite alternate; }
 .xmas-wheel.is-spinning .bulbs i { animation-duration: var(--blink, .18s); }
@@ -292,8 +297,11 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .btn.xmas-btn { width: 100%; font-size: 1.15rem; background: linear-gradient(180deg, #2fbf71, #0f7b3f); box-shadow: 0 8px 20px -6px rgba(46,229,157,.6), inset 0 -3px 0 rgba(0,0,0,.2);
   border: 2px solid #f6d365; }
 .btn.xmas-btn:hover { background: linear-gradient(180deg, #3ad181, #128a47); box-shadow: 0 12px 26px -6px rgba(46,229,157,.7); }
-.xmas-btn:not(:disabled) { animation: pulse 2.2s ease-in-out infinite; }
-@keyframes pulse { 0%, 100% { box-shadow: 0 8px 20px -6px rgba(46,229,157,.6), 0 0 0 0 rgba(246,211,101,.5); } 50% { box-shadow: 0 8px 20px -6px rgba(46,229,157,.6), 0 0 0 10px rgba(246,211,101,0); } }
+/* Aro que late alrededor del botón: se anima con opacidad y escala, no con sombras */
+.btn.xmas-btn { position: relative; }
+.btn.xmas-btn::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 8px rgba(246,211,101,.45); opacity: 0; pointer-events: none; }
+.xmas-btn:not(:disabled)::after { animation: ringPulse 2.2s ease-out infinite; }
+@keyframes ringPulse { 0% { opacity: 0; transform: scale(.98); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.04); } }
 .xmas-history { text-align: left; margin-top: 16px; border-top: 1px dashed rgba(246,211,101,.4); padding-top: 12px; }
 .xmas-history ul { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 6px; }
 .xmas-history li { display: flex; gap: 10px; align-items: center; }
@@ -306,7 +314,8 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .win-content { position: relative; text-align: center; color: #fff8ec; animation: popIn .6s cubic-bezier(.2,1.5,.4,1); }
 .win-title { font-size: clamp(2.6rem, 13vw, 9rem); font-weight: 900; line-height: .95; letter-spacing: .02em;
   background: linear-gradient(180deg, #fffbe6 0%, #ffd166 45%, #d4a017 70%, #fff3c4 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 4px 0 #7a0b1c) drop-shadow(0 0 30px rgba(255,209,102,.7)); animation: glow 1.4s ease-in-out infinite alternate; }
+  filter: drop-shadow(0 4px 0 #7a0b1c) drop-shadow(0 0 30px rgba(255,209,102,.7)); animation: titlePulse 1.4s ease-in-out infinite alternate; will-change: transform; }
+@keyframes titlePulse { to { transform: scale(1.04); } }
 .win-face { margin: 18px auto 8px; width: max-content; animation: float 3s ease-in-out infinite; }
 .win-num { font-size: clamp(2.4rem, 10vw, 4.5rem); font-weight: 900; color: #ffd166; font-variant-numeric: tabular-nums; text-shadow: 0 3px 0 #7a0b1c; }
 .win-name { font-size: clamp(1.4rem, 5vw, 2.2rem); font-weight: 800; }
@@ -316,7 +325,6 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .win-actions .secondary { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.35); }
 @keyframes fadeIn { from { opacity: 0; } }
 @keyframes popIn { from { transform: scale(.4); opacity: 0; } }
-@keyframes glow { to { filter: drop-shadow(0 4px 0 #7a0b1c) drop-shadow(0 0 50px rgba(255,209,102,1)); } }
 @keyframes float { 50% { transform: translateY(-8px); } }
 @media (max-width: 600px) {
   .xmas-page .container { padding-top: 30px; }
@@ -333,8 +341,8 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .flag-wave span { position: absolute; top: 0; height: 100%; background-image: url(/bandera-venezuela.svg); background-repeat: no-repeat;
   animation: wave 2.6s ease-in-out infinite; }
 @keyframes wave {
-  0%, 100% { transform: translateY(-2.2%) ; filter: brightness(1.15); }
-  50% { transform: translateY(2.2%); filter: brightness(.8); }
+  0%, 100% { transform: translateY(-2.2%); }
+  50% { transform: translateY(2.2%); }
 }
 @media (prefers-reduced-motion: reduce) { .flag-wave span { animation: none; } }
 
@@ -464,11 +472,10 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .xmas-card .num { animation: numDrop .18s ease-out; }
 @keyframes numDrop { from { transform: translateY(-15%); opacity: .55; } to { transform: none; opacity: 1; } }
 .xmas-card.is-spinning { border-color: #f6d365; box-shadow: 0 0 0 3px rgba(246,211,101,.25), 0 20px 50px rgba(0,0,0,.45); }
-.xmas-card.is-win { animation: cardGlow 1s ease-in-out infinite alternate; border-color: #ffe08a; }
-@keyframes cardGlow { from { box-shadow: 0 0 0 3px rgba(246,211,101,.35), 0 0 30px rgba(246,211,101,.25); } to { box-shadow: 0 0 0 6px rgba(246,211,101,.6), 0 0 60px rgba(246,211,101,.55); } }
+.xmas-card.is-win { border-color: #ffe08a; box-shadow: 0 0 0 5px rgba(246,211,101,.5), 0 0 50px rgba(246,211,101,.45); }
 /* Mientras gira, un halo dorado alrededor de la ruleta que se apaga al frenar */
 .xmas-wheel::after { content: ""; position: absolute; inset: -2%; border-radius: 50%; pointer-events: none; opacity: var(--glow, 0);
-  box-shadow: 0 0 calc(var(--glow, 0) * 60px) calc(var(--glow, 0) * 12px) rgba(255,209,102,.55); transition: opacity .3s; }
+  box-shadow: 0 0 60px 12px rgba(255,209,102,.55); transition: opacity .3s; will-change: opacity; }
 @media (prefers-reduced-motion: reduce) { .xmas-card .num, .xmas-card.is-win { animation: none; } }
 /* Pantallas angostas acostadas (celular horizontal): ganadores solo con foto y número */
 @media (max-width: 760px) and (min-aspect-ratio: 4001/3000) {
