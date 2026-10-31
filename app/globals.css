@@ -784,7 +784,12 @@ html[data-presenter][data-idle] .hidden-logout button { cursor: none; }
   .xmas-page .winners-rail .float img, .xmas-page .winners-rail .float .xmas-initials { flex: none; width: 32px !important; height: 32px !important; font-size: .7rem !important; }
   .xmas-page .winners-rail .w-num { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; font-size: .78rem; line-height: 1.1; white-space: nowrap; }
   .xmas-page .winners-rail .w-pos { min-width: 0; font-size: .8em; }
-  .xmas-page .winners-rail .w-name, .xmas-page .winners-rail .w-del { display: none; }
+  .xmas-page .winners-rail .w-name { display: none; }
+  /* En el teléfono no hay "pasar el mouse": la X para quitar al ganador se ve siempre, roja y grande para el dedo */
+  .xmas-page .winners-rail .float:has(.w-del) { padding-right: 36px; }
+  .xmas-page .winners-rail .w-del { width: 26px; height: 26px; right: 5px; font-size: .78rem; font-weight: 700; opacity: 1; background: #c62828; border-color: #ffcdd2; }
+  .xmas-page .winners-rail .w-del::after { content: ""; position: absolute; inset: -7px; }
+  .xmas-page .winners-rail .w-del:disabled { opacity: .35; }
   .xmas-page .xmas-card.winner { grid-column: 1; grid-row: 3; }
 }
 /* La ruleta nunca hace scroll en el teléfono (ni el "rebote" al arrastrar) */
