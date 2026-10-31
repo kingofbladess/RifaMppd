@@ -29,7 +29,9 @@ export async function writeWheelState(state: State) {
   const { url, headers } = base();
   const r = await retryingFetch(`${url}/storage/v1/object/${BUCKET_DOCS}/${PATH}`, {
     method: "POST",
-    headers: { ...headers, "Content-Type": "application/json", "x-upsert": "true", "cache-control": "max-age=0" },
+    // El bucket privado solo acepta image/jpeg (con application/json Supabase responde 415 y la TV nunca se
+    // enteraba del cierre). El texto se guarda declarado con ese tipo; solo lo lee la app.
+    headers: { ...headers, "Content-Type": "image/jpeg", "x-upsert": "true", "cache-control": "max-age=0" },
     body: JSON.stringify(state),
   });
   if (!r.ok) throw new Error(`No se pudo guardar el estado (${r.status}): ${await r.text().catch(() => "")}`);
