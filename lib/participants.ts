@@ -22,7 +22,12 @@ export async function signPhotos(paths: string[], seconds: number): Promise<Map<
   const sb = supabaseAdmin();
   for (let i = 0; i < real.length; i += PAGE) {
     const { data } = await sb.storage.from(BUCKET_PHOTOS).createSignedUrls(real.slice(i, i + PAGE), seconds);
-    (data ?? []).forEach((s) => { if (!s.error && s.signedUrl && s.path) out.set(s.path, s.signedUrl); });
+    (data ?? []).forEach((s) => {
+      if (s.error || !s.signedUrl || !s.path) return;
+      // Se entrega la ruta propia /api/foto (misma dirección que la app) con el token firmado.
+      const token = new URL(s.signedUrl).searchParams.get("token");
+      out.set(s.path, token ? `/api/foto?p=${encodeURIComponent(s.path)}&t=${encodeURIComponent(token)}` : s.signedUrl);
+    });
   }
   return out;
 }

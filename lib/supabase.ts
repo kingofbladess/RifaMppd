@@ -10,7 +10,7 @@ const errCode = (e: unknown) => {
   const c = (e as { cause?: { code?: string } })?.cause;
   return c?.code ?? (e as { code?: string })?.code ?? "";
 };
-const retryingFetch: typeof fetch = async (input, init) => {
+export const retryingFetch: typeof fetch = async (input, init) => {
   const method = (init?.method ?? "GET").toUpperCase();
   const idempotent = method === "GET" || method === "HEAD";
   for (let i = 0; ; i++) {
