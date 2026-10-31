@@ -1,19 +1,14 @@
 "use client";
 import { useEffect, useRef } from "react";
 
-type Sound = (pan: number, big?: number) => void;
-
 const COLORS = ["#ffd166", "#ff3b3b", "#2ee59d", "#ffffff", "#ff8fab", "#7cc6ff", "#f5c542"];
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number };
 type Rocket = { x: number; y: number; vx: number; vy: number; targetY: number; color: string };
 
-// Fuegos artificiales en un canvas a pantalla completa: cohetes que suben y estallan con gravedad.
-export default function Fireworks({ active, onLaunch, onBurst }: { active: boolean; onLaunch?: Sound; onBurst?: Sound }) {
+// Fuegos artificiales (sin sonido) en un canvas a pantalla completa: cohetes que suben y estallan con gravedad.
+export default function Fireworks({ active }: { active: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  // Los sonidos se leen por ref para no reiniciar la animación si cambian.
-  const sound = useRef({ onLaunch, onBurst });
-  sound.current = { onLaunch, onBurst };
   useEffect(() => {
     if (!active) return;
     const canvas = ref.current!;
@@ -36,7 +31,6 @@ export default function Fireworks({ active, onLaunch, onBurst }: { active: boole
     const explode = (x: number, y: number, color: string) => {
       const count = Math.min(reduce ? 30 : 70 + Math.floor(Math.random() * 40), Math.max(20, MAX_PARTS - parts.length));
       const ring = Math.random() < .35;
-      sound.current.onBurst?.(Math.max(-1, Math.min(1, (x / w) * 2 - 1)) * .8, Math.max(0, (count - 70) / 40));
       for (let i = 0; i < count; i++) {
         const a = (i / count) * Math.PI * 2 + Math.random() * .2;
         const sp = ring ? 4.2 : 1 + Math.random() * 4.5;
@@ -47,11 +41,10 @@ export default function Fireworks({ active, onLaunch, onBurst }: { active: boole
     };
     const launch = () => {
       const x = w * (.15 + Math.random() * .7);
-      sound.current.onLaunch?.(((x / w) * 2 - 1) * .8);
       rockets.push({ x, y: h, vx: (Math.random() - .5) * 1.5, vy: -(9 + Math.random() * 4), targetY: h * (.12 + Math.random() * .35), color: pick() });
     };
     // Primera ráfaga de 3 a la vez
-    for (let i = 0; i < 3; i++) setTimeout(() => explode(w * (.2 + .3 * i), h * (.25 + Math.random() * .15), pick()), i * 180);
+    const first = [0, 1, 2].map((i) => setTimeout(() => explode(w * (.2 + .3 * i), h * (.25 + Math.random() * .15), pick()), i * 180));
 
     const frame = (now: number) => {
       const dt = Math.min(2, (now - last) / 16.7); last = now;
@@ -81,7 +74,7 @@ export default function Fireworks({ active, onLaunch, onBurst }: { active: boole
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); ctx.clearRect(0, 0, w, h); };
+    return () => { first.forEach(clearTimeout); cancelAnimationFrame(raf); window.removeEventListener("resize", resize); ctx.clearRect(0, 0, w, h); };
   }, [active]);
   return <canvas ref={ref} className="fireworks" aria-hidden="true" />;
 }

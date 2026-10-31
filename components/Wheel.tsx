@@ -357,14 +357,14 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   }, []);
 
   // La ruleta toma el tamaño más grande que cabe en la pantalla sin scroll:
-  // en PC al lado del recuadro; en celular, el alto que deja libre el recuadro de abajo.
+  // en PC entre los ganadores y el recuadro; en celular, el alto que dejan libre la fila de ganadores y el recuadro.
   useEffect(() => {
     const stage = stageRef.current, card = cardRef.current, box = boxRef.current, rail = railRef.current;
     if (!stage || !card || !box || !rail) return;
     const fit = () => {
       const stacked = window.matchMedia(STACKED_MQ).matches;
       const POINTER = 0.06; // la estrella del puntero sobresale ~6 % por arriba
-      // En celular vertical los ganadores son una fila debajo de la ruleta (le quitan alto, no ancho);
+      // En celular vertical los ganadores son una fila entre la ruleta y el recuadro (le quitan alto, no ancho);
       // en PC/TV son una columna a la izquierda.
       const railW = !stacked && rail.offsetWidth ? rail.offsetWidth + 24 : 0;
       const railH = stacked && rail.offsetHeight ? rail.offsetHeight + 8 : 0;
@@ -387,6 +387,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     const check = () => {
       const list = railListRef.current;
       if (!list) return;
+      // En celular vertical los ganadores son una fila horizontal deslizable: no rueda (si no, se verían repetidos).
+      if (window.matchMedia(STACKED_MQ).matches) return setRolls(false);
       const single = list.scrollHeight / (rolls ? 2 : 1);
       setRolls(single > win.clientHeight + 2);
     };
@@ -462,9 +464,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     setWinner(null);
     setShowWin(false);
     setSpinning(true);
-    // En el celular el botón queda debajo de la ruleta: la subimos a la vista para ver el giro
     highlight.current = -1;
-    if (window.matchMedia(STACKED_MQ).matches) boxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     try {
       let winnerId = mirrored;
       if (!winnerId) {
@@ -514,24 +514,23 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
           // Antes de arrancar la ruleta retrocede un poquito, como cuando alguien la toma para impulsarla
           const wind = t < WIND_UP ? -.16 * Math.sin(Math.PI * t / WIND_UP) : 0;
           rotation.current = start + (target - start) * spinProgress(t) + wind;
+          const speed = (spinProgress(t + .01) - spinProgress(t)) / .01; // 1 = velocidad media del giro
           // Los foquitos parpadean al ritmo de la velocidad de la ruleta
           if (now - lastBlink > 200 && boxRef.current) {
             lastBlink = now;
-            const speed = (spinProgress(t + .01) - spinProgress(t)) / .01; // 1 = velocidad media
             boxRef.current.style.setProperty("--blink", `${Math.min(1, Math.max(.12, .25 / Math.max(speed, .01)))}s`);
             boxRef.current.style.setProperty("--glow", `${Math.min(1, speed / 2.5).toFixed(2)}`);
           }
           draw();
-          const speed = (spinProgress(t + .01) - spinProgress(t)) / .01; // 1 = velocidad media del giro
           const i = indexAtPointer(rotation.current);
           if (i !== lastIdx) {
             lastIdx = i;
-            // El recuadro muestra a quien está bajo el puntero. Con cientos de personas por segundo nadie alcanza a leerlo,
-            // así que se refresca ~20 veces por segundo (y siempre al frenar) para no trabar la TV.
-            // Con miles, la tarjeta cambia al ritmo de la ruleta: rápido al arrancar (máx. ~16 por segundo) y cada vez
-            // más lento al frenar, igual que el sonido. Con 400 o menos, el puntero ya pasa a ese ritmo por sí solo.
-            // Con 400 o menos el puntero pasa hasta ~60 personas por segundo al arrancar (medido): se muestra cada
-            // persona que pasa pero como máximo cada 85 ms; al frenar pasan más lento y se ven todas, una por una.
+            // El recuadro muestra a quien está bajo el puntero, sin cambiar en cada cuadro (trababa la TV):
+            // - Más de 400: cambia al ritmo de la ruleta, rápido al arrancar (máx. ~16 por segundo) y cada vez más
+            //   lento al frenar, igual que el sonido.
+            // - 400 o menos: el puntero pasa hasta ~60 personas por segundo al arrancar; se muestra como máximo una
+            //   cada 85 ms y al frenar se ven todas, una por una.
+            // En el último tramo (t > 0,985) siempre se actualiza, para terminar en la persona correcta.
             const every = lightSpin ? Math.min(700, Math.max(60, 60 / Math.max(speed, .05))) : 85;
             if (now - lastShown >= every || t > .985) {
               // La entrada de la foto y el número dura según el ritmo: rápida al arrancar, suave al frenar.
@@ -662,7 +661,6 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   ) : <div className="xmas-card xmas-empty">🎟️ Aún no hay participantes inscritos.</div>;
 
   const shown = winner ?? (spinning && lightSpin && current ? { ...current, photoUrl: null } : current);
-
 
   return (
     <div className="stage" ref={stageRef}>

@@ -1,7 +1,6 @@
 import "server-only";
 import { supabaseAdmin, BUCKET_PHOTOS } from "./supabase";
-
-export type WheelParticipant = { id: string; name: string; number: number; rank: string | null; photoUrl: string | null };
+import type { WheelParticipant } from "@/components/Wheel";
 
 // Supabase devuelve como máximo 1000 filas por consulta: esto pide página por página hasta traerlas todas.
 const PAGE = 1000;
