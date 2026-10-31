@@ -336,10 +336,15 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 }
 
 
-/* Bandera ondeando detrás del cartel de ganador (marca de agua) */
-.flag-wave { position: absolute; left: 50%; top: 50%; width: min(92vw, 1100px); aspect-ratio: 3 / 2; transform: translate(-50%, -50%) rotate(-4deg);
-  opacity: .22; pointer-events: none; animation: fadeIn 1.2s ease; display: block; }
-/* El ondeo, los pliegues y el desvanecido de los bordes los dibuja WavingFlag.tsx en un solo lienzo */
+/* Bandera ondeando a pantalla completa detrás del cartel de ganador.
+   El ondeo y los pliegues los dibuja WavingFlag.tsx en un solo lienzo; aquí solo se coloca
+   y se oscurece el centro (capa fija, no se recalcula por cuadro) para que el texto se lea bien. */
+.flag-wave { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block;
+  opacity: .8; pointer-events: none; animation: fadeIn 1.2s ease; }
+.win-overlay::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse 46% 52% at 50% 50%, rgba(5,12,24,.78), rgba(5,12,24,.5) 60%, rgba(5,12,24,.12) 100%); }
+.win-overlay .fireworks { z-index: 2; }
+.win-overlay .win-content { z-index: 3; }
 
 /* ---------- Ruleta a pantalla completa, sin scroll ---------- */
 .xmas-page { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
@@ -577,7 +582,7 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 .win-num { font-size: clamp(2.4rem, min(10vw, 8dvh), 5.5rem); line-height: 1.1; }
 /* Ganadores quietos (caben todos): sin desvanecido arriba para que el más reciente se lea completo */
 .winners-rail .rail-window:not(.is-rolling) { -webkit-mask-image: none; mask-image: none; }
-/* Cartel de ganador con fondo opaco: la ruleta de atrás no se transparenta (se veía como una bola navideña); solo queda la bandera */
-.win-overlay { background: radial-gradient(circle at 50% 40%, #3d0a16, #08101d 70%); backdrop-filter: none; }
+/* Cartel de ganador con fondo opaco: la ruleta de atrás no se transparenta (se veía como una bola navideña); solo queda la bandera, que lo cubre todo */
+.win-overlay { background: #050c18; backdrop-filter: none; }
 /* Con el cartel abierto (es opaco) lo de atrás no se ve: se oculta para que la TV no siga animando nieve, luces y ganadores */
 .xmas-page:has(.win-overlay) :is(.snow, .garland, .winners-rail, .wheel-box, .xmas-card) { visibility: hidden; }
