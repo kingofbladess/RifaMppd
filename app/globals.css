@@ -336,13 +336,13 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 }
 
 
-/* Bandera ondeando a pantalla completa detrás del cartel de ganador.
+/* Bandera ondeando a pantalla completa detrás del cartel de ganador, suave como marca de agua.
    El ondeo y los pliegues los dibuja WavingFlag.tsx en un solo lienzo; aquí solo se coloca
    y se oscurece el centro (capa fija, no se recalcula por cuadro) para que el texto se lea bien. */
 .flag-wave { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block;
-  opacity: .8; pointer-events: none; animation: fadeIn 1.2s ease; }
+  opacity: .3; pointer-events: none; animation: fadeIn 1.2s ease; }
 .win-overlay::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background: radial-gradient(ellipse 46% 52% at 50% 50%, rgba(5,12,24,.78), rgba(5,12,24,.5) 60%, rgba(5,12,24,.12) 100%); }
+  background: radial-gradient(ellipse 46% 52% at 50% 50%, rgba(5,12,24,.55), rgba(5,12,24,.25) 60%, rgba(5,12,24,0) 100%); }
 .win-overlay .fireworks { z-index: 2; }
 .win-overlay .win-content { z-index: 3; }
 
