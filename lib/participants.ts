@@ -15,18 +15,30 @@ export async function fetchAll<T>(page: (from: number, to: number) => PromiseLik
   }
 }
 
+// Enlaces ya firmados, reutilizados mientras les quede al menos la mitad del tiempo pedido. Sin esto el panel
+// (que se refresca cada 15 s) recibía enlaces nuevos cada vez y el navegador volvía a bajar todas las fotos.
+const signedCache = new Map<string, { url: string; exp: number }>();
+
 // URLs firmadas de las fotos, en tandas. Las personas de prueba usan "temp/…" y no tienen archivo.
 export async function signPhotos(paths: string[], seconds: number): Promise<Map<string, string>> {
   const real = [...new Set(paths.filter((path) => !path.startsWith("temp/")))];
   const out = new Map<string, string>();
+  const now = Date.now();
+  const missing = real.filter((path) => {
+    const hit = signedCache.get(path);
+    if (hit && hit.exp - now >= (seconds * 1000) / 2) { out.set(path, hit.url); return false; }
+    return true;
+  });
   const sb = supabaseAdmin();
-  for (let i = 0; i < real.length; i += PAGE) {
-    const { data } = await sb.storage.from(BUCKET_PHOTOS).createSignedUrls(real.slice(i, i + PAGE), seconds);
+  for (let i = 0; i < missing.length; i += PAGE) {
+    const { data } = await sb.storage.from(BUCKET_PHOTOS).createSignedUrls(missing.slice(i, i + PAGE), seconds);
     (data ?? []).forEach((s) => {
       if (s.error || !s.signedUrl || !s.path) return;
       // Se entrega la ruta propia /api/foto (misma dirección que la app) con el token firmado.
       const token = new URL(s.signedUrl).searchParams.get("token");
-      out.set(s.path, token ? `/api/foto?p=${encodeURIComponent(s.path)}&t=${encodeURIComponent(token)}` : s.signedUrl);
+      const url = token ? `/api/foto?p=${encodeURIComponent(s.path)}&t=${encodeURIComponent(token)}` : s.signedUrl;
+      out.set(s.path, url);
+      signedCache.set(s.path, { url, exp: now + seconds * 1000 });
     });
   }
   return out;

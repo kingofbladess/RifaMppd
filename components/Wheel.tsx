@@ -131,6 +131,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   // se descarga al empezar (para salir al instante al final) y, si contara, sería la única foto visible
   // en las vueltas y delataría quién va a ganar.
   const loadedAtStart = useRef(new Set<string>());
+  const requested = useRef(new Set<string>()); // fotos ya pedidas (aunque aún no lleguen)
   const [spinning, setSpinning] = useState(false);
   const [current, setCurrent] = useState<WheelParticipant | null>(null);
   const [winner, setWinner] = useState<WheelParticipant | null>(null);
@@ -529,8 +530,10 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     }
   }
 
+  // Cada foto se pide una sola vez (antes, mientras giraba, se volvía a pedir cada vez que pasaba por el puntero).
   function preload(url: string) {
-    if (loaded.current.has(url)) return;
+    if (loaded.current.has(url) || requested.current.has(url)) return;
+    requested.current.add(url);
     const img = new Image();
     img.onload = () => { if (img.naturalWidth) loaded.current.add(url); };
     img.src = url;
