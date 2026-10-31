@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { parseCedula, type QrCedula } from "@/lib/qr-cedula";
+import { parseCedula, parseSidefensaCode, type QrCedula } from "@/lib/qr-cedula";
+
+export type QrRead = QrCedula | { code: string };
 
 type Detector = { detect: (src: CanvasImageSource) => Promise<{ rawValue: string }[]> };
 
 // Lector de QR / código de barras del documento. Todo ocurre en el teléfono (sin internet):
 // usa el lector del navegador si existe (Chrome en Android) y si no, jsQR.
-export default function QrScanner({ onResult, onClose }: { onResult: (c: QrCedula) => void; onClose: () => void }) {
+export default function QrScanner({ onResult, onClose }: { onResult: (c: QrRead) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [msg, setMsg] = useState("Abriendo cámara…");
   const [lastText, setLastText] = useState<string | null>(null);
@@ -22,7 +24,9 @@ export default function QrScanner({ onResult, onClose }: { onResult: (c: QrCedul
     let busy = false, lastTry = 0;
 
     const found = (text: string) => {
-      const c = parseCedula(text);
+      // Primero el carnet SIDEFENSA (link con código); si no, la cédula escrita en el código.
+      const code = parseSidefensaCode(text);
+      const c: QrRead | null = code ? { code } : parseCedula(text);
       if (c && !done.current) {
         done.current = true;
         navigator.vibrate?.(80);
@@ -70,7 +74,7 @@ export default function QrScanner({ onResult, onClose }: { onResult: (c: QrCedul
         const v = videoRef.current!;
         v.srcObject = stream;
         await v.play();
-        setMsg("Apunta al código QR del documento");
+        setMsg("Apunta al código QR del carnet o documento");
         raf = requestAnimationFrame(tick);
       } catch {
         setMsg("No se pudo abrir la cámara. Revisa los permisos o escribe la cédula.");

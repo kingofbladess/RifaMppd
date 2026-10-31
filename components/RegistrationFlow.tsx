@@ -34,6 +34,7 @@ function groupDigits(n: string) {
 }
 
 const QrScanner = dynamic(() => import("./QrScanner"), { ssr: false });
+type QrRead = import("./QrScanner").QrRead;
 
 // Código único por intento de registro (crypto.randomUUID existe en HTTPS; si no, se arma uno igual).
 function newId(): string {
@@ -79,30 +80,35 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   }
 
   // QR del documento: llena la cédula y consulta sola.
-  const onScan = useCallback((c: { nat: "V" | "E"; number: string }) => {
+  // Carnet SIDEFENSA: el QR trae un código; Infopress devuelve la cédula y los datos de la persona.
+  const onScan = useCallback((c: QrRead) => {
     setScanning(false);
+    if ("code" in c) { setDoc(""); void search(undefined, undefined, undefined, c.code); return; }
     setNat(c.nat);
     setDoc(c.number);
     void search(undefined, c.number, c.nat);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function search(e?: React.FormEvent, docArg?: string, natArg?: "V" | "E") {
+  async function search(e?: React.FormEvent, docArg?: string, natArg?: "V" | "E", qrCode?: string) {
     e?.preventDefault();
-    const nat = natArg ?? natState;
-    const clean = (docArg ?? doc).replace(/\D/g, "");
-    if (clean.length < 4) return setError("Escribe un número de cédula válido");
+    let nat = natArg ?? natState;
+    let clean = (docArg ?? doc).replace(/\D/g, "");
+    if (!qrCode && clean.length < 4) return setError("Escribe un número de cédula válido");
     clear(); setSaved(null); setLoading(true);
     const id = ++searchId.current;
     try {
-      const r = await fetch(`/api/lookup?doc=${clean}&nat=${nat}`);
+      const r = await fetch(qrCode ? `/api/lookup?qr=${encodeURIComponent(qrCode)}` : `/api/lookup?doc=${clean}&nat=${nat}`);
       const j = await r.json();
+      if (searchId.current !== id) return;
       if (!r.ok) throw new Error(j.error ?? "Error al consultar");
+      if (qrCode) { nat = j.nat; clean = j.doc; setNat(nat); setDoc(clean); }
       setLookup(j);
       setFields({ ...EMPTY, document_type: nat, ...(j.person ?? {}), document_number: clean });
       // Sin foto: abrir la cámara directamente, salvo que la API haya fallado (así se ve el aviso)
       // o que Infopress aún esté preparando la foto (se pide en segundo plano).
       if (!j.photo && !j.existing && !j.apiError && !j.photoPending) setCamera("photo");
-      if (j.photoPending && !j.existing) void waitPhoto(id, clean, nat);
+      // Foto pendiente: con QR se repite la misma consulta QR (así lo pide Infopress); si no, la de cédula.
+      if (j.photoPending && !j.existing) void waitPhoto(id, qrCode ? `qr=${encodeURIComponent(qrCode)}` : `doc=${clean}&nat=${nat}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
     } finally {
@@ -111,11 +117,11 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   }
 
   // Infopress a veces entrega la foto unos segundos después: se vuelve a pedir sin bloquear el formulario.
-  async function waitPhoto(id: number, clean: string, nat: "V" | "E") {
+  async function waitPhoto(id: number, query: string) {
     for (const ms of [3000, 5000, 8000]) {
       await new Promise((r) => setTimeout(r, ms));
       if (searchId.current !== id) return;
-      const j = await fetch(`/api/lookup?doc=${clean}&nat=${nat}`).then((r) => r.json()).catch(() => null);
+      const j = await fetch(`/api/lookup?${query}`).then((r) => r.json()).catch(() => null);
       if (searchId.current !== id) return;
       if (j?.photo) return setLookup((l) => (l ? { ...l, photo: j.photo, photoPending: false } : l));
       if (!j?.photoPending) break;
@@ -183,7 +189,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
           <button className="btn" disabled={loading}>{loading ? <span className="spinner" /> : "Consultar"}</button>
         </div>
         <button type="button" className="link qr-btn" onClick={() => { setScanning((v) => !v); setError(null); }} disabled={loading}>
-          {scanning ? "✕ Cerrar escáner" : "▣ Escanear QR del documento"}
+          {scanning ? "✕ Cerrar escáner" : "▣ Escanear QR del carnet"}
         </button>
         {scanning && <QrScanner onResult={onScan} onClose={() => setScanning(false)} />}
         {loading && <div className="small search-hint">Consultando… si la persona no se ha consultado antes, puede tardar hasta 2 minutos.</div>}
