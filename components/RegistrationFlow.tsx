@@ -1,6 +1,6 @@
 "use client";
-
-import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Camera from "./Camera";
 import { dataUrlToJpeg } from "@/lib/image";
 
@@ -33,10 +33,13 @@ function groupDigits(n: string) {
   return n.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
+const QrScanner = dynamic(() => import("./QrScanner"), { ssr: false });
+
 export default function RegistrationFlow({ digits }: { digits: number }) {
   const docRef = useRef<HTMLInputElement>(null);
   const [doc, setDoc] = useState("");
-  const [nat, setNat] = useState<"V" | "E">("V"); // cédula venezolana: V o E
+  const [natState, setNat] = useState<"V" | "E">("V");
+  const nat = natState; // cédula venezolana: V o E
   const [loading, setLoading] = useState(false);
   const [lookup, setLookup] = useState<Lookup | null>(null);
   const [fields, setFields] = useState<Person>(EMPTY);
@@ -47,6 +50,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<Saved | null>(null);
   const [count, setCount] = useState(0);
+  const [scanning, setScanning] = useState(false);
   const searchId = useRef(0); // para ignorar respuestas de una consulta anterior
   const newPhotoUrl = useObjectUrl(newPhoto);
   const idPhotoUrl = useObjectUrl(idPhoto);
@@ -64,9 +68,18 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
     setCamera(null); setError(null); searchId.current++;
   }
 
-  async function search(e?: React.FormEvent) {
+  // QR del documento: llena la cédula y consulta sola.
+  const onScan = useCallback((c: { nat: "V" | "E"; number: string }) => {
+    setScanning(false);
+    setNat(c.nat);
+    setDoc(c.number);
+    void search(undefined, c.number, c.nat);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function search(e?: React.FormEvent, docArg?: string, natArg?: "V" | "E") {
     e?.preventDefault();
-    const clean = doc.replace(/\D/g, "");
+    const nat = natArg ?? natState;
+    const clean = (docArg ?? doc).replace(/\D/g, "");
     if (clean.length < 4) return setError("Escribe un número de cédula válido");
     clear(); setSaved(null); setLoading(true);
     const id = ++searchId.current;
@@ -79,7 +92,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
       // Sin foto: abrir la cámara directamente, salvo que la API haya fallado (así se ve el aviso)
       // o que Infopress aún esté preparando la foto (se pide en segundo plano).
       if (!j.photo && !j.existing && !j.apiError && !j.photoPending) setCamera("photo");
-      if (j.photoPending && !j.existing) void waitPhoto(id, clean);
+      if (j.photoPending && !j.existing) void waitPhoto(id, clean, nat);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
     } finally {
@@ -88,7 +101,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   }
 
   // Infopress a veces entrega la foto unos segundos después: se vuelve a pedir sin bloquear el formulario.
-  async function waitPhoto(id: number, clean: string) {
+  async function waitPhoto(id: number, clean: string, nat: "V" | "E") {
     for (const ms of [3000, 5000, 8000]) {
       await new Promise((r) => setTimeout(r, ms));
       if (searchId.current !== id) return;
@@ -152,6 +165,10 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
           </div>
           <button className="btn" disabled={loading}>{loading ? <span className="spinner" /> : "Consultar"}</button>
         </div>
+        <button type="button" className="link qr-btn" onClick={() => { setScanning((v) => !v); setError(null); }} disabled={loading}>
+          {scanning ? "✕ Cerrar escáner" : "▣ Escanear QR del documento"}
+        </button>
+        {scanning && <QrScanner onResult={onScan} onClose={() => setScanning(false)} />}
         {loading && <div className="small search-hint">Consultando… si la persona no se ha consultado antes, puede tardar hasta 2 minutos.</div>}
         {!lookup && error && <p className="error">{error}</p>}
       </form>
