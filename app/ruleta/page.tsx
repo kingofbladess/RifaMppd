@@ -1,3 +1,4 @@
+import DbError from "@/components/DbError";
 import Wheel from "@/components/Wheel";
 import Snow from "@/components/Snow";
 import PresenterControls from "@/components/PresenterControls";
@@ -5,7 +6,7 @@ import { getActiveRaffle, getWheelParticipants } from "@/lib/participants";
 
 export const dynamic = "force-dynamic";
 
-export default async function RuletaPage() {
+async function RuletaPageContent() {
   const [raffle, { participants, winners }] = await Promise.all([getActiveRaffle(), getWheelParticipants()]);
   return (
     <div className="xmas-page">
@@ -30,4 +31,13 @@ export default async function RuletaPage() {
       </main>
     </div>
   );
+}
+
+export default async function RuletaPage() {
+  try {
+    return await RuletaPageContent();
+  } catch (e) {
+    console.error("RuletaPage", e);
+    return <DbError error={e} />;
+  }
 }

@@ -1,3 +1,4 @@
+import DbError from "@/components/DbError";
 import { getActiveRaffle, fetchAll, signPhotos } from "@/lib/participants";
 import { supabaseAdmin } from "@/lib/supabase";
 import AutoRefresh from "@/components/AutoRefresh";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 const LIST_LIMIT = 200;
 const COLS = "id, raffle_number, full_name, rank, document_type, document_number, email, phone, city, photo_path, id_document_path, photo_source, registered_by_name, created_at";
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ demo?: string; n?: string; q?: string }> }) {
+async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo?: string; n?: string; q?: string }> }) {
   const { demo, n, q: rawQ } = await searchParams;
   const q = (rawQ ?? "").trim().slice(0, 60);
   const raffle = await getActiveRaffle();
@@ -101,4 +102,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </div>
     </main>
   );
+}
+
+export default async function AdminPage(props: Parameters<typeof AdminPageContent>[0]) {
+  try {
+    return await AdminPageContent(props);
+  } catch (e) {
+    console.error("AdminPage", e);
+    return <DbError error={e} />;
+  }
 }
