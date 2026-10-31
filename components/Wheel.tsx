@@ -106,7 +106,10 @@ function useSounds() {
   };
 }
 
-export default function Wheel({ participants: initial, pastWinners = [], digits, canManage = false }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number; canManage?: boolean }) {
+// Espejo (usuario TV): no tiene botones; repite en vivo los giros que se hacen desde otra pantalla.
+const MIRROR_POLL_MS = 1500;
+
+export default function Wheel({ participants: initial, pastWinners = [], digits, canManage = false, mirror = false }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number; canManage?: boolean; mirror?: boolean }) {
   // Quien gana sale de la ruleta para que no pueda volver a salir.
   const [participants, setParticipants] = useState(initial);
   useEffect(() => setParticipants(initial), [initial]);
@@ -122,6 +125,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const rotation = useRef(0);
   const highlight = useRef(-1); // porción ganadora que brilla al detenerse
   const images = useRef(new Map<string, HTMLImageElement>());
+  const busy = useRef(false); // candado inmediato: dos toques seguidos nunca lanzan dos giros
+  const loaded = useRef(new Set<string>()); // fotos ya descargadas: solo esas se muestran mientras gira
   const [spinning, setSpinning] = useState(false);
   const [current, setCurrent] = useState<WheelParticipant | null>(null);
   const [winner, setWinner] = useState<WheelParticipant | null>(null);
@@ -131,6 +136,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const sounds = useSounds();
   const [queued, setQueued] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [mirrorQueue, setMirrorQueue] = useState<string[]>([]);
+  const knownDraws = useRef(new Set(pastWinners.map((w) => w.id)));
 
   // Solo admin: quitar un ganador (vuelve a la ruleta) o todos, para repetir pruebas.
   const removeWinner = useCallback(async (w: WheelParticipant | null) => {
@@ -313,7 +320,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   // Si hay un botón enfocado, el navegador ya lo activa con esas teclas.
   const keySpin = useRef<() => void>(() => {});
   keySpin.current = () => {
-    if (spinning) return;
+    if (spinning || mirror) return;
     if (showWin) { closeWin(); setQueued(true); } else spin();
   };
   useEffect(() => {
@@ -369,8 +376,41 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     if (queued && !showWin) { setQueued(false); spin(); }
   }, [queued, showWin, participants]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function spin() {
-    if (spinning || !n) return;
+  // Espejo: cada 1,5 s pregunta qué sorteos hay. Un sorteo nuevo se gira aquí hasta la misma persona;
+  // si quitaron ganadores o hay inscritos que esta pantalla no tiene, se recarga para quedar igual.
+  useEffect(() => {
+    if (!mirror) return;
+    let stop = false, timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      try {
+        const res = await fetch("/api/draw", { cache: "no-store" });
+        if (res.ok) {
+          const { draws } = (await res.json()) as { draws: { participantId: string }[] };
+          const ids = draws.map((d) => d.participantId), now = new Set(ids);
+          if ([...knownDraws.current].some((id) => !now.has(id))) { if (!busy.current) location.reload(); return; }
+          const fresh = ids.filter((id) => !knownDraws.current.has(id));
+          if (fresh.length) { fresh.forEach((id) => knownDraws.current.add(id)); setMirrorQueue((q) => [...q, ...fresh]); }
+        }
+      } catch { /* sin red: se reintenta en el siguiente ciclo */ }
+      if (!stop) timer = setTimeout(tick, MIRROR_POLL_MS);
+    };
+    timer = setTimeout(tick, MIRROR_POLL_MS);
+    return () => { stop = true; clearTimeout(timer); };
+  }, [mirror]);
+  // Gira los sorteos pendientes uno por uno; antes cierra el cartel del ganador anterior (y lo saca de la ruleta).
+  useEffect(() => {
+    if (!mirror || !mirrorQueue.length || spinning || busy.current) return;
+    if (winner) { closeWin(); return; }
+    const [next, ...rest] = mirrorQueue;
+    setMirrorQueue(rest);
+    if (!participants.some((p) => p.id === next)) { location.reload(); return; }
+    spin(next);
+  }, [mirror, mirrorQueue, spinning, winner, participants]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function spin(mirrored?: string) {
+    // Si el ganador anterior sigue en pantalla (el cartel aún no sale) no se gira: así nunca queda pegado.
+    if (busy.current || spinning || winner || !n || (mirror && !mirrored)) return;
+    busy.current = true;
     sounds.unlock();
     setError(null);
     setWinner(null);
@@ -380,16 +420,30 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     highlight.current = -1;
     if (window.matchMedia(STACKED_MQ).matches) boxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     try {
-      const res = await fetch("/api/draw", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: participants.map((p) => p.id) }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "No se pudo sortear");
-      const idx = participants.findIndex((p) => p.id === json.participantId);
+      let winnerId = mirrored;
+      if (!winnerId) {
+        // Si la red se cuelga, a los 20 s se avisa y el botón vuelve a quedar listo (nunca "Girando…" para siempre).
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 20000);
+        let res: Response, json: { error?: string; participantId?: string };
+        try {
+          res = await fetch("/api/draw", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: participants.map((p) => p.id) }), signal: ctrl.signal,
+          });
+          json = await res.json().catch(() => ({ error: "Respuesta inválida del servidor" }));
+        } catch {
+          throw new Error("Sin conexión con el servidor. Revisa el internet y vuelve a girar.");
+        } finally {
+          clearTimeout(timer);
+        }
+        if (!res.ok) throw new Error(json.error ?? "No se pudo sortear");
+        winnerId = json.participantId;
+      }
+      const idx = participants.findIndex((p) => p.id === winnerId);
       if (idx < 0) throw new Error("El ganador no está en la ruleta. Recarga la página.");
       const winPhoto = participants[idx].photoUrl;
-      if (winPhoto) new Image().src = winPhoto; // se descarga mientras gira para que salga al instante
+      if (winPhoto) preload(winPhoto); // se descarga mientras gira para que salga al instante
 
       const start = rotation.current;
       // Ángulo final: centro del segmento ganador bajo el puntero (arriba), con un pequeño desvío aleatorio
@@ -442,18 +496,35 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
+      busy.current = false;
       setSpinning(false);
     }
+  }
+
+  function preload(url: string) {
+    if (loaded.current.has(url)) return;
+    const img = new Image();
+    img.onload = () => { if (img.naturalWidth) loaded.current.add(url); };
+    img.src = url;
   }
 
   // Si una foto no carga (enlace vencido o red lenta) se muestran las iniciales, nunca el texto alternativo gigante.
   const [badPhotos, setBadPhotos] = useState<Set<string>>(() => new Set());
   const markBad = (u: string) => setBadPhotos((s) => (s.has(u) ? s : new Set(s).add(u)));
-  const face = (p: WheelParticipant | null, size: number, font: string) => p?.photoUrl && !badPhotos.has(p.photoUrl)
-    ? <img src={p.photoUrl} alt="" style={{ width: size, height: size }} onError={() => markBad(p.photoUrl!)}
-        // Una foto que falló antes de que la página terminara de cargar no dispara onError: se revisa al montarla.
-        ref={(el) => { if (el?.complete && !el.naturalWidth) markBad(p.photoUrl!); }} />
-    : <div className="xmas-initials" style={{ width: size, height: size, fontSize: font }}>{p ? initials(p.name) : "🎁"}</div>;
+  // Mientras gira solo se pinta una foto ya descargada (si no, iniciales) y cada foto es un <img> nuevo (key):
+  // así el número y la foto siempre son de la misma persona y nunca queda pegada la foto anterior.
+  const face = (p: WheelParticipant | null, size: number, font: string, stack = false) => {
+    const fallback = <div className="xmas-initials" style={{ width: size, height: size, fontSize: font }}>{p ? initials(p.name) : "🎁"}</div>;
+    const url = p?.photoUrl;
+    if (!url || badPhotos.has(url) || (spinning && !loaded.current.has(url) && (preload(url), true))) return fallback;
+    const img = <img key={url} src={url} alt="" style={{ width: size, height: size }} onError={() => markBad(url)}
+      onLoad={(e) => { loaded.current.add(url); e.currentTarget.classList.add("ok"); }}
+      // Una foto que falló antes de que la página terminara de cargar no dispara onError: se revisa al montarla.
+      ref={(el) => { if (!el?.complete) return; if (el.naturalWidth) el.classList.add("ok"); else markBad(url); }} />;
+    // Recuadro y cartel de ganador: las iniciales quedan debajo y la foto aparece encima solo cuando ya cargó,
+    // así el círculo nunca se ve vacío aunque la foto tarde o no llegue.
+    return stack ? <span className="face-stack" key={url}>{fallback}{img}</span> : img;
+  };
 
   // Mientras gira, el recuadro cambia en cada cuadro: las luces y la lista de ganadores se guardan ya armadas
   // para que React no las vuelva a recorrer 60 veces por segundo.
@@ -531,13 +602,13 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
 
       <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
         <div className="xmas-label">{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 En el puntero"}</div>
-        <div className="xmas-face">{face(shown, 150, "3.2rem")}</div>
+        <div className="xmas-face">{face(shown, 150, "3.2rem", true)}</div>
         <div className="num" key={`n-${shown?.id}`}>{shown ? pad(shown.number) : "—"}</div>
         {/* Nombre y grado ocupan siempre el mismo alto: la tarjeta no salta mientras gira. */}
         <div className="xmas-name">{shown?.name ?? "\u00a0"}</div>
         <div className="xmas-rank">{shown ? shown.rank || "Civil" : "\u00a0"}</div>
         <p className="xmas-count">{n} en la ruleta{history.length ? ` · ${history.length} ${history.length === 1 ? "ganador" : "ganadores"}` : ""}</p>
-        <button className="btn xmas-btn" onClick={spin} disabled={spinning}>
+        <button className="btn xmas-btn" onClick={() => spin()} disabled={spinning || (!!winner && !showWin)}>
           {spinning ? "Girando…" : "🎁 Girar ruleta"}
         </button>
         <p className="key-hint"><kbd>Espacio</kbd> girar · <kbd>F</kbd> pantalla completa</p>
@@ -551,7 +622,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
           <div className="win-content" onClick={(e) => e.stopPropagation()}>
             <div className="win-pos">Ganador n.º {history.length}</div>
             <div className="win-title" data-text="¡GANADOR!">¡GANADOR!</div>
-            <div className="win-face">{face(winner, 190, "4rem")}</div>
+            <div className="win-face">{face(winner, 190, "4rem", true)}</div>
             <div className="win-num">{pad(winner.number)}</div>
             <div className="win-name">{winner.name}</div>
             <div className="win-rank">{winner.rank || "Civil"}</div>
