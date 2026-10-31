@@ -501,8 +501,13 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .winners-rail .float img, .winners-rail .float .xmas-initials { width: 30px !important; height: 30px !important; }
 }
 /* Cada cara entra con un pequeño salto; el número cae como en una máquina tragamonedas */
-.xmas-card .num { animation: numDrop .18s ease-out; }
+/* Foto y número entran deslizándose; la duración (--flip) la pone la ruleta según su ritmo:
+   rápida mientras gira fuerte y cada vez más suave al frenar */
+.xmas-card .num { animation: numDrop var(--flip, .18s) ease-out; }
+.xmas-card.is-spinning .xmas-face { animation: faceDrop var(--flip, .18s) ease-out; }
 @keyframes numDrop { from { transform: translateY(-15%); opacity: .55; } to { transform: none; opacity: 1; } }
+@keyframes faceDrop { from { transform: translateY(-10%) scale(.96); opacity: .6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .xmas-card .xmas-face { animation: none !important; } }
 .xmas-card.is-spinning { border-color: #f6d365; box-shadow: 0 0 0 3px rgba(246,211,101,.25), 0 20px 50px rgba(0,0,0,.45); }
 .xmas-card.is-win { border-color: #ffe08a; box-shadow: 0 0 0 3px rgba(246,211,101,.35), 0 0 30px rgba(246,211,101,.25); }
 /* El brillo del ganador vive en una capa aparte y solo cambia su opacidad (repintar una sombra de 60px trababa) */
@@ -761,31 +766,31 @@ html[data-presenter][data-idle] .hidden-logout button { cursor: none; }
 .qr-msg { margin: 0; }
 .qr-raw { margin: 0; word-break: break-all; opacity: .75; }
 
-/* ---------- Teléfono vertical: ganadores en una franja horizontal arriba; la ruleta usa todo el ancho; sin scroll ---------- */
+/* ---------- Celular vertical: ganadores en una fila entre la ruleta y el recuadro ---------- */
+/* (antes eran una columna angosta a la izquierda: tarjetas cortadas, la ruleta más chica y un hueco vacío abajo) */
 @media (max-width: 900px) and (max-aspect-ratio: 4/3) {
-  .xmas-page .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; align-items: center; }
-  .xmas-page .winners-rail { grid-column: 1; grid-row: 1; width: 100%; min-width: 0; gap: 4px; align-self: start; }
-  .xmas-page .winners-rail > .xmas-label { font-size: .72rem; text-align: left; justify-content: flex-start; }
-  .xmas-page .winners-rail .w-reset { margin-left: 8px; padding: 1px 8px; font-size: .65rem; }
-  .xmas-page .winners-rail .rail-window { flex: none; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
-  .xmas-page .winners-rail ul, .xmas-page .winners-rail ul.rolling { display: flex; flex-direction: row; gap: 6px; padding: 2px 24px 2px 0; overflow-x: auto; overflow-y: hidden;
-    animation: none; transform: none; overscroll-behavior: contain; scrollbar-width: none; }
-  .xmas-page .winners-rail ul::-webkit-scrollbar { display: none; }
-  .xmas-page .winners-rail ul.rolling li[aria-hidden] { display: none; } /* sin copia del carrusel: se desliza con el dedo */
-  .xmas-page .winners-rail li, .xmas-page .winners-rail .rail-window li { flex: none; padding: 0; animation: none; }
-  .xmas-page .winners-rail .float { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 99px; animation: none; }
-  .xmas-page .winners-rail .float:has(.w-del) { padding-right: 30px; }
-  .xmas-page .winners-rail .float img, .xmas-page .winners-rail .float .xmas-initials { width: 28px !important; height: 28px !important; font-size: .6rem !important; }
-  .xmas-page .winners-rail .w-num { font-size: .78rem; white-space: nowrap; }
-  .xmas-page .winners-rail .w-pos { min-width: 0; margin-right: .3em; }
+  .xmas-page .stage { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+  .xmas-page .wheel-box, .xmas-page .winners-rail.empty + .wheel-box { grid-column: 1; grid-row: 1; justify-self: center; align-self: center; }
+  .xmas-page .winners-rail { grid-column: 1; grid-row: 2; width: 100%; flex-direction: row; align-items: center; gap: 8px; min-height: 0; }
+  .xmas-page .winners-rail.empty { display: none; }
+  .xmas-page .winners-rail > .xmas-label { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: .62rem; line-height: 1.15; text-align: center; max-width: 64px; }
+  .xmas-page .winners-rail .w-reset { font-size: .6rem; padding: 2px 6px; }
+  .xmas-page .winners-rail .rail-window { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior: contain;
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .xmas-page .winners-rail .rail-window::-webkit-scrollbar { display: none; }
+  .xmas-page .winners-rail .rail-window ul { display: flex; flex-direction: row; gap: 6px; padding: 2px 16px 2px 0; animation: none !important; transform: none !important; }
+  .xmas-page .winners-rail .rail-window li { flex: none; padding: 0; animation: none; }
+  .xmas-page .winners-rail .float { display: flex; align-items: center; gap: 6px; width: max-content; padding: 4px 10px 4px 4px; border-radius: 12px; animation: none; }
+  .xmas-page .winners-rail .float img, .xmas-page .winners-rail .float .xmas-initials { flex: none; width: 32px !important; height: 32px !important; font-size: .7rem !important; }
+  .xmas-page .winners-rail .w-num { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; font-size: .78rem; line-height: 1.1; white-space: nowrap; }
+  .xmas-page .winners-rail .w-pos { min-width: 0; font-size: .8em; }
   .xmas-page .winners-rail .w-name { display: none; }
-  .xmas-page .winners-rail .w-del { width: 22px; height: 22px; right: 4px; font-size: .7rem; }
-  .xmas-page .wheel-box, .xmas-page .winners-rail.empty + .wheel-box { grid-column: 1; grid-row: 2; justify-self: center; }
+  /* En el teléfono no hay "pasar el mouse": la X para quitar al ganador se ve siempre, roja y grande para el dedo */
+  .xmas-page .winners-rail .float:has(.w-del) { padding-right: 36px; }
+  .xmas-page .winners-rail .w-del { width: 26px; height: 26px; right: 5px; font-size: .78rem; font-weight: 700; opacity: 1; background: #c62828; border-color: #ffcdd2; }
+  .xmas-page .winners-rail .w-del::after { content: ""; position: absolute; inset: -7px; }
+  .xmas-page .winners-rail .w-del:disabled { opacity: .35; }
   .xmas-page .xmas-card.winner { grid-column: 1; grid-row: 3; }
 }
-/* Teléfono horizontal: ganadores compactos y título en una línea */
-@media (max-height: 520px) and (min-aspect-ratio: 4001/3000) {
-  .xmas-page .winners-rail > .xmas-label { white-space: nowrap; font-size: .7rem; flex-wrap: nowrap; }
-  .xmas-page .winners-rail .w-name { display: none; }
-  .xmas-page .winners-rail .float { padding-block: 3px; }
-}
+/* La ruleta nunca hace scroll en el teléfono (ni el "rebote" al arrastrar) */
+html:has(.xmas-page), body:has(.xmas-page) { height: 100%; overflow: hidden; overscroll-behavior: none; }

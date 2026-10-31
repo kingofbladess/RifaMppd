@@ -9,7 +9,14 @@ export const runtime = "nodejs";
 
 // Lista de sorteos en orden: la pantalla espejo (TV) la consulta seguido para repetir cada giro.
 export async function GET() {
-  const raffle = await getActiveRaffle().catch(() => null);
+  // Si Supabase falla un instante se responde error (no una lista vacía): la TV lo tomaba como "quitaron todos
+  // los ganadores" y se recargaba en pleno evento. Con error, la TV solo reintenta en el siguiente ciclo.
+  let raffle;
+  try {
+    raffle = await getActiveRaffle();
+  } catch (e) {
+    return NextResponse.json({ error: (e as { message?: string })?.message ?? "Error" }, { status: 503 });
+  }
   if (!raffle) return NextResponse.json({ draws: [] }, { headers: { "Cache-Control": "no-store" } });
   // En tandas: Supabase entrega como máximo 1000 filas por consulta y la TV debe ver la lista completa.
   const sb = supabaseAdmin();

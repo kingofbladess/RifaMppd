@@ -32,7 +32,8 @@ export function parseCedula(raw: string): QrCedula | null {
   }
 
   // V-12.345.678 / E 1234567 / V12345678
-  const withLetter = /(?:^|[^A-Za-z])([VEve])\s*[-.:]?\s*(\d{1,3}(?:\.\d{3}){1,2}|\d{5,9})(?!\d)/.exec(text);
+  // (también con separadores de campo entre la letra y el número: "E;12345678", "|V|12345678|")
+  const withLetter = /(?:^|[^A-Za-z])([VEve])[\s\-.:#|,;/_]*(\d{1,3}(?:\.\d{3}){1,2}|\d{5,9})(?!\d)/.exec(text);
   if (withLetter) {
     const n = withLetter[2].replace(/\D/g, "");
     if (valid(n)) return { nat: natOf(withLetter[1]), number: n };
@@ -45,10 +46,10 @@ export function parseCedula(raw: string): QrCedula | null {
     if (valid(n)) return { nat: natOf(labeled[1]), number: n };
   }
 
-  // Último recurso: el primer número de 6 a 9 cifras (con o sin puntos), que no sea parte de una fecha
+  // Último recurso: un número de 6 a 9 cifras (con o sin puntos) que no sea parte de una fecha.
+  // Solo si hay UNO: con varios (cédula y serial, fecha sin separadores…) no se adivina, porque
+  // consultar el número equivocado traería a otra persona. En ese caso se muestra el texto leído.
   const plain = text.replace(/(\d)\.(?=\d{3}(?!\d))/g, "$1");
-  for (const m of plain.matchAll(/(?<![\d/-])(\d{6,9})(?![\d/-])/g)) {
-    if (valid(m[1])) return { nat: "V", number: m[1] };
-  }
-  return null;
+  const nums = [...new Set([...plain.matchAll(/(?<![\d/-])(\d{6,9})(?![\d/-])/g)].map((m) => m[1]).filter(valid))];
+  return nums.length === 1 ? { nat: "V", number: nums[0] } : null;
 }

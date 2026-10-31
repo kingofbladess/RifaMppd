@@ -364,7 +364,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     const fit = () => {
       const stacked = window.matchMedia(STACKED_MQ).matches;
       const POINTER = 0.06; // la estrella del puntero sobresale ~6 % por arriba
-      // En PC los ganadores van a la izquierda (restan ancho); en el teléfono van en una franja arriba (restan alto).
+      // En celular vertical los ganadores son una fila debajo de la ruleta (le quitan alto, no ancho);
+      // en PC/TV son una columna a la izquierda.
       const railW = !stacked && rail.offsetWidth ? rail.offsetWidth + 24 : 0;
       const railH = stacked && rail.offsetHeight ? rail.offsetHeight + 8 : 0;
       const availH = stacked ? stage.clientHeight - card.offsetHeight - railH - 8 : stage.clientHeight;
@@ -529,8 +530,14 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
             // así que se refresca ~20 veces por segundo (y siempre al frenar) para no trabar la TV.
             // Con miles, la tarjeta cambia al ritmo de la ruleta: rápido al arrancar (máx. ~16 por segundo) y cada vez
             // más lento al frenar, igual que el sonido. Con 400 o menos, el puntero ya pasa a ese ritmo por sí solo.
-            const every = Math.min(700, Math.max(60, 60 / Math.max(speed, .05)));
-            if (!lightSpin || now - lastShown >= every || t > .985) { lastShown = now; setCurrent(participants[i]); }
+            // Con 400 o menos el puntero pasa hasta ~60 personas por segundo al arrancar (medido): se muestra cada
+            // persona que pasa pero como máximo cada 85 ms; al frenar pasan más lento y se ven todas, una por una.
+            const every = lightSpin ? Math.min(700, Math.max(60, 60 / Math.max(speed, .05))) : 85;
+            if (now - lastShown >= every || t > .985) {
+              // La entrada de la foto y el número dura según el ritmo: rápida al arrancar, suave al frenar.
+              cardRef.current?.style.setProperty("--flip", `${Math.round(Math.min(320, Math.max(70, (now - lastShown) * .8)))}ms`);
+              lastShown = now; setCurrent(participants[i]);
+            }
           }
           const peg = Math.floor((((-Math.PI / 2 - rotation.current) % TAU) + TAU) % TAU / pegArc);
           if (peg !== lastPeg) {
@@ -677,7 +684,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
 
       <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
         <div className="xmas-label">{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 En el puntero"}</div>
-        <div className="xmas-face">{face(shown, 150, "3.2rem", true)}</div>
+        <div className="xmas-face" key={`f-${shown?.id}`}>{face(shown, 150, "3.2rem", true)}</div>
         <div className="num" key={`n-${shown?.id}`}>{shown ? pad(shown.number) : "—"}</div>
         {/* Nombre y grado ocupan siempre el mismo alto: la tarjeta no salta mientras gira. */}
         <div className="xmas-name">{shown?.name ?? "\u00a0"}</div>
