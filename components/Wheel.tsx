@@ -519,12 +519,16 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
             boxRef.current.style.setProperty("--glow", `${Math.min(1, speed / 2.5).toFixed(2)}`);
           }
           draw();
+          const speed = (spinProgress(t + .01) - spinProgress(t)) / .01; // 1 = velocidad media del giro
           const i = indexAtPointer(rotation.current);
           if (i !== lastIdx) {
             lastIdx = i;
             // El recuadro muestra a quien está bajo el puntero. Con cientos de personas por segundo nadie alcanza a leerlo,
             // así que se refresca ~20 veces por segundo (y siempre al frenar) para no trabar la TV.
-            if (!lightSpin || now - lastShown > 50 || t > .9) { lastShown = now; setCurrent(participants[i]); }
+            // Con miles, la tarjeta cambia al ritmo de la ruleta: rápido al arrancar (máx. ~16 por segundo) y cada vez
+            // más lento al frenar, igual que el sonido. Con 400 o menos, el puntero ya pasa a ese ritmo por sí solo.
+            const every = Math.min(700, Math.max(60, 60 / Math.max(speed, .05)));
+            if (!lightSpin || now - lastShown >= every || t > .985) { lastShown = now; setCurrent(participants[i]); }
           }
           const peg = Math.floor((((-Math.PI / 2 - rotation.current) % TAU) + TAU) % TAU / pegArc);
           if (peg !== lastPeg) {
@@ -532,7 +536,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
             // Como mucho ~16 tics por segundo en el arranque; al frenar suena cada clavo.
             if (now - lastTick > 60) {
               lastTick = now;
-              sounds.tick((spinProgress(t + .01) - spinProgress(t)) / .01);
+              sounds.tick(speed);
               // Web Animations: reinicia el golpecito sin forzar al navegador a recalcular la página
               pointerRef.current?.animate(KICK, { duration: 120, easing: "ease-out" });
             }
