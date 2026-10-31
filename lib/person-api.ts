@@ -74,7 +74,25 @@ function sniffImage(b: Buffer): string | null {
   if (b.subarray(0, 4).toString("hex") === "89504e47") return "image/png";
   if (b.subarray(0, 3).toString("ascii") === "GIF") return "image/gif";
   if (b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP") return "image/webp";
+  // AVIF/HEIF: caja "ftyp" con marca avif/avis/heic… (Infopress empezó a mandar AVIF el 2026-10-31)
+  if (b.subarray(4, 8).toString("ascii") === "ftyp") {
+    const brands = b.subarray(8, Math.min(b.length, 40)).toString("ascii");
+    if (/avif|avis/.test(brands)) return "image/avif";
+    if (/heic|heix|mif1|msf1/.test(brands)) return "image/heic";
+  }
   return null;
+}
+
+// AVIF/HEIC se pasan a JPEG en el servidor (sharp viene con Next), así la foto sale en cualquier navegador
+// y se guarda igual que siempre. Si sharp no está, AVIF se entrega tal cual (Chrome/Edge/Safari lo muestran).
+async function toJpeg(buf: Buffer, type: string): Promise<{ buf: Buffer; type: string } | null> {
+  try {
+    const sharp = (await import("sharp")).default;
+    return { buf: await sharp(buf).rotate().jpeg({ quality: 90 }).toBuffer(), type: "image/jpeg" };
+  } catch (e) {
+    console.warn(`no se pudo convertir la foto ${type} a JPEG: ${(e as Error).message}`);
+    return type === "image/avif" ? { buf, type } : null;
+  }
 }
 
 // La foto puede venir como base64, data URL o URL. Se devuelve siempre como data URL.
@@ -85,12 +103,17 @@ async function toDataUrl(ref: string, headers: Record<string, string>): Promise<
     const r = await fetch(ref, { headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!r.ok) return null;
     const buf = Buffer.from(await r.arrayBuffer());
-    const type = sniffImage(buf);
+    let type = sniffImage(buf);
+    let out: Buffer = buf;
+    if (type === "image/avif" || type === "image/heic") {
+      const conv = await toJpeg(buf, type);
+      if (conv) ({ buf: out, type } = conv); else type = null;
+    }
     if (!type) {
       console.warn(`foto de la API descartada: formato no compatible (${r.headers.get("content-type") ?? "sin tipo"}, ${buf.length} bytes)`);
       return null;
     }
-    return `data:${type};base64,${buf.toString("base64")}`;
+    return `data:${type};base64,${out.toString("base64")}`;
   }
   if (/^[A-Za-z0-9+/=\s]+$/.test(ref) && ref.length > 100) {
     const b64 = ref.replace(/\s/g, "");
