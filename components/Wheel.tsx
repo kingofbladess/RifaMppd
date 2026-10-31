@@ -134,6 +134,9 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   const showPhotos = n <= 40;
   const showNames = n <= 80;
   const showNumbers = n <= 400; // con más, la ruleta queda como disco de colores y el recuadro muestra a quién señala
+  // Con muchas personas el puntero pasa por cientos por segundo: mientras gira, el recuadro no descarga fotos
+  // (se trabaría la TV y la red); solo pasan números e iniciales y la foto del ganador aparece al detenerse.
+  const lightSpin = n > 400;
 
   const pad = (num: number) => String(num).padStart(digits, "0");
 
@@ -358,6 +361,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       if (!res.ok) throw new Error(json.error ?? "No se pudo sortear");
       const idx = participants.findIndex((p) => p.id === json.participantId);
       if (idx < 0) throw new Error("El ganador no está en la ruleta. Recarga la página.");
+      const winPhoto = participants[idx].photoUrl;
+      if (winPhoto) new Image().src = winPhoto; // se descarga mientras gira para que salga al instante
 
       const start = rotation.current;
       // Ángulo final: centro del segmento ganador bajo el puntero (arriba), con un pequeño desvío aleatorio
@@ -434,7 +439,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     </div>
   ) : <div className="xmas-card xmas-empty">🎟️ Aún no hay participantes inscritos.</div>;
 
-  const shown = winner ?? current;
+  const shown = winner ?? (spinning && lightSpin && current ? { ...current, photoUrl: null } : current);
 
 
   return (
