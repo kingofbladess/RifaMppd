@@ -461,19 +461,15 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .winners-rail .float img, .winners-rail .float .xmas-initials { width: 30px !important; height: 30px !important; }
 }
 /* Cada cara entra con un pequeño salto; el número cae como en una máquina tragamonedas */
-.xmas-card .xmas-face > * { animation: facePop .22s cubic-bezier(.2, 1.4, .4, 1); }
 .xmas-card .num { animation: numDrop .18s ease-out; }
-@keyframes facePop { from { transform: scale(.82); filter: brightness(1.4); } to { transform: none; } }
 @keyframes numDrop { from { transform: translateY(-15%); opacity: .55; } to { transform: none; opacity: 1; } }
 .xmas-card.is-spinning { border-color: #f6d365; box-shadow: 0 0 0 3px rgba(246,211,101,.25), 0 20px 50px rgba(0,0,0,.45); }
 .xmas-card.is-win { animation: cardGlow 1s ease-in-out infinite alternate; border-color: #ffe08a; }
-.xmas-card.is-win .xmas-face > * { animation: winPop .6s cubic-bezier(.2, 1.6, .4, 1); }
 @keyframes cardGlow { from { box-shadow: 0 0 0 3px rgba(246,211,101,.35), 0 0 30px rgba(246,211,101,.25); } to { box-shadow: 0 0 0 6px rgba(246,211,101,.6), 0 0 60px rgba(246,211,101,.55); } }
-@keyframes winPop { 0% { transform: scale(.6); } 60% { transform: scale(1.12); } 100% { transform: none; } }
 /* Mientras gira, un halo dorado alrededor de la ruleta que se apaga al frenar */
 .xmas-wheel::after { content: ""; position: absolute; inset: -2%; border-radius: 50%; pointer-events: none; opacity: var(--glow, 0);
   box-shadow: 0 0 calc(var(--glow, 0) * 60px) calc(var(--glow, 0) * 12px) rgba(255,209,102,.55); transition: opacity .3s; }
-@media (prefers-reduced-motion: reduce) { .xmas-card .xmas-face > *, .xmas-card .num, .xmas-card.is-win { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .xmas-card .num, .xmas-card.is-win { animation: none; } }
 /* Pantallas angostas acostadas (celular horizontal): ganadores solo con foto y número */
 @media (max-width: 760px) and (min-aspect-ratio: 4001/3000) {
   .xmas-page .container { padding-left: 10px; padding-right: 10px; }
@@ -562,3 +558,18 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
   .demo-box > form:not(.demo-add) { grid-column: 1 / -1; }
   .demo-box > form:not(.demo-add) .btn { width: 100%; }
 }
+
+/* ---------- Vista en TV: posición del ganador ---------- */
+.winners-rail .w-pos { display: inline-block; min-width: 2.4em; margin-right: .4em; padding: 0 .4em; border-radius: 99px; font-size: .85em; line-height: 1.45;
+  text-align: center; vertical-align: .12em; color: #3b0710; background: linear-gradient(180deg, #fff3c4, #f6d365); }
+.win-pos { display: inline-block; margin-bottom: clamp(6px, 1.4dvh, 14px); padding: .3em 1.1em; border-radius: 99px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  font-size: clamp(.9rem, 2.4dvh, 1.5rem); color: #3b0710; background: linear-gradient(180deg, #fff3c4, #f6d365 60%, #d4a017); box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.win-face { position: relative; z-index: 1; }
+/* El cartel del ganador cabe completo en pantallas bajas (TV 768p o portátil) */
+.win-title { font-size: clamp(2.6rem, min(13vw, 15dvh), 9rem); }
+.win-face img, .win-face .xmas-initials { width: clamp(110px, 22dvh, 15rem) !important; height: clamp(110px, 22dvh, 15rem) !important; }
+.win-num { font-size: clamp(2.4rem, min(10vw, 8dvh), 5.5rem); line-height: 1.1; }
+/* Ganadores quietos (caben todos): sin desvanecido arriba para que el más reciente se lea completo */
+.winners-rail .rail-window:not(.is-rolling) { -webkit-mask-image: none; mask-image: none; }
+/* Cartel de ganador con fondo opaco: la ruleta de atrás no se transparenta (se veía como una bola navideña); solo queda la bandera */
+.win-overlay { background: radial-gradient(circle at 50% 40%, #3d0a16, #08101d 70%); backdrop-filter: none; }

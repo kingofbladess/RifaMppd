@@ -19,7 +19,6 @@ export default async function RuletaPage() {
             <img className="xmas-logo" src="/escudo.png" alt="Escudo" />
             <div>
               <h1 className="xmas-title">{raffle?.name ?? "Ruleta"}</h1>
-              {raffle?.prize && <p className="sub xmas-sub">🎁 Premio: {raffle.prize}</p>}
             </div>
           </div>
           <div className="topbar-tools">

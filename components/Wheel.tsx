@@ -114,6 +114,9 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   const stageRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLElement>(null);
   const railRef = useRef<HTMLElement>(null);
+  const railWindowRef = useRef<HTMLDivElement>(null);
+  const railListRef = useRef<HTMLUListElement>(null);
+  const [rolls, setRolls] = useState(false);
   const rotation = useRef(0);
   const highlight = useRef(-1); // porción ganadora que brilla al detenerse
   const images = useRef(new Map<string, HTMLImageElement>());
@@ -131,6 +134,9 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
   const showPhotos = n <= 40;
   const showNames = n <= 80;
   const showNumbers = n <= 400; // con más, la ruleta queda como disco de colores y el recuadro muestra a quién señala
+  // Con muchas personas el puntero pasa por cientos por segundo: mientras gira, el recuadro no descarga fotos
+  // (se trabaría la TV y la red); solo pasan números e iniciales y la foto del ganador aparece al detenerse.
+  const lightSpin = n > 400;
 
   const pad = (num: number) => String(num).padStart(digits, "0");
 
@@ -201,11 +207,16 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       ctx.textAlign = "right"; ctx.textBaseline = "middle";
       const fs = Math.max(11, Math.min(30, Math.sin(Math.min(seg / 2, Math.PI / 2.4)) * textEnd * 0.9));
       ctx.font = `800 ${fs}px system-ui, sans-serif`;
-      const first = p.name.split(" ").slice(0, 2).join(" ");
-      const label = showNames ? `${pad(p.number)} · ${first}` : pad(p.number);
-      let t = label;
-      while (ctx.measureText(t).width > textEnd - 110 && t.length > 4) t = t.slice(0, -2);
-      ctx.fillText(t === label ? t : t + "…", textEnd, 0);
+      // Se prueba de más largo a más corto (dos palabras, primer nombre) y solo se corta con "…" si ni el primer nombre cabe.
+      const room = textEnd - 96, words = p.name.split(" ").filter(Boolean);
+      const options = showNames ? [words.slice(0, 2).join(" "), words[0]].map((w) => `${pad(p.number)} · ${w}`) : [pad(p.number)];
+      let t = options.find((o) => ctx.measureText(o).width <= room);
+      if (!t) {
+        t = options.at(-1)!;
+        while (ctx.measureText(t + "…").width > room && t.length > digits + 4) t = t.slice(0, -1);
+        t = t.length > digits + 4 ? t + "…" : pad(p.number);
+      }
+      ctx.fillText(t, textEnd, 0);
       ctx.restore();
     });
 
@@ -313,6 +324,22 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     return () => ro.disconnect();
   }, [n]);
 
+  // El carrusel de ganadores solo se activa cuando la lista no cabe en su columna.
+  useEffect(() => {
+    const win = railWindowRef.current;
+    if (!win) return;
+    const check = () => {
+      const list = railListRef.current;
+      if (!list) return;
+      const single = list.scrollHeight / (rolls ? 2 : 1);
+      setRolls(single > win.clientHeight + 2);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(win);
+    return () => ro.disconnect();
+  }, [history.length, rolls]);
+
   // "Girar otra vez": espera a que el ganador salga de la ruleta y luego gira con la lista nueva.
   useEffect(() => {
     if (queued && !showWin) { setQueued(false); spin(); }
@@ -334,6 +361,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
       if (!res.ok) throw new Error(json.error ?? "No se pudo sortear");
       const idx = participants.findIndex((p) => p.id === json.participantId);
       if (idx < 0) throw new Error("El ganador no está en la ruleta. Recarga la página.");
+      const winPhoto = participants[idx].photoUrl;
+      if (winPhoto) new Image().src = winPhoto; // se descarga mientras gira para que salga al instante
 
       const start = rotation.current;
       // Ángulo final: centro del segmento ganador bajo el puntero (arriba), con un pequeño desvío aleatorio
@@ -410,30 +439,30 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
     </div>
   ) : <div className="xmas-card xmas-empty">🎟️ Aún no hay participantes inscritos.</div>;
 
-  const shown = winner ?? current;
+  const shown = winner ?? (spinning && lightSpin && current ? { ...current, photoUrl: null } : current);
 
 
   return (
     <div className="stage" ref={stageRef}>
       {/* Ganadores a la izquierda: cada nuevo cae desde arriba y todos flotan suavemente */}
       <aside className={`winners-rail${history.length ? "" : " empty"}`} ref={railRef} aria-label="Ganadores">
-        <div className="xmas-label">🏆 Ganadores</div>
+        <div className="xmas-label">🏆 Ganadores{history.length ? ` (${history.length})` : ""}</div>
         {history.length ? (
-          // Carrusel: la lista se repite y baja sin parar; al terminar una vuelta empieza de nuevo sin saltos.
-          <div className="rail-window">
-            <ul key={history.length} className={history.length >= 3 ? "rolling" : ""}
-              style={{ animationDuration: `${Math.max(history.length, 10) * 2.4}s` }}>
-              {(history.length >= 3 ? [0, 1] : [0]).flatMap((copy) =>
-                Array.from({ length: history.length >= 3 ? Math.ceil(10 / history.length) : 1 }, (_, rep) =>
-                  history.map((h, i) => (
-                    <li key={`${copy}-${rep}-${h.id}`} aria-hidden={copy + rep > 0 || undefined}>
-                      <div className="float" style={{ animationDelay: `${-(i % 5) * .6}s` }}>
-                        {face(h, 40, ".85rem")}
-                        <span className="w-num">{pad(h.number)}</span>
-                        <span className="w-name">{h.name}</span>
-                      </div>
-                    </li>
-                  ))).flat())}
+          // Si los ganadores no caben, la lista se duplica y baja sin parar (al terminar una vuelta empieza de nuevo sin saltos).
+          // Si caben, se muestran quietos y una sola vez, para que en la TV nadie crea que hay ganadores repetidos.
+          <div className={`rail-window${rolls ? " is-rolling" : ""}`} ref={railWindowRef}>
+            <ul key={`${history.length}-${rolls}`} ref={railListRef} className={rolls ? "rolling" : ""}
+              style={rolls ? { animationDuration: `${Math.max(history.length, 6) * 2.4}s` } : undefined}>
+              {(rolls ? [0, 1] : [0]).flatMap((copy) =>
+                history.map((h, i) => (
+                  <li key={`${copy}-${h.id}`} aria-hidden={copy > 0 || undefined}>
+                    <div className="float" style={{ animationDelay: `${-(i % 5) * .6}s` }}>
+                      {face(h, 40, ".85rem")}
+                      <span className="w-num"><span className="w-pos">{history.length - i}.º</span>{pad(h.number)}</span>
+                      <span className="w-name">{h.name}</span>
+                    </div>
+                  </li>
+                )))}
             </ul>
           </div>
         ) : <p className="w-empty">🎁 Aquí aparecerán los ganadores</p>}
@@ -451,11 +480,11 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
 
       <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
         <div className="xmas-label">{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 En el puntero"}</div>
-        <div className="xmas-face" key={`f-${shown?.id}`}>{face(shown, 150, "3.2rem")}</div>
+        <div className="xmas-face">{face(shown, 150, "3.2rem")}</div>
         <div className="num" key={`n-${shown?.id}`}>{shown ? pad(shown.number) : "—"}</div>
         <div className="xmas-name">{shown?.name}</div>
         {shown?.rank && <div className="xmas-rank">{shown.rank}</div>}
-        <p className="xmas-count">{n} {n === 1 ? "participante" : "participantes"}</p>
+        <p className="xmas-count">{n} en la ruleta{history.length ? ` · ${history.length} ${history.length === 1 ? "ganador" : "ganadores"}` : ""}</p>
         <button className="btn xmas-btn" onClick={spin} disabled={spinning}>
           {spinning ? "Girando…" : "🎁 Girar ruleta"}
         </button>
@@ -468,6 +497,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits 
           <WavingFlag />
           <Fireworks active onLaunch={sounds.launch} onBurst={sounds.boom} />
           <div className="win-content" onClick={(e) => e.stopPropagation()}>
+            <div className="win-pos">Ganador n.º {history.length}</div>
             <div className="win-title">¡GANADOR!</div>
             <div className="win-face">{face(winner, 190, "4rem")}</div>
             <div className="win-num">{pad(winner.number)}</div>
