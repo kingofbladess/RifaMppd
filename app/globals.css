@@ -581,3 +581,6 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 .win-overlay { background: radial-gradient(circle at 50% 40%, #3d0a16, #08101d 70%); backdrop-filter: none; }
 /* Con el cartel abierto (es opaco) lo de atrás no se ve: se oculta para que la TV no siga animando nieve, luces y ganadores */
 .xmas-page:has(.win-overlay) :is(.snow, .garland, .winners-rail, .wheel-box, .xmas-card) { visibility: hidden; }
+
+/* Botón V/E junto a la cédula */
+.search-row .btn.nat-btn { min-width: 0; width: 3.2rem; padding-inline: 0; font-size: 1.3rem; font-weight: 800; flex: none; }

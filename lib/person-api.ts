@@ -83,7 +83,8 @@ async function toDataUrl(ref: string, headers: Record<string, string>): Promise<
   return null;
 }
 
-export async function lookupPerson(doc: string): Promise<LookupResult> {
+export async function lookupPerson(doc: string, nat: "V" | "E" = "V"): Promise<LookupResult> {
+  if (process.env.INFOPRESS_API_KEY) return infopressLookup(doc, nat);
   const url = process.env.PERSON_API_URL;
   if (!url) return demoLookup(doc);
 
@@ -100,6 +101,91 @@ export async function lookupPerson(doc: string): Promise<LookupResult> {
   if (!person.full_name) return { found: false, source: "api", person: null, photo: null, photoDate: null };
   const photo = await toDataUrl(photoRef, headers).catch(() => null);
   return { found: true, source: "api", person, photo, photoDate: photoDate || null };
+}
+
+// ---------- Infopress (SAIME / IPSFA / Resoluciones) ----------
+// Solo se alcanza dentro de la red local (192.168.150.30 con los nombres en el archivo hosts), así que esta
+// consulta funciona cuando la app corre en una laptop de esa red, no desde Vercel. Las fotos llegan como
+// enlaces S3 privados: el servidor las descarga y las entrega como data URL, igual que con la API genérica.
+const INFOPRESS_TIMEOUT_MS = 125_000;           // Infopress puede tardar hasta 110 s consultando a los proveedores
+const PHOTO_RETRY_MS = [2000, 4000];            // fotos "pending": se vuelve a consultar un par de veces (cada consulta gasta cuota)
+
+type Source = { status?: string; data?: Record<string, unknown> | null };
+type InfopressPhoto = { source?: string; status?: string; url?: string };
+type InfopressResponse = { sources?: Record<string, Source | undefined>; photos?: InfopressPhoto[]; error?: string };
+
+// IPSFA conserva los tipos del proveedor: un grado puede venir como texto o como objeto con su descripción.
+function text(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string" || typeof v === "number") return String(v).trim();
+  if (typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    for (const k of ["descripcion", "nombre", "abreviatura", "valor", "value"]) if (o[k] !== undefined) return text(o[k]);
+  }
+  return "";
+}
+
+async function infopressFetch(cedula: string): Promise<{ status: number; body: InfopressResponse }> {
+  const base = process.env.INFOPRESS_BASE_URL || "https://infopress.sidefensa.nexus.ia.ve";
+  const r = await fetch(new URL(`/v1/consulta/${encodeURIComponent(cedula)}`, base), {
+    headers: { Accept: "application/json", "X-API-Key": process.env.INFOPRESS_API_KEY! },
+    signal: AbortSignal.timeout(INFOPRESS_TIMEOUT_MS), redirect: "error", cache: "no-store",
+  });
+  const body = (await r.json().catch(() => ({}))) as InfopressResponse;
+  if (r.status === 200 || r.status === 404) return { status: r.status, body };
+  const reqId = r.headers.get("x-request-id");
+  const why: Record<number, string> = {
+    400: "cédula inválida", 401: "API key de Infopress inválida o vencida",
+    429: `límite de consultas alcanzado, espera ${r.headers.get("retry-after") ?? "unos"} s`,
+    503: "Infopress no disponible por ahora",
+  };
+  throw new Error(`Infopress: ${why[r.status] ?? `respondió ${r.status}`}${reqId ? ` (request ${reqId})` : ""}`);
+}
+
+const found = (s: Source | undefined) => (s?.status === "found" && s.data ? s.data : null);
+
+function mapInfopress(body: InfopressResponse, doc: string, nat: "V" | "E"): Person | null {
+  const saime = found(body.sources?.saime);
+  const ipsfa = found(body.sources?.ipsfa);
+  const reso = found(body.sources?.resoluciones);
+  const id = (Array.isArray(saime?.identity) ? saime.identity[0] : undefined) as Record<string, unknown> | undefined;
+  const basico = ((ipsfa?.Persona as Record<string, unknown> | undefined)?.DatoBasico ?? undefined) as Record<string, unknown> | undefined;
+
+  const fromSaime = id ? [id.firstName, id.secondName, id.firstSurname, id.secondSurname].map(text) : [];
+  const fromIpsfa = basico ? [basico.nombreprimero, basico.nombresegundo, basico.apellidoprimero, basico.apellidosegundo].map(text) : [];
+  const full = (fromSaime.some(Boolean) ? fromSaime : fromIpsfa).filter(Boolean).join(" ");
+  if (!full) return null;
+
+  // Grado: primero IPSFA (la fuente oficial del cargo); si no, el contexto de Resoluciones.
+  const rank = text(basico?.Grado ?? ipsfa?.Grado) || text(reso?.grado);
+  return {
+    full_name: title(full),
+    document_type: nat,
+    document_number: doc,
+    birth_date: normDate(text(id?.birthDate) || text(basico?.fechanacimiento)),
+    city: "", rank, phone: "", email: "",
+  };
+}
+
+async function infopressLookup(doc: string, nat: "V" | "E"): Promise<LookupResult> {
+  const cedula = `${nat}${doc}`;
+  let { status, body } = await infopressFetch(cedula);
+  const none: LookupResult = { found: false, source: "api", person: null, photo: null, photoDate: null };
+  if (status === 404) return none;
+  const person = mapInfopress(body, doc, nat);
+  if (!person) return none;
+
+  const ready = (b: InfopressResponse) =>
+    ["saime", "ipsfa"].map((src) => b.photos?.find((p) => p.source === src && p.status === "ready" && p.url)).find(Boolean);
+  for (const wait of PHOTO_RETRY_MS) {
+    if (ready(body) || !body.photos?.some((p) => p.status === "pending")) break;
+    await new Promise((res) => setTimeout(res, wait));
+    ({ status, body } = await infopressFetch(cedula).catch(() => ({ status, body })));
+  }
+  // El enlace S3 firmado se usa tal cual (con todos sus parámetros X-Amz-*) y sin la API key.
+  const url = ready(body)?.url;
+  const photo = url ? await toDataUrl(url, {}).catch(() => null) : null;
+  return { found: true, source: "api", person, photo, photoDate: null };
 }
 
 // ---------- Modo demo (sin PERSON_API_URL) ----------
