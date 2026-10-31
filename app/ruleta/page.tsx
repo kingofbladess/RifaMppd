@@ -7,10 +7,12 @@ import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-async function RuletaPageContent() {
+async function RuletaPageContent({ espejo }: { espejo: boolean }) {
   const [raffle, { participants, winners }, session] = await Promise.all([getActiveRaffle(), getWheelParticipants(), getSession()]);
+  // La TV es un espejo: muestra en vivo lo que se gira desde otra pantalla. Un admin puede verlo con ?espejo=1.
+  const mirror = session?.role === "tv" || espejo;
   return (
-    <div className="xmas-page">
+    <div className={`xmas-page${mirror ? " is-mirror" : ""}`}>
       <Snow />
       <div className="garland" aria-hidden="true">
         {Array.from({ length: 24 }, (_, i) => <i key={i} className={`b${i % 4}`} style={{ animationDelay: `${(i % 4) * .25}s` }} />)}
@@ -30,15 +32,15 @@ async function RuletaPageContent() {
               : <a className="btn secondary xmas-ghost" href="/admin">Panel</a>}
           </div>
         </div>
-        <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} canManage={session?.role === "admin"} />
+        <Wheel participants={participants} pastWinners={winners} digits={String(raffle?.number_max ?? 9999).length} canManage={session?.role === "admin" && !mirror} mirror={mirror} />
       </main>
     </div>
   );
 }
 
-export default async function RuletaPage() {
+export default async function RuletaPage({ searchParams }: { searchParams: Promise<{ espejo?: string }> }) {
   try {
-    return await RuletaPageContent();
+    return await RuletaPageContent({ espejo: (await searchParams).espejo === "1" });
   } catch (e) {
     console.error("RuletaPage", e);
     return <DbError error={e} />;

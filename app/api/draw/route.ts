@@ -5,6 +5,16 @@ import { getActiveRaffle, fetchAll } from "@/lib/participants";
 
 export const runtime = "nodejs";
 
+// Lista de sorteos en orden: la pantalla espejo (TV) la consulta seguido para repetir cada giro.
+export async function GET() {
+  const raffle = await getActiveRaffle().catch(() => null);
+  if (!raffle) return NextResponse.json({ draws: [] }, { headers: { "Cache-Control": "no-store" } });
+  const { data, error } = await supabaseAdmin().from("draws").select("participant_id")
+    .eq("raffle_id", raffle.id).order("created_at", { ascending: true }).limit(10000);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ draws: data.map((d) => ({ participantId: d.participant_id })) }, { headers: { "Cache-Control": "no-store" } });
+}
+
 // El ganador se elige en el servidor (aleatorio criptográfico) y queda registrado.
 // La ruleta del navegador solo anima hasta el resultado.
 export async function POST(req: Request) {

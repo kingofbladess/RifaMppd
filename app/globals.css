@@ -739,3 +739,8 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 .face-stack > img { position: absolute; inset: 0; opacity: 0; transition: opacity .15s; }
 .face-stack > img.ok { opacity: 1; }
 .face-stack > .xmas-initials { line-height: normal; }
+
+/* Pantalla espejo (TV): sin botones ni ayudas; Salir/pantalla completa aparecen solo al pasar el mouse */
+.is-mirror .xmas-card .xmas-btn, .is-mirror .key-hint, .is-mirror .w-reset, .is-mirror .w-del, .is-mirror .win-actions { display: none !important; }
+.is-mirror .topbar-tools { opacity: 0; transition: opacity .3s; }
+.is-mirror .topbar-tools:hover, .is-mirror .topbar-tools:focus-within { opacity: 1; }
