@@ -18,6 +18,16 @@ export async function GET() {
 // El ganador se elige en el servidor (aleatorio criptográfico) y queda registrado.
 // La ruleta del navegador solo anima hasta el resultado.
 export async function POST(req: Request) {
+  // Siempre responde JSON (nunca una página de error), para que la ruleta sepa qué pasó y no se quede pegada.
+  try {
+    return await drawWinner(req);
+  } catch (e) {
+    console.error("draw", e);
+    return NextResponse.json({ error: (e as { message?: string })?.message ?? "Error al sortear" }, { status: 500 });
+  }
+}
+
+async function drawWinner(req: Request) {
   // La pantalla manda quiénes tiene en su ruleta: así nunca sale alguien inscrito después de abrirla
   // (no estaría dibujado y el sorteo quedaría guardado sin verse).
   const body = (await req.json().catch(() => null)) as { ids?: unknown } | null;
@@ -47,7 +57,14 @@ export async function POST(req: Request) {
       .insert({ raffle_id: raffle.id, participant_id: winner.id })
       .select("id, created_at").single();
     if (!e2) { draw = data; break; }
-    if (e2.code !== "23505") return NextResponse.json({ error: e2.message }, { status: 500 });
+    if (e2.code !== "23505") {
+      // Error de red al guardar: puede que la base sí lo haya guardado y solo se perdió la respuesta.
+      // Se revisa antes de rendirse, para no dejar un ganador guardado que nadie vio.
+      const { data: saved } = await sb.from("draws").select("id, created_at")
+        .eq("raffle_id", raffle.id).eq("participant_id", winner.id).maybeSingle();
+      if (saved) { draw = saved; break; }
+      return NextResponse.json({ error: e2.message }, { status: 500 });
+    }
     pool.splice(pool.indexOf(winner), 1);
     if (!pool.length) break;
     winner = pool[randomInt(pool.length)];

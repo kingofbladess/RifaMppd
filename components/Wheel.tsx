@@ -126,7 +126,11 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const highlight = useRef(-1); // porción ganadora que brilla al detenerse
   const images = useRef(new Map<string, HTMLImageElement>());
   const busy = useRef(false); // candado inmediato: dos toques seguidos nunca lanzan dos giros
-  const loaded = useRef(new Set<string>()); // fotos ya descargadas: solo esas se muestran mientras gira
+  const loaded = useRef(new Set<string>()); // fotos ya descargadas
+  // Fotos que ya estaban descargadas al empezar el giro: SOLO esas se muestran mientras gira. La del ganador
+  // se descarga al empezar (para salir al instante al final) y, si contara, sería la única foto visible
+  // en las vueltas y delataría quién va a ganar.
+  const loadedAtStart = useRef(new Set<string>());
   const [spinning, setSpinning] = useState(false);
   const [current, setCurrent] = useState<WheelParticipant | null>(null);
   const [winner, setWinner] = useState<WheelParticipant | null>(null);
@@ -279,6 +283,12 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     ctx.save(); ctx.translate(c, c); ctx.rotate(r * .25); ctx.drawImage(s.star, -STAR / 2, -STAR / 2); ctx.restore();
   }, [renderDisc, n, seg]);
 
+  // Con hasta 200 personas todas las fotos se descargan al abrir: así durante el giro el recuadro muestra
+  // las caras (no solo iniciales) y la del ganador no es distinta a las demás.
+  useEffect(() => {
+    if (n <= 200) participants.forEach((p) => { if (p.photoUrl) preload(p.photoUrl); });
+  }, [participants, n]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!showPhotos) return;
     participants.forEach((p) => {
@@ -411,6 +421,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     // Si el ganador anterior sigue en pantalla (el cartel aún no sale) no se gira: así nunca queda pegado.
     if (busy.current || spinning || winner || !n || (mirror && !mirrored)) return;
     busy.current = true;
+    loadedAtStart.current = new Set(loaded.current);
     sounds.unlock();
     setError(null);
     setWinner(null);
@@ -425,20 +436,25 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
         // Si la red se cuelga, a los 20 s se avisa y el botón vuelve a quedar listo (nunca "Girando…" para siempre).
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 20000);
-        let res: Response, json: { error?: string; participantId?: string };
+        let res: Response | null = null, json: { error?: string; participantId?: string } = {};
         try {
           res = await fetch("/api/draw", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ids: participants.map((p) => p.id) }), signal: ctrl.signal,
           });
           json = await res.json().catch(() => ({ error: "Respuesta inválida del servidor" }));
-        } catch {
-          throw new Error("Sin conexión con el servidor. Revisa el internet y vuelve a girar.");
-        } finally {
+        } catch { /* sin respuesta: se revisa abajo si el sorteo igual quedó guardado */ } finally {
           clearTimeout(timer);
         }
-        if (!res.ok) throw new Error(json.error ?? "No se pudo sortear");
-        winnerId = json.participantId;
+        if (res?.ok && json.participantId) winnerId = json.participantId;
+        else if (res?.status === 409) throw new Error(json.error ?? "No se pudo sortear"); // respuesta clara: no hubo sorteo
+        else {
+          // La respuesta se perdió o hubo un error: puede que el ganador SÍ haya quedado guardado.
+          // Se pregunta el último sorteo; si es alguien de esta ruleta que aún no salió, se muestra igual
+          // (nunca queda un ganador guardado que nadie vio).
+          winnerId = (await lastSavedDraw()) ?? undefined;
+          if (!winnerId) throw new Error(res ? `${json.error ?? "No se pudo sortear"}. Vuelve a girar.` : "Sin conexión con el servidor. Revisa el internet y vuelve a girar.");
+        }
       }
       const idx = participants.findIndex((p) => p.id === winnerId);
       if (idx < 0) throw new Error("El ganador no está en la ruleta. Recarga la página.");
@@ -501,6 +517,18 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     }
   }
 
+  async function lastSavedDraw(): Promise<string | null> {
+    try {
+      const r = await fetch("/api/draw", { cache: "no-store", signal: AbortSignal.timeout(6000) });
+      const { draws } = (await r.json()) as { draws?: { participantId: string }[] };
+      const last = draws?.at(-1)?.participantId;
+      const won = new Set(history.map((h) => h.id));
+      return last && participants.some((p) => p.id === last) && !won.has(last) ? last : null;
+    } catch {
+      return null;
+    }
+  }
+
   function preload(url: string) {
     if (loaded.current.has(url)) return;
     const img = new Image();
@@ -516,7 +544,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const face = (p: WheelParticipant | null, size: number, font: string, stack = false) => {
     const fallback = <div className="xmas-initials" style={{ width: size, height: size, fontSize: font }}>{p ? initials(p.name) : "🎁"}</div>;
     const url = p?.photoUrl;
-    if (!url || badPhotos.has(url) || (spinning && !loaded.current.has(url) && (preload(url), true))) return fallback;
+    if (!url || badPhotos.has(url) || (spinning && !loadedAtStart.current.has(url) && (preload(url), true))) return fallback;
     const img = <img key={url} src={url} alt="" style={{ width: size, height: size }} onError={() => markBad(url)}
       onLoad={(e) => { loaded.current.add(url); e.currentTarget.classList.add("ok"); }}
       // Una foto que falló antes de que la página terminara de cargar no dispara onError: se revisa al montarla.
