@@ -22,10 +22,13 @@ create table if not exists public.app_users (
   username       text not null unique check (username ~ '^[a-z0-9._-]{3,32}$'),
   full_name      text not null,
   password_hash  text not null,          -- scrypt, generado por la app
-  role           text not null default 'operator' check (role in ('admin','operator')),
+  role           text not null default 'operator',  -- admin, operator o tv (regla justo abajo)
   is_active      boolean not null default true,
   created_at     timestamptz not null default now()
 );
+-- Roles: admin (todo), operator (solo registra) y tv (pantalla que solo muestra y gira la ruleta).
+alter table public.app_users drop constraint if exists app_users_role_check;
+alter table public.app_users add constraint app_users_role_check check (role in ('admin','operator','tv'));
 
 create table if not exists public.participants (
   id                uuid primary key default gen_random_uuid(),

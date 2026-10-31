@@ -12,7 +12,7 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
       <div className="topbar">
         <div>
           <h1>Usuarios</h1>
-          <p className="sub" style={{ margin: 0 }}>Cada operador entra con su usuario y pueden registrar al mismo tiempo.</p>
+          <p className="sub" style={{ margin: 0 }}>Cada operador entra con su usuario y pueden registrar al mismo tiempo. Para la TV crea un usuario "Pantalla (TV)": entra directo a la ruleta y no ve el panel ni los datos.</p>
         </div>
         <div className="topbar-actions"><a className="btn secondary" href="/admin">← Panel</a></div>
       </div>
@@ -24,7 +24,7 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
           <div><label>Usuario</label><input name="username" required pattern="[a-z0-9._\-]{3,32}" placeholder="ej. maria.p" autoCapitalize="none" /></div>
           <div><label>Contraseña</label><input name="password" type="text" required minLength={8} /></div>
           <div><label>Rol</label>
-            <select name="role" defaultValue="operator"><option value="operator">Operador (solo registra)</option><option value="admin">Administrador</option></select>
+            <select name="role" defaultValue="operator"><option value="operator">Operador (solo registra)</option><option value="tv">Pantalla (TV): solo la ruleta</option><option value="admin">Administrador</option></select>
           </div>
         </div>
         {error && <p className="error">{error}</p>}
@@ -40,7 +40,7 @@ export default async function UsuariosPage({ searchParams }: { searchParams: Pro
               <tr key={u.id}>
                 <td>{u.full_name}</td>
                 <td><code>{u.username}</code></td>
-                <td>{u.role === "admin" ? "Administrador" : "Operador"}</td>
+                <td>{u.role === "admin" ? "Administrador" : u.role === "tv" ? "Pantalla (TV)" : "Operador"}</td>
                 <td><span className={`badge ${u.is_active ? "on" : ""}`}>{u.is_active ? "Activo" : "Inactivo"}</span></td>
                 <td>
                   <form method="post" action="/api/admin/users" style={{ display: "flex", gap: 6 }}>

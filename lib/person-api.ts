@@ -87,7 +87,7 @@ async function toDataUrl(ref: string, headers: Record<string, string>): Promise<
 export async function lookupPerson(doc: string, nat: "V" | "E" = "V"): Promise<LookupResult> {
   if (process.env.INFOPRESS_API_KEY) return infopressLookup(doc, nat);
   const url = process.env.PERSON_API_URL;
-  if (!url) return demoLookup(doc);
+  if (!url) return demoLookup(doc, nat);
   // Infopress solo funciona con su clave; sin ella, el modo genérico recibe un rechazo y parece "no encontrado".
   if (/infopress/i.test(url)) throw new Error("falta INFOPRESS_API_KEY en .env.local");
 
@@ -200,7 +200,7 @@ function demoPhoto(seed: number): string {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
-function demoLookup(doc: string): LookupResult {
+function demoLookup(doc: string, nat: "V" | "E"): LookupResult {
   const last = Number(doc.at(-1));
   if (last === 0) return { found: false, source: "demo", person: null, photo: null, photoDate: null };
   const seed = [...doc].reduce((a, c) => a + Number(c || 0), 0);
@@ -208,7 +208,7 @@ function demoLookup(doc: string): LookupResult {
   return {
     found: true, source: "demo",
     person: {
-      full_name: DEMO_NAMES[seed % DEMO_NAMES.length], document_type: "CC", document_number: doc,
+      full_name: DEMO_NAMES[seed % DEMO_NAMES.length], document_type: nat, document_number: doc,
       birth_date: `${year}-0${(seed % 9) + 1}-1${seed % 9}`, city: "Bogotá",
       rank: ["Coordinador", "Auxiliar administrativo", "Jefe de área", "Analista", "Supervisor"][seed % 5], phone: "", email: "",
     },

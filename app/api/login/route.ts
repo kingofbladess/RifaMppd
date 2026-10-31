@@ -1,6 +1,6 @@
 import { seeOther } from "@/lib/redirect";
 import { timingSafeEqual, createHash } from "node:crypto";
-import { SESSION_COOKIE, createSessionToken, sessionMaxAge, type Session } from "@/lib/session";
+import { SESSION_COOKIE, createSessionToken, sessionMaxAge, homeFor, type Session } from "@/lib/session";
 import { verifyPassword } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { adminPassword } from "@/lib/env";
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   }
   if (!user) return fail();
 
-  const fallback = user.role === "admin" ? "/admin" : "/registro";
+  const fallback = homeFor(user.role);
   const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : fallback;
   const res = seeOther(safeNext);
   res.cookies.set(SESSION_COOKIE, await createSessionToken(user), {

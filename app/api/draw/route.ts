@@ -7,7 +7,11 @@ export const runtime = "nodejs";
 
 // El ganador se elige en el servidor (aleatorio criptográfico) y queda registrado.
 // La ruleta del navegador solo anima hasta el resultado.
-export async function POST() {
+export async function POST(req: Request) {
+  // La pantalla manda quiénes tiene en su ruleta: así nunca sale alguien inscrito después de abrirla
+  // (no estaría dibujado y el sorteo quedaría guardado sin verse).
+  const body = (await req.json().catch(() => null)) as { ids?: unknown } | null;
+  const onScreen = Array.isArray(body?.ids) ? new Set(body.ids.map(String)) : null;
   const raffle = await getActiveRaffle();
   if (!raffle) return NextResponse.json({ error: "No hay rifa activa" }, { status: 409 });
   const sb = supabaseAdmin();
@@ -23,8 +27,8 @@ export async function POST() {
   }
 
   const won = new Set(prev.map((d) => d.participant_id));
-  const pool = participants.filter((p) => !won.has(p.id));
-  if (!pool.length) return NextResponse.json({ error: "No quedan participantes sin premio" }, { status: 409 });
+  const pool = participants.filter((p) => !won.has(p.id) && (!onScreen || onScreen.has(p.id)));
+  if (!pool.length) return NextResponse.json({ error: onScreen?.size ? "Las personas de esta ruleta ya no están disponibles. Recarga la página." : "No quedan participantes sin premio" }, { status: 409 });
 
   // Si dos pantallas sortean a la vez y sale la misma persona, la base lo rechaza (índice único) y se elige otra.
   let winner = pool[randomInt(pool.length)], draw = null;
