@@ -578,3 +578,5 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 .win-num { font-size: clamp(2.4rem, min(10vw, 8dvh), 5.5rem); line-height: 1.1; }
 /* Ganadores quietos (caben todos): sin desvanecido arriba para que el más reciente se lea completo */
 .winners-rail .rail-window:not(.is-rolling) { -webkit-mask-image: none; mask-image: none; }
+/* Cartel de ganador con fondo opaco: la ruleta de atrás no se transparenta (se veía como una bola navideña); solo queda la bandera */
+.win-overlay { background: radial-gradient(circle at 50% 40%, #3d0a16, #08101d 70%); backdrop-filter: none; }
