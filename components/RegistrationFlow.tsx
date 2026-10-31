@@ -35,6 +35,15 @@ function groupDigits(n: string) {
 
 const QrScanner = dynamic(() => import("./QrScanner"), { ssr: false });
 
+// Código único por intento de registro (crypto.randomUUID existe en HTTPS; si no, se arma uno igual).
+function newId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  const b = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256));
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = b.map((x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 export default function RegistrationFlow({ digits }: { digits: number }) {
   const docRef = useRef<HTMLInputElement>(null);
   const [doc, setDoc] = useState("");
@@ -52,6 +61,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   const [count, setCount] = useState(0);
   const [scanning, setScanning] = useState(false);
   const searchId = useRef(0); // para ignorar respuestas de una consulta anterior
+  const requestId = useRef(newId()); // código del intento de registro: repetir Guardar no duplica ni falla
   const newPhotoUrl = useObjectUrl(newPhoto);
   const idPhotoUrl = useObjectUrl(idPhoto);
 
@@ -65,7 +75,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
 
   function clear() {
     setLookup(null); setFields(EMPTY); setNewPhoto(null); setIdPhoto(null);
-    setCamera(null); setError(null); searchId.current++;
+    setCamera(null); setError(null); searchId.current++; requestId.current = newId();
   }
 
   // QR del documento: llena la cédula y consulta sola.
@@ -125,7 +135,14 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
       fd.set("photo", photoBlob, "foto.jpg");
       fd.set("photo_source", newPhoto ? "camera" : "api");
       if (idPhoto) fd.set("id_document", idPhoto, "documento.jpg");
-      const r = await fetch("/api/register", { method: "POST", body: fd });
+      fd.set("request_id", requestId.current);
+      // Si el servidor no responde en 60 s se avisa; volver a presionar Guardar es seguro (mismo código).
+      const r = await fetch("/api/register", { method: "POST", body: fd, signal: AbortSignal.timeout(60_000) })
+        .catch((e: Error) => {
+          throw new Error(e.name === "TimeoutError" || e.name === "AbortError"
+            ? "El servidor no respondió. Presiona Guardar otra vez (no se duplica)."
+            : "Se perdió la conexión con el servidor. Presiona Guardar otra vez (no se duplica).");
+        });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "No se pudo guardar");
       setSaved({ number: j.number, name: j.name, photo: shownPhoto });
