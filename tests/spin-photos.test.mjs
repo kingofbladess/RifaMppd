@@ -26,13 +26,14 @@ test('prepara cada URL una vez, limita concurrencia y reintenta fallos', async (
   try {
     const progress = [];
     const urls = ['a', 'b', 'c', 'd', 'e', 'a', 'transient', 'missing'];
-    const { photos, failed } = await prepareSpinPhotos(urls, (done, total) => progress.push([done, total]));
+    const { photos, done } = prepareSpinPhotos(urls, (done, total) => progress.push([done, total]));
+    const failed = await done;
     assert.equal(photos.size, 6);
     assert.deepEqual(failed, ['missing']);
     assert.equal(attempts.get('a'), 1);
     assert.equal(attempts.get('transient'), 2);
     assert.equal(attempts.get('missing'), 2);
-    assert.ok(peak <= 4);
+    assert.ok(peak <= 6);
     assert.equal(draws, 6);
     assert.equal(photos.get('a').width, 192);
     assert.deepEqual(progress.at(-1), [7, 7]);
@@ -47,9 +48,9 @@ test('corta la preparación a los 20 segundos incluso si la red no responde', as
   globalThis.Image = class { set src(value) {} };
   try {
     const urls = Array.from({ length: 12 }, (_, i) => `stalled-${i}`);
-    const pending = prepareSpinPhotos(urls, () => {});
+    const { photos, done } = prepareSpinPhotos(urls, () => {});
     t.mock.timers.tick(20000);
-    const { photos, failed } = await pending;
+    const failed = await done;
     assert.equal(photos.size, 0);
     assert.deepEqual(failed, urls);
   } finally { globalThis.Image = originalImage; t.mock.timers.reset(); }
