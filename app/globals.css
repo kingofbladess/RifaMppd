@@ -288,7 +288,6 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .xmas-card .num { background: linear-gradient(180deg, #fff3c4, #f6d365 50%, #d4a017); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-size: 3rem; }
 .xmas-name { font-size: 1.35rem; font-weight: 800; line-height: 1.2; min-height: 2.4em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .xmas-rank { color: #ffd9a8; font-size: .9rem; line-height: 1.3; min-height: 1.3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.xmas-count { color: rgba(255,248,236,.7); font-size: .85rem; }
 .btn.xmas-btn { width: 100%; font-size: 1.15rem; background: linear-gradient(180deg, #2fbf71, #0f7b3f); box-shadow: 0 8px 20px -6px rgba(46,229,157,.6), inset 0 -3px 0 rgba(0,0,0,.2);
   border: 2px solid #f6d365; }
 .btn.xmas-btn:hover { background: linear-gradient(180deg, #3ad181, #128a47); box-shadow: 0 12px 26px -6px rgba(46,229,157,.7); }
@@ -358,17 +357,16 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .xmas-page .xmas-card.winner { width: 100%; max-height: none; overflow: visible; flex: none; padding: 10px 12px;
     display: grid; grid-template-columns: 64px 1fr; column-gap: 12px; row-gap: 2px; text-align: left; align-items: center; }
   .xmas-page .xmas-card.winner > .xmas-label { grid-column: 1 / -1; font-size: .75rem; }
-  .xmas-page .xmas-face { grid-column: 1; grid-row: 2 / span 4; margin: 0; align-self: center; }
+  .xmas-page .xmas-face { grid-column: 1; grid-row: 2 / span 3; margin: 0; align-self: center; }
   .xmas-page .xmas-face :is(img, canvas), .xmas-page .xmas-face .xmas-initials { width: 60px !important; height: 60px !important; font-size: 1.3rem !important; border-width: 3px; box-shadow: 0 0 0 3px #0f7b3f; }
   .xmas-page .xmas-card .num { grid-column: 2; font-size: 1.7rem; line-height: 1.05; }
   .xmas-page .xmas-name { grid-column: 2; font-size: 1rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; min-height: 1.2em; }
   .xmas-page .xmas-rank { grid-column: 2; font-size: .78rem; }
-  .xmas-page .xmas-count { grid-column: 2; margin: 0; font-size: .75rem; }
   .xmas-page .xmas-btn { grid-column: 1 / -1; margin-top: 6px; min-height: 46px; padding: 10px; font-size: 1.05rem; }
   .xmas-page .xmas-card > .error { grid-column: 1 / -1; margin: 4px 0 0; }
 }
 @media (max-width: 900px) and (max-aspect-ratio: 4/3) and (max-height: 700px) {
-  .xmas-page .xmas-rank, .xmas-page .xmas-count { display: none; }
+  .xmas-page .xmas-rank { display: none; }
 }
 
 /* ---------- Ganadores a la izquierda + recuadro centrado ---------- */
@@ -417,7 +415,7 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .xmas-page .xmas-card.winner { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(0, auto) minmax(0, 1fr); text-align: left; }
   .xmas-page .xmas-card.winner > .xmas-label { text-align: center; }
   .xmas-page .xmas-face { grid-column: 2; }
-  .xmas-page .xmas-card .num, .xmas-page .xmas-name, .xmas-page .xmas-rank, .xmas-page .xmas-count { grid-column: 3; }
+  .xmas-page .xmas-card .num, .xmas-page .xmas-name, .xmas-page .xmas-rank { grid-column: 3; }
 }
 @media (min-width: 1500px) { .xmas-page .container.wide { max-width: 96vw; } }
 
@@ -439,8 +437,7 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .xmas-page .xmas-face :is(img, canvas), .xmas-page .xmas-face .xmas-initials { width: clamp(60px, 19dvh, 150px) !important; height: clamp(60px, 19dvh, 150px) !important; font-size: clamp(1.3rem, 4.2dvh, 3.2rem) !important; }
   .xmas-page .xmas-card .num { font-size: clamp(1.8rem, 6.5dvh, 3rem); line-height: 1.1; }
   .xmas-page .xmas-name { font-size: clamp(1rem, 3dvh, 1.35rem); line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; min-height: 1.2em; }
-  .xmas-page .xmas-count { margin: clamp(4px, 1.4dvh, 14px) 0; }
-  .xmas-page .btn.xmas-btn { min-height: 0; padding-block: clamp(8px, 1.8dvh, 14px); }
+  .xmas-page .btn.xmas-btn { margin-top: clamp(8px, 2dvh, 18px); min-height: 0; padding-block: clamp(8px, 1.8dvh, 14px); }
 }
 
 /* ---------- Recuadro de caras más alto y animado ---------- */
@@ -458,7 +455,6 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
   .xmas-page .topbar { margin-bottom: 4px; }
   .xmas-page .xmas-title { font-size: 1.1rem; margin: 0; }
   .xmas-page .topbar .btn { min-height: 0; padding: 6px 12px; font-size: .8rem; }
-  .xmas-page .xmas-count { display: none; }
   .winners-rail .float { grid-template-columns: 30px 1fr; padding: 4px 8px 4px 4px; }
   .winners-rail .float img, .winners-rail .float .xmas-initials { width: 30px !important; height: 30px !important; }
 }
