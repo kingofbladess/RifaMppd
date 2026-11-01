@@ -51,6 +51,8 @@ export function normalizarGrado(texto: string | null | undefined): string {
     .replace(/\(.*?\)/g, " ")
     .replace(/[^a-z0-9 ]/g, " ")
     .replace(/\bs m\b/g, "sm") // "S/M 1ra"
+    // "SM1", "SM 2da", "SM3RA": Sargento Mayor de Primera/Segunda/Tercera
+    .replace(/\bsm ?([123])(?:ra|era|da|a)?\b/g, (_, d: string) => `sargento mayor ${["primera", "segunda", "tercera"][Number(d) - 1]}`)
     .split(" ")
     .map((w) => ABREV[w] ?? w)
     .join(" ").split(" ")
