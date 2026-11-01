@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { registerImportedList, type ImportRegistration } from "@/lib/register-imported-list";
+import { registrationBatch, registerImportedList, type ImportRegistration } from "@/lib/register-imported-list";
 import { normalizeRaffleDocument } from "@/lib/raffle-eligibility";
 import { parseRaffleCsv, reviewRaffleColumn } from "@/lib/raffle-import";
 
@@ -32,6 +32,8 @@ export default function RaffleEligibilityImport({ raffleId, savedDocuments, regi
   const selected = new Set(completeDocuments);
   const matched = registered.filter((p) => selected.has(normalizeRaffleDocument(p.document_number) ?? ""));
   const registeredDocs = new Set(registered.map((p) => normalizeRaffleDocument(p.document_number)));
+  const inputBatch = registrationBatch(review.documents);
+  const pendingBatch = registrationBatch(savedDocuments, new Set([...registeredDocs].filter((doc): doc is string => doc !== null)));
   const absent = completeDocuments.filter((doc) => !registeredDocs.has(doc));
   const outside = registered.filter((p) => !selected.has(normalizeRaffleDocument(p.document_number) ?? ""));
   const maxColumns = rows ? Math.max(0, ...rows.slice(0, 100).map((row) => row.length)) : 0;
@@ -69,30 +71,30 @@ export default function RaffleEligibilityImport({ raffleId, savedDocuments, regi
     const form = new FormData(event.currentTarget);
     const abort = new AbortController();
     controller.current = abort;
-    setRegistering(true); setError(""); setResults([]); setSaved(false); setProcessTotal(completeDocuments.length);
+    setRegistering(true); setError(""); setResults([]); setSaved(false); setProcessTotal(inputBatch.length);
     try {
       const response = await fetch("/api/admin/eligibility", { method: "POST", body: form,
         headers: { Accept: "application/json" }, signal: abort.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "No se pudo guardar la lista");
       setSaved(true);
-      await registerImportedList(completeDocuments, raffleId, nat, abort.signal, setResults);
+      await registerImportedList(inputBatch, raffleId, nat, abort.signal, setResults);
     } catch (e) {
       setError(abort.signal.aborted ? "Proceso detenido. Los registros confirmados se conservan y puedes reintentar sin duplicarlos." : (e as Error).message);
     } finally { controller.current = null; setRegistering(false); }
   }
 
   async function completeSaved() {
-    if (controller.current || disabled || !savedDocuments.length) return;
+    if (controller.current || disabled || !pendingBatch.length) return;
     const abort = new AbortController(); controller.current = abort;
-    setRegistering(true); setError(""); setResults([]); setSaved(true); setProcessTotal(savedDocuments.length);
-    try { await registerImportedList(savedDocuments, raffleId, nat, abort.signal, setResults); }
+    setRegistering(true); setError(""); setResults([]); setSaved(true); setProcessTotal(pendingBatch.length);
+    try { await registerImportedList(pendingBatch, raffleId, nat, abort.signal, setResults); }
     finally { controller.current = null; setRegistering(false); }
   }
 
   return <form className="card" method="post" action="/api/admin/eligibility" onSubmit={saveAndRegister} style={{ marginTop: 16 }}>
     <h2>Importar y registrar participantes</h2>
-    <p>Al guardar se añaden las cédulas a la lista y se registran automáticamente las personas nuevas consultando Infopress/API. Quienes ya están registrados no se duplican.</p>
+    <p>Al guardar se añaden las cédulas a la lista y se registran automáticamente las personas nuevas consultando Infopress/API. Solo se procesan las cédulas de esta entrada o archivo; no se vuelve a recorrer la lista anterior. Quienes ya están registrados no se duplican.</p>
     <fieldset disabled={registering} style={{ border: 0, padding: 0, margin: 0 }}>
     <label htmlFor="roster-file">Archivo Excel (.xlsx) o CSV</label>
     <input id="roster-file" type="file" accept=".xlsx,.csv" disabled={loading} onChange={(e) => void importFile(e.target.files?.[0])}/>
@@ -128,7 +130,7 @@ export default function RaffleEligibilityImport({ raffleId, savedDocuments, regi
     <p className="small">El cruce se hace por cédula, no por similitud de nombres. Los nuevos registros se cruzan automáticamente con la lista guardada al sortear.</p>
     <p className="small">Las cédulas nuevas se añaden a la lista existente. Las repetidas se omiten; ningún integrante se elimina.</p>
     <button className="btn" type="submit" disabled={disabled || loading || !!error || review.invalid.length > 0 || review.documents.length === 0 || completeDocuments.length > 10000}>Guardar lista y registrar personas</button>
-    {savedDocuments.length > 0 && <button className="btn secondary" type="button" disabled={disabled || loading} onClick={() => void completeSaved()}>Completar registros de la lista guardada</button>}
+    {savedDocuments.length > 0 && <button className="btn secondary" type="button" disabled={disabled || loading || pendingBatch.length === 0} onClick={() => void completeSaved()}>Completar registros pendientes ({pendingBatch.length})</button>}
     </fieldset>
     {registering && <p role="status">Registrando: {results.length} de {processTotal} cédulas revisadas. Mantén esta pantalla abierta.</p>}
     {registering && <button className="btn secondary" type="button" onClick={() => controller.current?.abort()}>Detener proceso</button>}

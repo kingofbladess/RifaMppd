@@ -1,3 +1,8 @@
+// El lote de registro es independiente de la lista completa de elegibilidad.
+export function registrationBatch(documents: string[], registered: ReadonlySet<string> = new Set()): string[] {
+  return [...new Set(documents)].filter((doc) => !registered.has(doc));
+}
+
 export type ImportRegistration = { doc: string; status: "registered" | "existing" | "error"; error?: string; number?: number };
 
 export async function registerImportedList(documents: string[], raffleId: string, nat: "V" | "E", signal: AbortSignal,
