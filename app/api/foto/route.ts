@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   return new Response(r.body, {
     headers: {
       "Content-Type": r.headers.get("content-type") ?? "image/jpeg",
-      "Cache-Control": "private, max-age=3600", // el enlace cambia con cada token, así que se puede guardar
+      "Cache-Control": "private, max-age=43200, immutable", // el enlace cambia con cada token (12 h): la precarga de la ruleta lo deja guardado
     },
   });
 }

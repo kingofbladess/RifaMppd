@@ -771,3 +771,7 @@ html[data-presenter] .xmas-card .xmas-btn, html[data-presenter] .win-actions { d
 .list-module-table .btn { padding: 6px 10px; font-size: .85rem; }
 .list-module-draft { padding: 12px; border-left: 3px solid var(--brand, #2457e8); }
 @media (max-width: 600px) { .list-module-search { grid-template-columns: 1fr; } .list-module-tabs > .btn { flex: 1 1 100%; } }
+
+/* Precarga de fotos: aviso discreto bajo el botón; en modo presentador no se ve en la TV. */
+.preload-status { opacity: .7; font-size: .8rem; margin-top: .3rem; }
+html[data-presenter] .preload-status { display: none; }
