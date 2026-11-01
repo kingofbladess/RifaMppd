@@ -105,6 +105,16 @@ La pantalla muestra el progreso de preparación, con un máximo de 20 segundos d
 
 Pruebas del cargador (Node con soporte TypeScript): `node --test tests/spin-photos.test.mjs`.
 
+## Lista de participantes de la rifa
+
+La asistencia y la elegibilidad para ganar se administran por separado. `/admin/rifa` permite importar Excel **.xlsx**, CSV o escribir cédulas manualmente. Para Excel puede elegirse la hoja y la columna de cédula; para archivos `.xls` antiguos, guardar primero como `.xlsx`. La vista previa identifica cédulas duplicadas o inválidas y cruza por cédula: registrados incluidos, personas de la lista aún no registradas y asistentes fuera de la lista. Ninguna importación crea ni elimina asistentes.
+
+Antes de desplegar esta versión sobre una instalación existente, ejecutar `supabase/eligibility.sql` en el SQL Editor de Supabase. Para una instalación nueva, el bloque ya está incluido en `supabase/schema.sql`. La lista se guarda privada y por rifa; solo el administrador la gestiona. Sin lista, lista vacía o error de lectura, el sorteo **no vuelve al padrón completo**: queda bloqueado. Las cédulas pendientes se habilitan automáticamente al registrarse en el evento.
+
+El servidor filtra candidatos por la lista, ganadores anteriores y participantes presentes en la ruleta, y después aplica sin cambios `elegirGanador` (civil/militar, pesos por grado y exclusiones). La pantalla pública sigue mostrando a todos los asistentes, con la misma animación. Guardar una lista reemplaza la anterior y afecta únicamente a los sorteos posteriores; no modifica resultados existentes.
+
+Pruebas de selección e importación: `node --test tests/*.test.mjs`.
+
 ## Privacidad y seguridad
 
 - RLS activado sin políticas: la clave pública no puede leer nada. Solo el servidor (clave secreta) accede.
