@@ -91,12 +91,12 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
     try {
       const now = Date.now();
       for (const p of await listarCola()) {
-        // Los ya enviados se guardan 12 h para poder decirle el número a la persona; luego se borran solos.
-        if (p.status === "enviado") { if (now - p.at > 12 * 3600e3) await quitarDeCola(p.id); continue; }
+        // Los ya enviados se muestran 1 minuto con su número (para decírselo a la persona) y luego desaparecen solos.
+        if (p.status === "enviado") { if (now - (p.sentAt ?? p.at) > 60_000) await quitarDeCola(p.id); continue; }
         if (p.status !== "pendiente") continue;
         const r = await enviarRegistro(formularioRegistro(p));
         if (r.ok) {
-          await guardarEnCola({ ...p, status: "enviado", number: r.number, photo: new Blob(), idPhoto: null, error: undefined });
+          await guardarEnCola({ ...p, status: "enviado", number: r.number, sentAt: Date.now(), photo: new Blob(), idPhoto: null, error: undefined });
           setCount((c) => c + 1);
         } else if (r.reintentar) break;
         else await guardarEnCola({ ...p, status: "error", error: r.error });
@@ -108,7 +108,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   }, [refreshCola]);
   useEffect(() => {
     void refreshCola().then(flush);
-    const iv = setInterval(() => { void flush(); }, 20_000);
+    const iv = setInterval(() => { void flush(); }, 15_000);
     const onOnline = () => { void flush(); };
     window.addEventListener("online", onOnline);
     return () => { clearInterval(iv); window.removeEventListener("online", onOnline); };
@@ -238,7 +238,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
         <div className="card cola">
           <div className="cola-head">
             <strong>{pendientes ? `📤 ${pendientes} sin enviar` : "📤 Cola del teléfono"}</strong>
-            <span className="small">{pendientes ? "Se envían solos cuando vuelva el internet. No borres los datos del navegador." : "Todo enviado."}</span>
+            <span className="small">{pendientes ? "Se envían solos cuando vuelva el internet. No borres los datos del navegador." : "Todo enviado. Los enviados desaparecen solos en un minuto."}</span>
             {pendientes > 0 && <button type="button" className="link" onClick={() => void flush()}>Enviar ahora</button>}
           </div>
           <ul>

@@ -15,6 +15,7 @@ export type Pendiente = {
   status: "pendiente" | "error" | "enviado";
   error?: string;
   number?: number;                  // número de rifa, cuando ya se envió
+  sentAt?: number;                  // cuándo se envió (a los 60 s desaparece de la lista)
 };
 
 const DB = "rifa-cola", STORE = "registros";
