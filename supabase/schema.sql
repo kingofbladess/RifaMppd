@@ -59,6 +59,24 @@ create table if not exists public.draws (
   participant_id  uuid not null references public.participants(id) on delete cascade,
   created_at      timestamptz not null default now()
 );
+-- Lista de invitados: con lista cargada, solo los inscritos cuya cédula está aquí salen en la ruleta.
+create table if not exists public.guests (
+  raffle_id        uuid not null references public.raffles(id) on delete cascade,
+  document_number  text not null,   -- solo números, igual que participants.document_number
+  full_name        text,
+  rank             text,            -- grado según la lista (se usa si el registro no trae uno reconocido)
+  created_at       timestamptz not null default now(),
+  primary key (raffle_id, document_number)
+);
+-- Lista de excluidos: nunca salen en la ruleta, aunque estén inscritos o en la lista de invitados.
+create table if not exists public.excluded_guests (
+  raffle_id        uuid not null references public.raffles(id) on delete cascade,
+  document_number  text not null,
+  full_name        text,
+  rank             text,
+  created_at       timestamptz not null default now(),
+  primary key (raffle_id, document_number)
+);
 -- Una persona no puede ganar dos veces en la misma rifa
 create unique index if not exists draws_one_win_per_person on public.draws (raffle_id, participant_id);
 
@@ -86,6 +104,8 @@ alter table public.raffles      enable row level security;
 alter table public.participants enable row level security;
 alter table public.draws        enable row level security;
 alter table public.app_users    enable row level security;
+alter table public.guests       enable row level security;
+alter table public.excluded_guests enable row level security;
 
 -- ---------- Registro atómico con número único ----------
 -- Elige un número aleatorio libre dentro del rango de la rifa activa e inserta.
