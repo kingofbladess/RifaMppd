@@ -1,6 +1,7 @@
 import "server-only";
 import { supabaseAdmin, BUCKET_PHOTOS } from "./supabase";
 import type { WheelParticipant } from "@/components/Wheel";
+import { formatCedula } from "./cedula";
 import { isNetErr, readLocal, saveLocal } from "./local-cache";
 
 // Supabase devuelve como máximo 1000 filas por consulta: esto pide página por página hasta traerlas todas.
@@ -64,15 +65,15 @@ export async function getActiveRaffleOrCached(): Promise<{ raffle: Raffle | null
   }
 }
 
-// Participantes de la rifa activa con URL firmada (12 h) de su foto. Nunca expone el documento.
+// Participantes de la rifa activa con URL firmada (12 h) de su foto y la cédula ya formateada (la TV la muestra).
 // Los que ya ganaron salen de la ruleta y se devuelven aparte, en orden de sorteo (el más reciente primero).
 export async function getWheelParticipants(): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[] }> {
   const raffle = await getActiveRaffle();
   if (!raffle) return { participants: [], winners: [] };
   const sb = supabaseAdmin();
   const [data, draws] = await Promise.all([
-    fetchAll<{ id: string; full_name: string; raffle_number: number; rank: string | null; photo_path: string }>((from, to) =>
-      sb.from("participants").select("id, full_name, raffle_number, rank, photo_path")
+    fetchAll<{ id: string; full_name: string; raffle_number: number; rank: string | null; photo_path: string; document_number: string }>((from, to) =>
+      sb.from("participants").select("id, full_name, raffle_number, rank, photo_path, document_number")
         .eq("raffle_id", raffle.id).order("raffle_number").range(from, to)),
     fetchAll<{ participant_id: string }>((from, to) =>
       sb.from("draws").select("participant_id").eq("raffle_id", raffle.id).order("created_at", { ascending: false }).range(from, to)),
@@ -84,6 +85,7 @@ export async function getWheelParticipants(): Promise<{ participants: WheelParti
   const all = new Map(data.map((p) => [p.id, {
     id: p.id, name: p.full_name, number: p.raffle_number, rank: p.rank,
     photoUrl: urlByPath.get(p.photo_path) ?? null,
+    cedula: formatCedula(p.document_number),
   }]));
   const won = new Set(draws.map((d) => d.participant_id));
   return {
