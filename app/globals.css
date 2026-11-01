@@ -755,3 +755,8 @@ html:has(.xmas-page), body:has(.xmas-page) { height: 100%; overflow: hidden; ove
 .cola-err { color: var(--err); }
 .cola-actions { display: flex; gap: 8px; }
 .cola-item.enviado .cola-name { opacity: .75; }
+
+/* La cédula es más larga que el número de rifa: un poco más pequeña en la tarjeta (en em, sigue a cada tamaño de pantalla). */
+.xmas-card .num .num-ced { font-size: .82em; }
+/* Aviso "Referencial" algo más grande para que se lea desde lejos en la TV. */
+.xmas-card.winner > .xmas-label.is-ref { font-size: 1.15em; }

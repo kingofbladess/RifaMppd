@@ -685,9 +685,10 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       </div>
 
       <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
-        <div className="xmas-label">{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 En el puntero"}</div>
+        {/* Quieta y sin ganador, la persona del puntero es solo referencial: se avisa para que nadie crea que ganó. */}
+        <div className={`xmas-label${!winner && !spinning ? " is-ref" : ""}`}>{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 Referencial · Gira la ruleta"}</div>
         <div className="xmas-face" key={`f-${shown?.id}`}>{face(shown, 150, "3.2rem", true)}</div>
-        <div className="num" key={`n-${shown?.id}`}>{shown ? label(shown) : "—"}</div>
+        <div className="num" key={`n-${shown?.id}`}><span className="num-ced">{shown ? label(shown) : "—"}</span></div>
         {/* Nombre y grado ocupan siempre el mismo alto: la tarjeta no salta mientras gira. */}
         <div className="xmas-name">{shown?.name ?? "\u00a0"}</div>
         <div className="xmas-rank">{shown ? shown.rank || "Civil" : "\u00a0"}</div>
