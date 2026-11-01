@@ -52,20 +52,27 @@ export async function removeCadetDraws(cedula: string | null) {
   await writeStorageJson(GANADORES, { draws: cedula ? cur.filter((d) => d.cedula !== cedula) : [] } satisfies Ganadores);
 }
 
-// Cédulas de la lista de cadetes (y de los que ganaron en su ruleta): cada ruleta tiene sus propios
-// participantes, así que estas personas nunca salen ni ganan en la ruleta normal.
-export async function cedulasCadetes(): Promise<Set<string>> {
+// Quién NO participa en la ruleta normal: los de la lista de cadetes (salvo un "colado" registrado con
+// grado militar, que va a la normal) y quien ya ganó en la ruleta de cadetes (sin cruce de ganadores).
+export async function excluidosRuletaNormal(): Promise<(documento: string, rank: string | null) => boolean> {
   const [lista, ganados] = await Promise.all([readCadetes(), readCadetDraws()]);
-  return new Set([...(lista?.cadetes ?? []).map((c) => c.cedula), ...ganados]);
+  const enLista = new Set((lista?.cadetes ?? []).map((c) => c.cedula));
+  const ganaron = new Set(ganados);
+  return (documento, rank) => {
+    const doc = normalizeRaffleDocument(documento);
+    if (!doc) return false;
+    return ganaron.has(doc) || (enLista.has(doc) && !gradoDe(rank));
+  };
 }
 
 // Los cadetes se registran en la app como cualquier asistente (salen como civiles). La lista de cadetes
 // los reconoce por la cédula: en la ruleta de cadetes salen solo los REGISTRADOS que están en la lista.
 export type CadeteRegistrado = Cadete & { participant_id: string; photo_path: string; full_name: string; raffle_number: number; rank: string | null };
-export async function cadetesRegistrados(raffleId: string | null): Promise<{ lista: Cadete[]; registrados: CadeteRegistrado[]; ganaronNormal: Set<string> }> {
+export async function cadetesRegistrados(raffleId: string | null): Promise<{ lista: Cadete[]; registrados: CadeteRegistrado[]; ganaronNormal: Set<string>; conGrado: Set<string> }> {
   const lista = (await readCadetes())?.cadetes ?? [];
   const ganaronNormal = new Set<string>(); // cédulas de cadetes que ya ganaron en la ruleta normal
-  if (!raffleId || !lista.length) return { lista, registrados: [], ganaronNormal };
+  const conGrado = new Set<string>(); // en la lista pero registrados con grado militar: no son cadetes, van a la normal
+  if (!raffleId || !lista.length) return { lista, registrados: [], ganaronNormal, conGrado };
   const sb = supabaseAdmin();
   // Sin cruce de ganadores: quien ya ganó en la ruleta normal (p. ej. antes de cargar la lista) no entra en la de cadetes.
   const [inscritos, premiados] = await Promise.all([
@@ -81,11 +88,13 @@ export async function cadetesRegistrados(raffleId: string | null): Promise<{ lis
     const doc = normalizeRaffleDocument(p.document_number);
     const c = doc ? porCedula.get(doc) : undefined;
     if (!c || vistos.has(c.cedula)) continue;
+    // En la ruleta de cadetes solo hay cadetes: un "colado" registrado con grado militar no entra.
+    if (gradoDe(p.rank)) { conGrado.add(c.cedula); continue; }
     if (ganoNormal.has(p.id)) { ganaronNormal.add(c.cedula); continue; }
     vistos.add(c.cedula);
     registrados.push({ ...c, participant_id: p.id, photo_path: p.photo_path, full_name: p.full_name, raffle_number: p.raffle_number, rank: p.rank });
   }
-  return { lista, registrados, ganaronNormal };
+  return { lista, registrados, ganaronNormal, conGrado };
 }
 
 // Ruleta de cadetes: los cadetes registrados que no han ganado, y los ganadores aparte (el más reciente primero).
@@ -95,9 +104,8 @@ export async function getCadetWheel(raffleId: string | null): Promise<{ particip
   if (!registrados.length) return { participants: [], winners: [] };
   const urls = await signPhotos(registrados.map((c) => c.photo_path), 12 * 60 * 60);
   const all = new Map(registrados.map((c) => [c.cedula, {
-    // Grado (solo se ve en el cartel del ganador): "Cadete", salvo que alguien "colado" en la lista esté
-    // registrado con un grado militar reconocido (p. ej. "Capitán"): entonces se ve su grado real.
-    id: cadeteId(c.cedula), name: c.full_name || c.nombre, number: c.raffle_number, rank: (gradoDe(c.rank) ? c.rank : "Cadete") as string | null,
+    // Grado (solo se ve en el cartel del ganador): siempre "Cadete"; los registrados con grado militar no llegan aquí.
+    id: cadeteId(c.cedula), name: c.full_name || c.nombre, number: c.raffle_number, rank: "Cadete" as string | null,
     photoUrl: urls.get(c.photo_path) ?? null, cedula: formatCedula(c.cedula),
   } satisfies WheelParticipant]));
   const won = new Set(ganados);

@@ -10,10 +10,10 @@ export const dynamic = "force-dynamic";
 export default async function CadetesPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; n?: string; c?: string }> }) {
   if ((await getSession())?.role !== "admin") return <main>No autorizado</main>;
   const params = await searchParams;
-  let modo: "normal" | "cadetes" = "normal", lista = null, ganados: string[] = [], registrados: { cedula: string }[] = [], ganaronNormal = new Set<string>(), loadError = "";
+  let modo: "normal" | "cadetes" = "normal", lista = null, ganados: string[] = [], registrados: { cedula: string }[] = [], ganaronNormal = new Set<string>(), conGrado = new Set<string>(), loadError = "";
   try {
     const raffle = await getActiveRaffle();
-    [modo, lista, ganados, { registrados, ganaronNormal }] = await Promise.all([readModo(), readCadetes(), readCadetDraws(), cadetesRegistrados(raffle?.id ?? null)]);
+    [modo, lista, ganados, { registrados, ganaronNormal, conGrado }] = await Promise.all([readModo(), readCadetes(), readCadetDraws(), cadetesRegistrados(raffle?.id ?? null)]);
   } catch (e) { loadError = (e as Error).message; }
   const cadetes = lista?.cadetes ?? [];
   const ganadosSet = new Set(ganados);
@@ -37,7 +37,7 @@ export default async function CadetesPage({ searchParams }: { searchParams: Prom
       <p>{modo === "cadetes"
         ? "La ruleta y la TV muestran solo a los cadetes registrados que están en la lista (por cédula), todos con la misma probabilidad."
         : "La ruleta y la TV funcionan como siempre (inscritos, lista de la rifa y regla por grado), sin los cadetes de la lista."}</p>
-      <p className="small">{cadetes.length} cadetes en la lista · {registrados.length} ya registrados · {ganaron} ya ganaron · {registrados.length - ganaron} pueden salir.{ganaronNormal.size > 0 && <> {ganaronNormal.size} ya ganaron en la ruleta normal (no entran: no hay cruce de ganadores).</>}
+      <p className="small">{cadetes.length} cadetes en la lista · {registrados.length} ya registrados · {ganaron} ya ganaron · {registrados.length - ganaron} pueden salir.{ganaronNormal.size > 0 && <> {ganaronNormal.size} ya ganaron en la ruleta normal (no entran: no hay cruce de ganadores).</>}{conGrado.size > 0 && <> {conGrado.size} registrados con grado militar (no entran en la de cadetes; participan en la normal).</>}
         {lista && <> Lista cargada por {lista.updated_by} · {new Date(lista.updated_at).toLocaleString("es-VE")}</>}</p>
       <form method="post" action="/api/admin/cadetes/modo" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {modo === "cadetes"
@@ -52,6 +52,6 @@ export default async function CadetesPage({ searchParams }: { searchParams: Prom
     <CadetesImport />
 
     {cadetes.length > 0 && <CadetesLista filas={cadetes.map((c) => ({ ...c,
-      estado: ganaronNormal.has(c.cedula) ? "Ganó en la ruleta normal" : ganadosSet.has(c.cedula) && registradoSet.has(c.cedula) ? "Ya ganó" : registradoSet.has(c.cedula) ? "Registrado · en la ruleta" : "Aún sin registrar" }))} />}
+      estado: conGrado.has(c.cedula) ? "Registrado con grado militar · va a la ruleta normal" : ganaronNormal.has(c.cedula) ? "Ganó en la ruleta normal" : ganadosSet.has(c.cedula) && registradoSet.has(c.cedula) ? "Ya ganó" : registradoSet.has(c.cedula) ? "Registrado · en la ruleta" : "Aún sin registrar" }))} />}
   </main>;
 }
