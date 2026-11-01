@@ -19,7 +19,7 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
     const cadetes = await cedulasCadetes();
     if (cadetes.size) participants = participants.filter((p) => !cadetes.has(normalizeRaffleDocument(p.cedula) ?? ""));
   }
-  const digits = modo === "cadetes" ? String(participants.length + winners.length).length : String(raffle?.number_max ?? 9999).length;
+  const digits = String(raffle?.number_max ?? 9999).length;
   // La TV es un espejo: muestra en vivo lo que se gira desde otra pantalla. Un admin puede verlo con ?espejo=1.
   const mirror = session?.role === "tv" || espejo;
   return (
@@ -33,7 +33,8 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
           <div className="xmas-brand">
             <img className="xmas-logo" src="/escudo.png" alt="Escudo" />
             <div>
-              <h1 className="xmas-title">{modo === "cadetes" ? "Ruleta de cadetes" : raffle?.name ?? "Ruleta"}</h1>
+              {/* Mismo título en los dos modos: el público no debe notar que es la ruleta de cadetes. */}
+              <h1 className="xmas-title">{raffle?.name ?? "Ruleta"}</h1>
             </div>
           </div>
           <div className="topbar-tools">

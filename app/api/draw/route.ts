@@ -71,8 +71,9 @@ async function drawWinner(req: Request) {
   const onScreen = Array.isArray(body?.ids) ? new Set(body.ids.map(String)) : null;
   const modo = await readModo();
   // La pantalla se abrió con la otra ruleta (cambiaron el modo en el panel): debe recargarse antes de girar.
+  // Los mensajes de la ruleta nunca dicen "cadetes": se ven en pantalla y el público no debe notar el cambio.
   if (typeof body?.modo === "string" && body.modo !== modo)
-    return NextResponse.json({ error: modo === "cadetes" ? "Se activó la ruleta de cadetes. Recarga la página." : "Se volvió a la ruleta normal. Recarga la página." }, { status: 409 });
+    return NextResponse.json({ error: "La lista de la ruleta cambió. Recarga la página." }, { status: 409 });
   if (modo === "cadetes") return drawCadet(onScreen);
   const raffle = await getActiveRaffle();
   if (!raffle) return NextResponse.json({ error: "No hay rifa activa" }, { status: 409 });
@@ -130,13 +131,13 @@ async function drawWinner(req: Request) {
 async function drawCadet(onScreen: Set<string> | null) {
   const raffle = await getActiveRaffle();
   const [{ lista, registrados }, ganados] = await Promise.all([cadetesRegistrados(raffle?.id ?? null), readCadetDraws()]);
-  if (!lista.length) return NextResponse.json({ error: "Carga primero la lista de cadetes en el panel del administrador." }, { status: 409 });
-  if (!registrados.length) return NextResponse.json({ error: "Ningún cadete de la lista se ha registrado todavía." }, { status: 409 });
+  if (!lista.length) return NextResponse.json({ error: "Carga primero la lista de participantes en el panel del administrador." }, { status: 409 });
+  if (!registrados.length) return NextResponse.json({ error: "Ningún participante de la lista se ha registrado todavía." }, { status: 409 });
   const won = new Set(ganados);
   const available = registrados.filter((c) => !won.has(c.cedula));
-  if (!available.length) return NextResponse.json({ error: "No quedan cadetes sin premio." }, { status: 409 });
+  if (!available.length) return NextResponse.json({ error: "No quedan participantes sin premio." }, { status: 409 });
   const pool = available.filter((c) => !onScreen || onScreen.has(cadeteId(c.cedula)));
-  if (!pool.length) return NextResponse.json({ error: "Los cadetes disponibles no están en esta pantalla. Recarga la ruleta." }, { status: 409 });
+  if (!pool.length) return NextResponse.json({ error: "Los participantes disponibles no están en esta pantalla. Recarga la ruleta." }, { status: 409 });
   const winner = elegirCadete(pool, randomInt)!;
   await addCadetDraw(winner.cedula);
   return NextResponse.json({ participantId: cadeteId(winner.cedula), at: new Date().toISOString() });
