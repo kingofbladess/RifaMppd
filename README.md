@@ -107,11 +107,11 @@ Pruebas del cargador (Node con soporte TypeScript): `node --test tests/spin-phot
 
 ## Lista de participantes de la rifa
 
-La asistencia y la elegibilidad para ganar se administran por separado. `/admin/rifa` permite importar Excel **.xlsx**, CSV o escribir cédulas manualmente. Para Excel puede elegirse la hoja y la columna de cédula; para archivos `.xls` antiguos, guardar primero como `.xlsx`. La vista previa identifica cédulas duplicadas o inválidas y cruza por cédula: registrados incluidos, personas de la lista aún no registradas y asistentes fuera de la lista. Ninguna importación crea ni elimina asistentes.
+La asistencia y la elegibilidad para ganar se administran por separado. `/admin/rifa` permite importar Excel **.xlsx**, CSV o escribir cédulas manualmente. Para Excel puede elegirse la hoja y la columna de cédula; para archivos `.xls` antiguos, guardar primero como `.xlsx`. La vista previa identifica cédulas duplicadas o inválidas y cruza por cédula: registrados incluidos, personas de la lista aún no registradas y asistentes fuera de la lista. Al guardar, la importación consulta Infopress/API y registra automáticamente las personas nuevas con datos completos y foto; reutiliza a las ya registradas. Nunca elimina asistentes.
 
 Antes de desplegar esta versión sobre una instalación existente, ejecutar `supabase/eligibility.sql` en el SQL Editor de Supabase. Para una instalación nueva, el bloque ya está incluido en `supabase/schema.sql`. La lista se guarda privada y por rifa; solo el administrador la gestiona. Sin lista, lista vacía o error de lectura, el sorteo **no vuelve al padrón completo**: queda bloqueado. Las cédulas pendientes se habilitan automáticamente al registrarse en el evento.
 
-El servidor filtra candidatos por la lista, ganadores anteriores y participantes presentes en la ruleta, y después aplica sin cambios `elegirGanador` (civil/militar, pesos por grado y exclusiones). La pantalla pública sigue mostrando a todos los asistentes, con la misma animación. Guardar una lista reemplaza la anterior y afecta únicamente a los sorteos posteriores; no modifica resultados existentes.
+El servidor filtra candidatos por la lista, ganadores anteriores y participantes presentes en la ruleta, y después aplica sin cambios `elegirGanador` (civil/militar, pesos por grado y exclusiones). La pantalla pública sigue mostrando a todos los asistentes, con la misma animación. La entrada manual y la importación añaden cédulas a la lista existente sin eliminar integrantes. Para quitar integrantes se utiliza «Administrar lista» y «Guardar cambios»; una versión desactualizada se rechaza para evitar sobrescribir cambios de otras pestañas. Solo afecta a sorteos posteriores y no modifica resultados existentes.
 
 Pruebas de selección e importación: `node --test tests/*.test.mjs`.
 
@@ -128,3 +128,9 @@ Pruebas de selección e importación: `node --test tests/*.test.mjs`.
 - Documentación de la API real (URL, autenticación, formato de respuesta y de la foto).
 
 Decidido: la foto actualizada **no** se envía de vuelta a la API; no habrá pagos, varios números por persona ni exportación a Excel.
+
+### Registro automático desde la lista
+
+«Guardar lista y registrar personas» conserva la lista vigente, añade las cédulas nuevas y procesa secuencialmente toda la lista guardada. Cada cédula existente se reutiliza; para las nuevas se consulta Infopress/API, se convierte la foto a JPEG y se usa el mismo registro atómico de operadores. Se elige nacionalidad V/E para las consultas y se muestra avance, registros nuevos, existentes, errores y casos sin procesar. Puede detenerse o repetirse sin duplicar cédulas. Mantén la pantalla abierta durante el proceso. «Completar registros de la lista guardada» reintenta una lista existente sin volver a importarla.
+
+Si falta nombre, fecha o foto, la API no encuentra a la persona o no está configurada, se informa el caso y no se fabrican datos. El modo demo no se utiliza para registrar una importación. Esos casos requieren completar el registro o reintentar cuando la API esté disponible.

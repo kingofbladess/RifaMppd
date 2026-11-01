@@ -8,8 +8,8 @@ type Attendee = { id: string; document_number: string; full_name: string; rank: 
 const PAGE_SIZE = 25;
 const normalized = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-export default function RaffleListManager({ raffleId, documents, registered, disabled }: {
-  raffleId: string; documents: string[]; registered: Attendee[]; disabled: boolean;
+export default function RaffleListManager({ raffleId, documents, registered, disabled, version }: {
+  raffleId: string; documents: string[]; registered: Attendee[]; disabled: boolean; version: string;
 }) {
   const [tab, setTab] = useState<"list" | "import" | "cross">("list");
   const [draft, setDraft] = useState(documents);
@@ -51,7 +51,7 @@ export default function RaffleListManager({ raffleId, documents, registered, dis
     </nav>
     {changed && <p role="status" className="list-module-draft">Hay cambios sin guardar. El sorteo sigue utilizando la lista guardada.</p>}
     {tab === "import" ? <>
-      {changed && <p>Guarda o descarta tus cambios en «Administrar lista» antes de reemplazar la lista mediante importación.</p>}
+      {changed && <p>Guarda o descarta tus cambios en «Administrar lista» antes de añadir más cédulas mediante importación.</p>}
       <RaffleEligibilityImport raffleId={raffleId} savedDocuments={documents} registered={registered} disabled={disabled || changed}/>
     </> : <div className="card">
       <h2>{tab === "list" ? "Integrantes de la lista" : "Cruce con la asistencia"}</h2>
@@ -75,6 +75,7 @@ export default function RaffleListManager({ raffleId, documents, registered, dis
       {!rows.length && <p>No hay personas que coincidan con esta búsqueda.</p>}
       <div className="list-module-pagination"><button className="btn secondary" type="button" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Anterior</button><span>Página {currentPage + 1} de {totalPages}</span><button className="btn secondary" type="button" disabled={currentPage + 1 >= totalPages} onClick={() => setPage(currentPage + 1)}>Siguiente</button></div>
       {tab === "list" && <form className="list-module-save" method="post" action="/api/admin/eligibility">
+        <input type="hidden" name="mode" value="edit"/><input type="hidden" name="expected_version" value={version}/>
         <input type="hidden" name="raffle_id" value={raffleId}/><input type="hidden" name="documents" value={draft.join("\n")}/>
         <button className="btn" disabled={disabled || !changed || draft.length === 0}>Guardar cambios</button>
         <button className="btn secondary" type="button" disabled={!changed} onClick={() => { setDraft(documents); setNotice("Cambios descartados."); }}>Descartar cambios</button>

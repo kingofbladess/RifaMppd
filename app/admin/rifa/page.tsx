@@ -38,7 +38,7 @@ export default async function RaffleListPage({ searchParams }: { searchParams: P
       {!list && <p className="error">El sorteo está bloqueado hasta cargar una lista válida.</p>}
       {list && <p className="small">Actualizada por {list.updated_by} · {list.updated_at}</p>}
     </div>
-    <RaffleListManager raffleId={raffle.id} documents={documents} registered={participants.map((p) => ({ ...p,
+    <RaffleListManager version={list?.updated_at ?? ""} raffleId={raffle.id} documents={documents} registered={participants.map((p) => ({ ...p,
       drawStatus: draws.some((d) => d.participant_id === p.id) ? "winner" as const : gradoDe(p.rank)?.peso === 0 ? "excluded" as const : "available" as const,
     }))} disabled={!!loadError}/>
 
