@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Fireworks from "./Fireworks";
 import WavingFlag from "./WavingFlag";
 
-export type WheelParticipant = { id: string; name: string; number: number; rank: string | null; photoUrl: string | null };
+// cedula: ya formateada (12.345.678); es lo que se muestra en la TV en lugar del número de rifa.
+export type WheelParticipant = { id: string; name: string; number: number; cedula: string; rank: string | null; photoUrl: string | null };
 
 // Paleta navideña: rojo, verde, dorado y crema.
 const COLORS = ["#c8102e", "#0f7b3f", "#d4a017", "#f4efe1"];
@@ -188,6 +189,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const lightSpin = n > 400;
 
   const pad = (num: number) => String(num).padStart(digits, "0");
+  // En la TV se muestra la cédula; el número de rifa queda solo si el inscrito no tiene cédula guardada.
+  const label = (p: WheelParticipant) => p.cedula || pad(p.number);
 
   const indexAtPointer = useCallback((r: number) => {
     const a = (((-Math.PI / 2 - r) % TAU) + TAU) % TAU;
@@ -255,12 +258,13 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       ctx.font = `800 ${fs}px system-ui, sans-serif`;
       // Se prueba de más largo a más corto (dos palabras, primer nombre) y solo se corta con "…" si ni el primer nombre cabe.
       const room = textEnd - 96, words = p.name.split(" ").filter(Boolean);
-      const options = showNames ? [words.slice(0, 2).join(" "), words[0]].map((w) => `${pad(p.number)} · ${w}`) : [pad(p.number)];
+      const id = label(p);
+      const options = showNames ? [words.slice(0, 2).join(" "), words[0]].map((w) => `${id} · ${w}`) : [id];
       let t = options.find((o) => ctx.measureText(o).width <= room);
       if (!t) {
         t = options.at(-1)!;
-        while (ctx.measureText(t + "…").width > room && t.length > digits + 4) t = t.slice(0, -1);
-        t = t.length > digits + 4 ? t + "…" : pad(p.number);
+        while (ctx.measureText(t + "…").width > room && t.length > id.length + 4) t = t.slice(0, -1);
+        t = t.length > id.length + 4 ? t + "…" : id;
       }
       ctx.fillText(t, textEnd, 0);
       ctx.restore();
@@ -623,7 +627,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
             <li key={`${copy}-${h.id}`} aria-hidden={copy > 0 || undefined}>
               <div className="float" style={{ animationDelay: `${-(i % 5) * .6}s` }}>
                 {face(h, 40, ".85rem")}
-                <span className="w-num"><span className="w-pos">{history.length - i}.º</span>{pad(h.number)}</span>
+                <span className="w-num"><span className="w-pos">{history.length - i}.º</span>{label(h)}</span>
                 <span className="w-name">{h.name}</span>
                 {canManage && (
                   <button type="button" className="w-del" title="Quitar ganador" aria-label={`Quitar a ${h.name} de los ganadores`}
@@ -646,7 +650,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
           <li key={h.id} style={{ animationDelay: `${i * .08}s` }}>
             <span className="xmas-done-pos">{i + 1}</span>
             {face(h, 56, "1rem")}
-            <span className="w-num">{pad(h.number)}</span>
+            <span className="w-num">{label(h)}</span>
             <span className="w-name">{h.name}</span>
           </li>
         ))}
@@ -683,7 +687,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
         <div className="xmas-label">{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 En el puntero"}</div>
         <div className="xmas-face" key={`f-${shown?.id}`}>{face(shown, 150, "3.2rem", true)}</div>
-        <div className="num" key={`n-${shown?.id}`}>{shown ? pad(shown.number) : "—"}</div>
+        <div className="num" key={`n-${shown?.id}`}>{shown ? label(shown) : "—"}</div>
         {/* Nombre y grado ocupan siempre el mismo alto: la tarjeta no salta mientras gira. */}
         <div className="xmas-name">{shown?.name ?? "\u00a0"}</div>
         <div className="xmas-rank">{shown ? shown.rank || "Civil" : "\u00a0"}</div>
@@ -703,7 +707,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
             <div className="win-pos">Ganador n.º {history.length}</div>
             <div className="win-title" data-text="¡GANADOR!">¡GANADOR!</div>
             <div className="win-face">{face(winner, 190, "4rem", true)}</div>
-            <div className="win-num">{pad(winner.number)}</div>
+            <div className="win-num">{label(winner)}</div>
             <div className="win-name">{winner.name}</div>
             <div className="win-rank">{winner.rank || "Civil"}</div>
             <div className="win-actions">
