@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getActiveRaffle, fetchAll } from "@/lib/participants";
 import { readWheelState } from "@/lib/wheel-state";
 import { getSession } from "@/lib/auth";
+import { elegirGanador } from "@/lib/grados";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,7 @@ export async function GET() {
 }
 
 // El ganador se elige en el servidor (aleatorio criptográfico) y queda registrado.
+// Regla por grado (lib/grados.ts): civiles igual que antes; militares con menos probabilidad a más antigüedad.
 // La ruleta del navegador solo anima hasta el resultado.
 export async function POST(req: Request) {
   // Solo el admin sortea: la TV es un espejo y nunca gira por su cuenta.
@@ -57,10 +59,10 @@ async function drawWinner(req: Request) {
   if (!raffle) return NextResponse.json({ error: "No hay rifa activa" }, { status: 409 });
   const sb = supabaseAdmin();
 
-  let participants: { id: string }[], prev: { participant_id: string }[];
+  let participants: { id: string; rank: string | null }[], prev: { participant_id: string }[];
   try {
     [participants, prev] = await Promise.all([
-      fetchAll<{ id: string }>((from, to) => sb.from("participants").select("id").eq("raffle_id", raffle.id).order("id").range(from, to)),
+      fetchAll<{ id: string; rank: string | null }>((from, to) => sb.from("participants").select("id, rank").eq("raffle_id", raffle.id).order("id").range(from, to)),
       fetchAll<{ participant_id: string }>((from, to) => sb.from("draws").select("participant_id").eq("raffle_id", raffle.id).order("id").range(from, to)),
     ]);
   } catch (e) {
@@ -72,8 +74,11 @@ async function drawWinner(req: Request) {
   if (!pool.length) return NextResponse.json({ error: onScreen?.size ? "Las personas de esta ruleta ya no están disponibles. Recarga la página." : "No quedan participantes sin premio" }, { status: 409 });
 
   // Si dos pantallas sortean a la vez y sale la misma persona, la base lo rechaza (índice único) y se elige otra.
-  let winner = pool[randomInt(pool.length)], draw = null;
-  for (let attempt = 0; attempt < 5 && pool.length; attempt++) {
+  const pick = () => elegirGanador(pool, randomInt);
+  let winner = pick(), draw = null;
+  // Solo quedan personas que no pueden ganar (Mayor General): siguen en la ruleta pero no salen.
+  if (!winner) return NextResponse.json({ error: "No quedan participantes que puedan ganar" }, { status: 409 });
+  for (let attempt = 0; attempt < 5 && winner; attempt++) {
     const { data, error: e2 } = await sb.from("draws")
       .insert({ raffle_id: raffle.id, participant_id: winner.id })
       .select("id, created_at").single();
@@ -87,10 +92,9 @@ async function drawWinner(req: Request) {
       return NextResponse.json({ error: e2.message }, { status: 500 });
     }
     pool.splice(pool.indexOf(winner), 1);
-    if (!pool.length) break;
-    winner = pool[randomInt(pool.length)];
+    winner = pick();
   }
   if (!draw) return NextResponse.json({ error: "No quedan participantes sin premio" }, { status: 409 });
 
-  return NextResponse.json({ participantId: winner.id, drawId: draw.id, at: draw.created_at });
+  return NextResponse.json({ participantId: winner!.id, drawId: draw.id, at: draw.created_at });
 }

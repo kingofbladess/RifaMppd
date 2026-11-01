@@ -3,6 +3,7 @@ import { getActiveRaffle, fetchAll, signPhotos } from "@/lib/participants";
 import { supabaseAdmin } from "@/lib/supabase";
 import AutoRefresh from "@/components/AutoRefresh";
 import PanelList, { type PanelRow } from "@/components/PanelList";
+import { GRADOS, gradoDe } from "@/lib/grados";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,17 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
   // Militar = tiene grado (lo trae Infopress de IPSFA o Resoluciones); sin grado = civil.
   const militares = byOps.filter((p) => p.rank?.trim()).length;
   const civiles = totalCount - militares;
+  // Conteo por grado (regla de la ruleta) y grados escritos que no están en la lista: esos sortean como civiles.
+  const porGrado = new Map<number, number>();
+  const noReconocidos = new Map<string, number>();
+  byOps.forEach((p) => {
+    const rank = p.rank?.trim();
+    if (!rank) return;
+    const g = gradoDe(rank);
+    if (g) porGrado.set(g.n, (porGrado.get(g.n) ?? 0) + 1);
+    else noReconocidos.set(rank, (noReconocidos.get(rank) ?? 0) + 1);
+  });
+  const sinReconocer = [...noReconocidos.values()].reduce((a, b) => a + b, 0);
   const tempCount = byOps.filter((p) => p.document_number.startsWith("TEMP")).length;
   const demoMsg: Record<string, string> = {
     agregados: `Se agregaron ${n ?? 0} personas de prueba.`, borrados: "Se borraron las personas de prueba.",
@@ -89,6 +101,35 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
             <span key={name} className="badge on">{name}: <strong>{n}</strong></span>
           ))}
         </div>
+      )}
+      {totalCount > 0 && (
+        <details className="grados-box">
+          <summary className="small">
+            Probabilidad por grado en la ruleta{sinReconocer ? ` · ⚠️ ${sinReconocer} con grado no reconocido (sortean como civiles)` : ""}
+          </summary>
+          <p className="small" style={{ margin: "6px 0" }}>
+            Primero se decide civil o militar según cuántos hay de cada uno. Si es militar, el grado sale según su peso
+            (no importa cuántos tenga) y luego una persona al azar de ese grado. El grado 1 nunca gana.
+          </p>
+          <div className="op-badges">
+            {GRADOS.map((g) => (
+              <span key={g.n} className={`badge${porGrado.get(g.n) ? " on" : ""}`}>
+                {g.n}. {g.nombre} · peso {g.peso}: <strong>{porGrado.get(g.n) ?? 0}</strong>
+              </span>
+            ))}
+            <span className="badge on">Civiles: <strong>{civiles}</strong></span>
+          </div>
+          {sinReconocer > 0 && (
+            <>
+              <p className="small" style={{ margin: "6px 0" }}>Grados no reconocidos (revisa cómo están escritos):</p>
+              <div className="op-badges">
+                {[...noReconocidos.entries()].sort((a, b) => b[1] - a[1]).map(([rank, n]) => (
+                  <span key={rank} className="badge">{rank}: <strong>{n}</strong></span>
+                ))}
+              </div>
+            </>
+          )}
+        </details>
       )}
       {demo && demoMsg[demo] && <p className={demo === "error" || demo === "sin-rifa" ? "error" : "small"} style={{ marginTop: 0 }}>{demoMsg[demo]}</p>}
       <PanelList rows={panelRows} total={totalCount} query={q} limit={LIST_LIMIT} />
