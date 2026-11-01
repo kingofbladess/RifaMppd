@@ -664,7 +664,9 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     </div>
   ) : <div className="xmas-card xmas-empty">🎟️ Aún no hay participantes inscritos.</div>;
 
-  const shown = winner ?? (spinning && lightSpin && current ? { ...current, photoUrl: null } : current);
+  // Quieta y sin ganador (al empezar y entre giros) la tarjeta no muestra a nadie: así nadie cree que ya hay un ganador.
+  const idle = !winner && !spinning;
+  const shown = idle ? null : winner ?? (lightSpin && current ? { ...current, photoUrl: null } : current);
 
   return (
     <div className="stage" ref={stageRef}>
@@ -685,12 +687,11 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       </div>
 
       <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
-        {/* Quieta y sin ganador, la persona del puntero es solo referencial: se avisa para que nadie crea que ganó. */}
-        <div className={`xmas-label${!winner && !spinning ? " is-ref" : ""}`}>{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 Referencial · Gira la ruleta"}</div>
+        <div className={`xmas-label${idle ? " is-ref" : ""}`}>{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 ¡Listos para el sorteo!"}</div>
         <div className="xmas-face" key={`f-${shown?.id}`}>{face(shown, 150, "3.2rem", true)}</div>
-        <div className="num" key={`n-${shown?.id}`}><span className="num-ced">{shown ? label(shown) : "—"}</span></div>
+        <div className="num" key={`n-${shown?.id}`}><span className="num-ced">{shown ? label(shown) : idle ? "\u00a0" : "—"}</span></div>
         {/* Nombre y grado ocupan siempre el mismo alto: la tarjeta no salta mientras gira. */}
-        <div className="xmas-name">{shown?.name ?? "\u00a0"}</div>
+        <div className="xmas-name">{shown?.name ?? (idle ? "¡Gira la ruleta!" : "\u00a0")}</div>
         <div className="xmas-rank">{shown ? shown.rank || "Civil" : "\u00a0"}</div>
         <p className="xmas-count">{n} en la ruleta{history.length ? ` · ${history.length} ${history.length === 1 ? "ganador" : "ganadores"}` : ""}</p>
         <button className="btn xmas-btn" onClick={() => spin()} disabled={spinning || (!!winner && !showWin)}>
