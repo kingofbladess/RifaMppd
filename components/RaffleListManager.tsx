@@ -9,8 +9,8 @@ type Attendee = { registrationOrigin?: RegistrationOrigin; operatorConfirmation?
 const PAGE_SIZE = 25;
 const normalized = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-export default function RaffleListManager({ raffleId, documents, registered, disabled, version }: {
-  raffleId: string; documents: string[]; registered: Attendee[]; disabled: boolean; version: string;
+export default function RaffleListManager({ raffleId, raffleName, documents, registered, disabled, version }: {
+  raffleId: string; raffleName: string; documents: string[]; registered: Attendee[]; disabled: boolean; version: string;
 }) {
   const [tab, setTab] = useState<"list" | "import" | "cross">("list");
   const [draft, setDraft] = useState(documents);
@@ -19,6 +19,8 @@ export default function RaffleListManager({ raffleId, documents, registered, dis
   const [page, setPage] = useState(0);
   const [newDoc, setNewDoc] = useState("");
   const [notice, setNotice] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [pdfError, setPdfError] = useState("");
   const members = useMemo(() => new Set(draft), [draft]);
   const byDoc = useMemo(() => new Map(registered.map((p) => [normalizeRaffleDocument(p.document_number), p])), [registered]);
   const changed = draft.length !== documents.length || draft.some((doc, i) => doc !== documents[i]);
@@ -36,6 +38,24 @@ export default function RaffleListManager({ raffleId, documents, registered, dis
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages - 1);
   const statusLabel: Record<string, string> = { pending: "Pendiente de registro", available: "Disponible para ganar", winner: "Ya ganó", excluded: "Grado con peso cero", outside: "Fuera de la lista" };
+
+  async function exportPdf() {
+    if (exporting || !rows.length) return;
+    setExporting(true); setPdfError("");
+    try {
+      const { buildRaffleListPdf } = await import("@/lib/raffle-list-pdf");
+      const filterLabel: Record<string, string> = { ...statusLabel, ...ORIGIN_LABELS, all: "Todos" };
+      const pdf = await buildRaffleListPdf({
+        title: tab === "cross" ? "Cruce con la asistencia" : "Integrantes de la lista",
+        raffleName,
+        description: `${changed ? "Borrador con cambios sin guardar" : "Lista guardada"} | Filtro: ${filterLabel[filter] ?? filter}${query.trim() ? ` | Búsqueda: ${query.trim().slice(0, 200)}` : ""}`,
+        rows: rows.map((row) => ({ document: row.doc, name: row.attendee?.full_name ?? "Sin registro de asistencia", rank: row.attendee?.rank || "—", status: statusLabel[row.status],
+          origin: `${row.attendee?.registrationOrigin ? ORIGIN_LABELS[row.attendee.registrationOrigin] : "Sin registro"}${row.attendee?.operatorConfirmation ? ` · Confirmó: ${row.attendee.operatorConfirmation}` : ""}` })),
+      });
+      pdf.save(`lista-rifa-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch { setPdfError("No se pudo generar el PDF. Intenta nuevamente."); }
+    finally { setExporting(false); }
+  }
 
   function add() {
     const doc = normalizeRaffleDocument(newDoc);
@@ -68,6 +88,9 @@ export default function RaffleListManager({ raffleId, documents, registered, dis
         </select></div>
       </div>
       <p className="small">{rows.length} resultados · {draft.length} cédulas en {changed ? "el borrador" : "la lista guardada"}.</p>
+      <button type="button" className="btn secondary" disabled={disabled || exporting || !rows.length} onClick={() => void exportPdf()}>{exporting ? "Generando PDF…" : "Generar PDF"}</button>
+      <p className="small">El PDF incluye todos los resultados de la búsqueda y el filtro actuales, de todas las páginas.{changed && " Se marcará como borrador con cambios sin guardar."}</p>
+      {pdfError && <p className="error" role="alert">{pdfError}</p>}
       <div className="table-wrap"><table className="list-module-table"><thead><tr><th>Cédula</th><th>Nombre registrado</th><th>Grado</th><th>Estado</th><th>Origen / confirmación</th>{tab === "list" && <th>Acciones</th>}</tr></thead>
         <tbody>{rows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((row) => <tr key={row.doc}>
           <td>{row.doc}</td><td>{row.attendee?.full_name ?? "Sin registro de asistencia"}</td><td>{row.attendee?.rank || "—"}</td><td>{statusLabel[row.status]}</td><td>{row.attendee?.registrationOrigin ? ORIGIN_LABELS[row.attendee.registrationOrigin] : "Sin registro"}{row.attendee?.operatorConfirmation && <div className="small">Confirmó: {row.attendee.operatorConfirmation}</div>}</td>
