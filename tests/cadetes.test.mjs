@@ -11,10 +11,20 @@ const { detectarColumnas, revisarCadetes, validarCadetes, elegirCadete, cadeteId
   await import('data:text/javascript;base64,' + Buffer.from(src).toString('base64'));
 
 test('detecta columnas por encabezado en cualquier orden', () => {
-  assert.deepEqual(detectarColumnas(['Grado', 'Nombre Completo', 'Cédula']),
-    { columnas: { cedula: 2, nombre: 1, grado: 0 }, encabezado: true });
-  assert.deepEqual(detectarColumnas(['12345678', 'Ana Pérez', 'Cadete']),
-    { columnas: { cedula: 0, nombre: 1, grado: 2 }, encabezado: false });
+  assert.deepEqual(detectarColumnas([['Grado', 'Nombre Completo', 'Cédula']]),
+    { columnas: { cedula: 2, nombre: 1, grado: 0 }, encabezado: true, inicio: 0 });
+  assert.deepEqual(detectarColumnas([['12345678', 'Ana Pérez', 'Cadete']]),
+    { columnas: { cedula: 0, nombre: 1, grado: 2 }, encabezado: false, inicio: 0 });
+});
+
+test('encuentra los títulos aunque no estén en la primera fila ni en la columna A', () => {
+  const rows = [[null, null, null], [], [null, null, 'Grado', 'Nombres y Apellidos', 'CI', 'Área'],
+    [null, null, 'ALF.', 'SALAS RAMOS GENESARET', '30,667.501', 'AM GNB'], [null, null, 'CDT2', 'PÉREZ LUIS', 31870705, 'AMARB']];
+  const d = detectarColumnas(rows);
+  assert.deepEqual(d, { columnas: { cedula: 4, nombre: 3, grado: 2 }, encabezado: true, inicio: 2 });
+  const r = revisarCadetes(rows.slice(d.inicio), d.columnas, true);
+  assert.deepEqual(r.cadetes.map((c) => c.cedula), ['30667501', '31870705']);
+  assert.equal(r.invalidas.length, 0);
 });
 
 test('revisa filas: normaliza cédula, quita repetidos y marca inválidas', () => {

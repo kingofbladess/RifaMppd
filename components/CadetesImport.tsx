@@ -15,14 +15,15 @@ export default function CadetesImport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const seq = useRef(0);
-  const rows = sheets[sheet]?.data;
+  const [inicio, setInicio] = useState(0); // fila de títulos detectada (las de arriba se ignoran)
+  const rows = useMemo(() => sheets[sheet]?.data.slice(inicio), [sheets, sheet, inicio]);
   const review = useMemo(() => rows ? revisarCadetes(rows, cols, header) : null, [rows, cols, header]);
   const maxColumns = rows ? Math.max(0, ...rows.slice(0, 100).map((r) => r.length)) : 0;
 
   function chooseSheet(i: number, data = sheets) {
     setSheet(i);
-    const { columnas, encabezado } = detectarColumnas(data[i]?.data[0] ?? []);
-    setCols(columnas); setHeader(encabezado);
+    const { columnas, encabezado, inicio } = detectarColumnas(data[i]?.data ?? []);
+    setInicio(inicio); setCols(columnas); setHeader(encabezado);
   }
 
   async function importFile(file?: File) {
@@ -39,7 +40,9 @@ export default function CadetesImport() {
       } else throw new Error("Usa Excel .xlsx o CSV. Si tienes .xls, guárdalo como .xlsx antes de cargarlo.");
       if (!result.length || !result.some((s) => s.data.length)) throw new Error("El archivo está vacío");
       if (seq.current !== id) return;
-      setSheets(result); chooseSheet(0, result);
+      setSheets(result);
+      // Si el libro trae una hoja de cadetes, se abre esa.
+      chooseSheet(Math.max(0, result.findIndex((x) => /cadete/i.test(x.sheet))), result);
     } catch (e) { if (seq.current === id) setError((e as Error).message); }
     finally { if (seq.current === id) setLoading(false); }
   }
@@ -70,7 +73,8 @@ export default function CadetesImport() {
         {colSelect("Columna de grado", "grado", true)}
       </div>
       <p role="status"><b>{review.cadetes.length} cadetes</b> · {review.repetidos} repetidos (se cuentan una vez) · {review.invalidas.length} filas inválidas.</p>
-      {review.invalidas.length > 0 && <p className="error">Filas sin cédula válida o sin nombre: {review.invalidas.slice(0, 20).join(", ")}{review.invalidas.length > 20 ? "…" : ""}. Corrígelas en el archivo o se dejarán fuera.</p>}
+      {review.invalidas.length > 0 && <p className="error">Filas sin cédula válida o sin nombre: {review.invalidas.slice(0, 20).map((f) => f + inicio).join(", ")}{review.invalidas.length > 20 ? "…" : ""}. Corrígelas en el archivo o se dejarán fuera.</p>}
+      {review.filasRepetidas.length > 0 && <p className="small">Filas con una cédula ya usada más arriba (se dejó la primera; revisa si es un error de tipeo): {review.filasRepetidas.slice(0, 20).map((f) => f + inicio).join(", ")}{review.filasRepetidas.length > 20 ? "…" : ""}.</p>}
       {tooMany && <p className="error">La lista admite hasta {MAX_CADETES} cadetes.</p>}
       <div className="table-wrap"><table className="list-module-table">
         <thead><tr><th>Cédula</th><th>Nombre</th><th>Grado</th></tr></thead>
