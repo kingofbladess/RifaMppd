@@ -5,9 +5,9 @@ import { getActiveRaffle, fetchAll } from "@/lib/participants";
 import { readWheelState } from "@/lib/wheel-state";
 import { getSession } from "@/lib/auth";
 import { readEligibilityList } from "@/lib/raffle-eligibility-store";
-import { eligibleRafflePool } from "@/lib/raffle-eligibility";
+import { eligibleRafflePool, normalizeRaffleDocument } from "@/lib/raffle-eligibility";
 import { elegirGanador } from "@/lib/grados";
-import { readModo, cadetesRegistrados, readCadetDraws, addCadetDraw } from "@/lib/cadetes-store";
+import { readModo, cadetesRegistrados, readCadetDraws, addCadetDraw, cedulasCadetes } from "@/lib/cadetes-store";
 import { cadeteId, elegirCadete } from "@/lib/cadetes";
 
 export const runtime = "nodejs";
@@ -92,7 +92,10 @@ async function drawWinner(req: Request) {
   }
 
   const won = new Set(prev.map((d) => d.participant_id));
-  const available = eligibleRafflePool(participants, eligibility.document_numbers, won);
+  // Cada ruleta tiene sus propios participantes: los de la lista de cadetes no participan en la normal.
+  const cadetes = await cedulasCadetes();
+  const available = eligibleRafflePool(participants, eligibility.document_numbers, won)
+    .filter((p) => !cadetes.has(normalizeRaffleDocument(p.document_number) ?? ""));
   if (!available.length) return NextResponse.json({ error: "No quedan participantes de la lista registrados y sin premio." }, { status: 409 });
   const pool = available.filter((p) => !onScreen || onScreen.has(p.id));
   if (!pool.length) return NextResponse.json({ error: "Los participantes elegibles no están en esta pantalla. Recarga la ruleta." }, { status: 409 });

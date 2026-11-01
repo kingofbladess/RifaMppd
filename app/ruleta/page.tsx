@@ -5,14 +5,20 @@ import PresenterControls from "@/components/PresenterControls";
 import HiddenLogout from "@/components/HiddenLogout";
 import { getActiveRaffle, getWheelParticipants } from "@/lib/participants";
 import { getSession } from "@/lib/auth";
-import { readModo, getCadetWheel } from "@/lib/cadetes-store";
+import { readModo, getCadetWheel, cedulasCadetes } from "@/lib/cadetes-store";
+import { normalizeRaffleDocument } from "@/lib/raffle-eligibility";
 
 export const dynamic = "force-dynamic";
 
 async function RuletaPageContent({ espejo }: { espejo: boolean }) {
   const [raffle, modo, session] = await Promise.all([getActiveRaffle(), readModo(), getSession()]);
   // Modo cadetes: solo los de la lista de cadetes, todos con la misma probabilidad (ver lib/cadetes.ts).
-  const { participants, winners } = modo === "cadetes" ? await getCadetWheel(raffle?.id ?? null) : await getWheelParticipants();
+  let { participants, winners } = modo === "cadetes" ? await getCadetWheel(raffle?.id ?? null) : await getWheelParticipants();
+  // Ruleta normal: los de la lista de cadetes no se dibujan (solo salen en la ruleta de cadetes).
+  if (modo === "normal") {
+    const cadetes = await cedulasCadetes();
+    if (cadetes.size) participants = participants.filter((p) => !cadetes.has(normalizeRaffleDocument(p.cedula) ?? ""));
+  }
   const digits = modo === "cadetes" ? String(participants.length + winners.length).length : String(raffle?.number_max ?? 9999).length;
   // La TV es un espejo: muestra en vivo lo que se gira desde otra pantalla. Un admin puede verlo con ?espejo=1.
   const mirror = session?.role === "tv" || espejo;
