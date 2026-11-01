@@ -43,7 +43,7 @@ export default async function RaffleListPage({ searchParams }: { searchParams: P
       {list && <p className="small">Actualizada por {list.updated_by} · {list.updated_at}</p>}
     </div>
     {!confirmations.available && <p className="card warn-card">El origen de los registros por lista ya puede identificarse. Para consultar y guardar confirmaciones de operadores, revisa la conexión y aplica supabase/operator-confirmations.sql.</p>}
-    <RaffleListManager version={list?.updated_at ?? ""} raffleId={raffle.id} documents={documents} registered={participants.map((p) => ({ ...p,
+    <RaffleListManager version={list?.updated_at ?? ""} raffleId={raffle.id} raffleName={raffle.name} documents={documents} registered={participants.map((p) => ({ ...p,
       registrationOrigin: registrationEvidence(createdFromRaffleList(raffle.id, p.document_number, p.photo_path), confirmations.available, confirmations.byId.has(p.id)),
       operatorConfirmation: confirmations.byId.get(p.id)?.confirmed_by_name ?? null,
       drawStatus: draws.some((d) => d.participant_id === p.id) ? "winner" as const : gradoDe(p.rank)?.peso === 0 ? "excluded" as const : "available" as const,
