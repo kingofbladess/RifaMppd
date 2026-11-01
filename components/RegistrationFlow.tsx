@@ -136,7 +136,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
     if (!shownPhoto) return setError("Falta la foto de la persona. Tómala con la cámara.");
     setSaving(true);
     try {
-      const photoBlob = newPhoto ?? (await dataUrlToJpeg(lookup!.photo!, 900));
+      const photoBlob = newPhoto ?? (await dataUrlToJpeg(lookup!.photo!, 640));
       const fd = new FormData();
       Object.entries(fields).forEach(([k, v]) => fd.set(k, v));
       fd.set("photo", photoBlob, "foto.jpg");
@@ -251,7 +251,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
           </div>
 
           {camera === "photo" && (
-            <Camera facing="environment" guide="face" maxSide={900} onCapture={(b) => { setNewPhoto(b); setCamera(null); }} />
+            <Camera facing="environment" guide="face" maxSide={640} onCapture={(b) => { setNewPhoto(b); setCamera(null); }} />
           )}
 
           {!lookup.found && lookup.apiError && <p className="small warn-text" style={{ textAlign: "left" }}>{lookup.apiError}</p>}
@@ -274,7 +274,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
           </div>
 
           {camera === "id" ? (
-            <Camera facing="environment" guide="card" maxSide={1800} onCapture={(b) => { setIdPhoto(b); setCamera(null); }} />
+            <Camera facing="environment" guide="card" maxSide={1600} onCapture={(b) => { setIdPhoto(b); setCamera(null); }} />
           ) : idPhotoUrl ? (
             <div className="id-thumb"><img src={idPhotoUrl} alt="Cédula" />
               <button type="button" className="link" onClick={() => setIdPhoto(null)}>Quitar foto de la cédula</button></div>

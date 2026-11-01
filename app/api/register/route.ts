@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin, BUCKET_DOCS, BUCKET_PHOTOS } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { getActiveRaffle } from "@/lib/participants";
+import { optimizeJpeg, FOTO, CEDULA } from "@/lib/optimize-photo";
 
 export const runtime = "nodejs";
 
@@ -56,14 +57,16 @@ export async function POST(req: Request) {
   if (errors.length) return NextResponse.json({ error: errors.join(". ") }, { status: 400 });
 
   // La foto de la cédula es opcional (los datos vienen de la API).
-  const idBuf = idDoc instanceof File && idDoc.size > 0 ? new Uint8Array(await idDoc.arrayBuffer()) : null;
-  const photoBuf = new Uint8Array(await (photo as File).arrayBuffer());
+  let idBuf = idDoc instanceof File && idDoc.size > 0 ? new Uint8Array(await idDoc.arrayBuffer()) : null;
+  let photoBuf = new Uint8Array(await (photo as File).arrayBuffer());
   const images: [Uint8Array, string][] = [[photoBuf, "foto"]];
   if (idBuf) images.push([idBuf, "cédula"]);
   for (const [buf, label] of images) {
     if (buf.length > MAX_FILE) return NextResponse.json({ error: `La imagen de ${label} supera 3 MB` }, { status: 400 });
     if (!isJpeg(buf)) return NextResponse.json({ error: `La imagen de ${label} debe ser JPG` }, { status: 400 });
   }
+  // Más livianas antes de guardarlas: menos espacio en Supabase y menos datos al mostrarlas en ruleta y panel.
+  [photoBuf, idBuf] = await Promise.all([optimizeJpeg(photoBuf, FOTO), idBuf ? optimizeJpeg(idBuf, CEDULA) : null]);
 
   const sb = supabaseAdmin();
   // El navegador manda un código por cada persona que se intenta guardar. Si se vuelve a presionar Guardar
