@@ -760,3 +760,5 @@ html:has(.xmas-page), body:has(.xmas-page) { height: 100%; overflow: hidden; ove
 .xmas-card .num .num-ced { font-size: .82em; }
 /* Aviso "Referencial" algo más grande para que se lea desde lejos en la TV. */
 .xmas-card.winner > .xmas-label.is-ref { font-size: 1.15em; }
+/* Modo presentador (pantalla de la TV): sin botones en pantalla. Se gira con Espacio; Esc o clic cierra el cartel. */
+html[data-presenter] .xmas-card .xmas-btn, html[data-presenter] .win-actions { display: none !important; }
