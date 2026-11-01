@@ -6,7 +6,7 @@
 export type Grado = { n: number; nombre: string; peso: number; nombres: string[] };
 
 export const GRADOS: Grado[] = [
-  { n: 1, nombre: "Mayor General = Almirante", peso: 0, nombres: ["Mayor General", "Almirante"] },
+  { n: 1, nombre: "Mayor General = Almirante (y General/Almirante en Jefe)", peso: 0, nombres: ["Mayor General", "Almirante", "General en Jefe", "Almirante en Jefe"] },
   { n: 2, nombre: "General de División = Vicealmirante", peso: 5, nombres: ["General de División", "Vicealmirante", "Vice Almirante"] },
   { n: 3, nombre: "General de Brigada = Contraalmirante", peso: 6, nombres: ["General de Brigada", "Contraalmirante", "Contralmirante", "Contra Almirante"] },
   { n: 4, nombre: "Coronel = Capitán de Navío", peso: 8, nombres: ["Coronel", "Capitán de Navío"] },
