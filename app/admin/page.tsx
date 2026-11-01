@@ -111,7 +111,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
           </summary>
           <p className="small" style={{ margin: "6px 0" }}>
             Primero se decide civil o militar según cuántos hay de cada uno. Si es militar, el grado sale según su peso
-            (no importa cuántos tenga) y luego una persona al azar de ese grado. El grado 1 nunca gana.
+            (no importa cuántos tenga) y luego una persona al azar de ese grado. Los grados 1, 2 y 3 (peso 0) nunca ganan.
           </p>
           <div className="op-badges">
             {GRADOS.map((g) => (
