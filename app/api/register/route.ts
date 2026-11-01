@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin, BUCKET_DOCS, BUCKET_PHOTOS } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
+import { getActiveRaffle } from "@/lib/participants";
 
 export const runtime = "nodejs";
 
@@ -101,8 +102,12 @@ export async function POST(req: Request) {
   if (error) {
     // Antes de borrar nada: ¿quedó guardada esta misma inscripción (misma foto)? Pasa cuando la red corta la
     // respuesta y la consulta se repite: la segunda vez la base dice "duplicada" aunque la primera funcionó.
-    const { data: prev } = await sb.from("participants").select("raffle_number, full_name, registered_by_name, photo_path")
-      .eq("document_number", data.document_number).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    // Solo en la rifa activa: si la cédula participó en una rifa anterior, no se debe citar ese número viejo.
+    const raffle = await getActiveRaffle().catch(() => null);
+    let prevQuery = sb.from("participants").select("raffle_number, full_name, registered_by_name, photo_path")
+      .eq("document_number", data.document_number);
+    if (raffle) prevQuery = prevQuery.eq("raffle_id", raffle.id);
+    const { data: prev } = await prevQuery.order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (prev?.photo_path === photoPath) return NextResponse.json({ number: prev.raffle_number, name: prev.full_name });
     await cleanup();
     if (error.code === "23505") {

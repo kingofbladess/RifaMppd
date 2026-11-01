@@ -28,7 +28,7 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
           </div>
           <div className="topbar-tools">
             <PresenterControls />
-            {mirror || session?.role === "tv"
+            {mirror
               ? <form method="post" action="/api/logout"><button className="btn secondary xmas-ghost">Salir</button></form>
               : <a className="btn secondary xmas-ghost" href="/admin">Panel</a>}
           </div>
