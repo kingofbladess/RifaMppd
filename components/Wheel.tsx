@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Fireworks from "./Fireworks";
 import WavingFlag from "./WavingFlag";
+import { CARD_INTERVAL_MS, prepareSpinPhotos } from "@/lib/spin-photos";
 
 // cedula: ya formateada (12.345.678); es lo que se muestra en la TV en lugar del número de rifa.
 export type WheelParticipant = { id: string; name: string; number: number; cedula: string; rank: string | null; photoUrl: string | null };
@@ -131,12 +132,9 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const highlight = useRef(-1); // porción ganadora que brilla al detenerse
   const images = useRef(new Map<string, HTMLImageElement>());
   const busy = useRef(false); // candado inmediato: dos toques seguidos nunca lanzan dos giros
-  const loaded = useRef(new Set<string>()); // fotos ya descargadas
-  // Fotos que ya estaban descargadas al empezar el giro: SOLO esas se muestran mientras gira. La del ganador
-  // se descarga al empezar (para salir al instante al final) y, si contara, sería la única foto visible
-  // en las vueltas y delataría quién va a ganar.
-  const loadedAtStart = useRef(new Set<string>());
-  const requested = useRef(new Set<string>()); // fotos ya pedidas (aunque aún no lleguen)
+  const spinPhotos = useRef(new Map<string, HTMLCanvasElement>());
+  const [photoProgress, setPhotoProgress] = useState<{ ready: number; total: number } | null>(null);
+  const [photoNotice, setPhotoNotice] = useState<string | null>(null);
   const [spinning, setSpinning] = useState(false);
   const [current, setCurrent] = useState<WheelParticipant | null>(null);
   const [winner, setWinner] = useState<WheelParticipant | null>(null);
@@ -186,7 +184,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const showNumbers = n <= 400; // con más, la ruleta queda como disco de colores y el recuadro muestra a quién señala
   // Con muchas personas el puntero pasa por cientos por segundo: mientras gira, el recuadro no descarga fotos
   // (se trabaría la TV y la red); solo pasan números e iniciales y la foto del ganador aparece al detenerse.
-  const lightSpin = n > 400;
+
 
   const pad = (num: number) => String(num).padStart(digits, "0");
   // En la TV se muestra la cédula; el número de rifa queda solo si el inscrito no tiene cédula guardada.
@@ -295,12 +293,6 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     ctx.drawImage(s.hub, 0, 0);
     ctx.save(); ctx.translate(c, c); ctx.rotate(r * .25); ctx.drawImage(s.star, -STAR / 2, -STAR / 2); ctx.restore();
   }, [renderDisc, n, seg]);
-
-  // Con hasta 200 personas todas las fotos se descargan al abrir: así durante el giro el recuadro muestra
-  // las caras (no solo iniciales) y la del ganador no es distinta a las demás.
-  useEffect(() => {
-    if (n <= 200) participants.forEach((p) => { if (p.photoUrl) preload(p.photoUrl); });
-  }, [participants, n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showPhotos) return;
@@ -464,10 +456,12 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     // Si el ganador anterior sigue en pantalla (el cartel aún no sale) no se gira: así nunca queda pegado.
     if (busy.current || spinning || winner || !n || (mirror && !mirrored)) return;
     busy.current = true;
-    loadedAtStart.current = new Set(loaded.current);
     clearTimeout(winTimer.current);
     sounds.unlock();
     setError(null);
+    setPhotoNotice(null);
+    setPhotoProgress({ ready: 0, total: 0 });
+    setCurrent(null);
     setWinner(null);
     setShowWin(false);
     setSpinning(true);
@@ -500,9 +494,6 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       }
       const idx = participants.findIndex((p) => p.id === winnerId);
       if (idx < 0) throw new Error("El ganador no está en la ruleta. Recarga la página.");
-      const winPhoto = participants[idx].photoUrl;
-      if (winPhoto) preload(winPhoto); // se descarga mientras gira para que salga al instante
-
       const start = rotation.current;
       // Ángulo final: centro del segmento ganador bajo el puntero (arriba), con un pequeño desvío aleatorio
       const jitter = (Math.random() - 0.5) * seg * 0.6;
@@ -510,8 +501,24 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       const minEnd = start + TAU * TURNS;
       target += Math.ceil((minEnd - target) / TAU) * TAU;
 
+      // La tarjeta tiene una secuencia fija de 100 ms, independiente de los cuadros que logre la TV.
+      // Se preparan TODOS sus retratos antes de animar; el sorteo y el ángulo final no se modifican.
+      const cardPlan = Array.from({ length: Math.ceil(SPIN_MS / CARD_INTERVAL_MS) + 1 }, (_, step) => {
+        const t = Math.min(1, step * CARD_INTERVAL_MS / SPIN_MS);
+        const wind = t < WIND_UP ? -.16 * Math.sin(Math.PI * t / WIND_UP) : 0;
+        return participants[indexAtPointer(start + (target - start) * spinProgress(t) + wind)];
+      });
+      cardPlan[cardPlan.length - 1] = participants[idx];
+      const result = await prepareSpinPhotos([participants[idx], ...cardPlan].flatMap((p) => p.photoUrl ? [p.photoUrl] : []),
+        (ready, total) => setPhotoProgress({ ready, total }));
+      spinPhotos.current = result.photos;
+      const missing = new Set(cardPlan.filter((p) => !p.photoUrl || !result.photos.has(p.photoUrl)).map((p) => p.id)).size;
+      if (missing) setPhotoNotice(`${missing} participante${missing === 1 ? "" : "s"} de la secuencia sin foto disponible; se mostrarán sus iniciales.`);
+      setPhotoProgress(null);
+      setCurrent(cardPlan[0]);
+
       const t0 = performance.now();
-      let lastIdx = -1, lastTick = 0, lastBlink = 0, lastShown = 0, lastPeg = -1;
+      let lastCard = -1, lastTick = 0, lastBlink = 0, lastPeg = -1;
       // El sonido sale de "clavos" fijos en el borde, como en una ruleta real: siempre los mismos (máx. 32)
       // aunque haya miles de personas. Así no suena como metralleta y los tics se espacian al frenar.
       const PEGS = Math.min(n, 32), pegArc = TAU / PEGS;
@@ -529,21 +536,11 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
             boxRef.current.style.setProperty("--glow", `${Math.min(1, speed / 2.5).toFixed(2)}`);
           }
           draw();
-          const i = indexAtPointer(rotation.current);
-          if (i !== lastIdx) {
-            lastIdx = i;
-            // El recuadro muestra a quien está bajo el puntero, sin cambiar en cada cuadro (trababa la TV):
-            // - Más de 400: cambia al ritmo de la ruleta, rápido al arrancar (máx. ~16 por segundo) y cada vez más
-            //   lento al frenar, igual que el sonido.
-            // - 400 o menos: el puntero pasa hasta ~60 personas por segundo al arrancar; se muestra como máximo una
-            //   cada 85 ms y al frenar se ven todas, una por una.
-            // En el último tramo (t > 0,985) siempre se actualiza, para terminar en la persona correcta.
-            const every = lightSpin ? Math.min(700, Math.max(60, 60 / Math.max(speed, .05))) : 85;
-            if (now - lastShown >= every || t > .985) {
-              // La entrada de la foto y el número dura según el ritmo: rápida al arrancar, suave al frenar.
-              cardRef.current?.style.setProperty("--flip", `${Math.round(Math.min(320, Math.max(70, (now - lastShown) * .8)))}ms`);
-              lastShown = now; setCurrent(participants[i]);
-            }
+          const card = Math.min(cardPlan.length - 1, Math.floor((now - t0) / CARD_INTERVAL_MS));
+          if (card !== lastCard) {
+            lastCard = card;
+            cardRef.current?.style.setProperty("--flip", "80ms");
+            setCurrent(cardPlan[card]);
           }
           const peg = Math.floor((((-Math.PI / 2 - rotation.current) % TAU) + TAU) % TAU / pegArc);
           if (peg !== lastPeg) {
@@ -571,6 +568,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       setError(e instanceof Error ? e.message : "Error");
     } finally {
       busy.current = false;
+      setPhotoProgress(null);
       setSpinning(false);
     }
   }
@@ -587,29 +585,21 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     }
   }
 
-  // Cada foto se pide una sola vez (antes, mientras giraba, se volvía a pedir cada vez que pasaba por el puntero).
-  function preload(url: string) {
-    if (loaded.current.has(url) || requested.current.has(url)) return;
-    requested.current.add(url);
-    const img = new Image();
-    img.onload = () => { if (img.naturalWidth) loaded.current.add(url); };
-    img.src = url;
-  }
-
   // Si una foto no carga (enlace vencido o red lenta) se muestran las iniciales, nunca el texto alternativo gigante.
   const [badPhotos, setBadPhotos] = useState<Set<string>>(() => new Set());
   const markBad = (u: string) => setBadPhotos((s) => (s.has(u) ? s : new Set(s).add(u)));
-  // Mientras gira solo se pinta una foto ya descargada (si no, iniciales) y cada foto es un <img> nuevo (key):
-  // así el número y la foto siempre son de la misma persona y nunca queda pegada la foto anterior.
+  // La tarjeta pinta retratos preparados; nombre y foto cambian juntos sin esperar a un <img> nuevo.
   const face = (p: WheelParticipant | null, size: number, font: string, stack = false) => {
     const fallback = <div className="xmas-initials" style={{ width: size, height: size, fontSize: font }}>{p ? initials(p.name) : "🎁"}</div>;
     const url = p?.photoUrl;
-    if (!url || badPhotos.has(url) || (spinning && !loadedAtStart.current.has(url) && (preload(url), true))) return fallback;
-    // Mientras gira la foto ya está descargada: se pinta visible de una vez ("ok"). Antes entraba con un fundido
-    // de 0,15 s, pero el recuadro cambia de persona cada 85 ms, así que el fundido nunca terminaba y en las
-    // vueltas solo se veían las iniciales.
+    const prepared = url ? spinPhotos.current.get(url) : undefined;
+    if (prepared) return <canvas key={url} width={192} height={192} role="img" aria-label={p?.name ? `Foto de ${p.name}` : "Foto"}
+      style={{ width: size, height: size, borderRadius: "50%" }}
+      ref={(el) => { if (el) el.getContext("2d")?.drawImage(prepared, 0, 0); }} />;
+    if (!url || badPhotos.has(url) || (spinning && stack)) return fallback;
+    // Historial y fotos fuera de la secuencia conservan el renderizado habitual con fallback.
     const img = <img key={url} src={url} alt="" className={spinning ? "ok" : undefined} style={{ width: size, height: size }} onError={() => markBad(url)}
-      onLoad={(e) => { loaded.current.add(url); e.currentTarget.classList.add("ok"); }}
+      onLoad={(e) => { e.currentTarget.classList.add("ok"); }}
       // Una foto que falló antes de que la página terminara de cargar no dispara onError: se revisa al montarla.
       ref={(el) => { if (!el?.complete) return; if (el.naturalWidth) el.classList.add("ok"); else markBad(url); }} />;
     // Recuadro y cartel de ganador: las iniciales quedan debajo y la foto aparece encima solo cuando ya cargó,
@@ -672,7 +662,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
 
   // Quieta y sin ganador (al empezar y entre giros) la tarjeta no muestra a nadie: así nadie cree que ya hay un ganador.
   const idle = !winner && !spinning;
-  const shown = idle ? null : winner ?? (lightSpin && current ? { ...current, photoUrl: null } : current);
+  const shown = idle ? null : winner ?? current;
 
   return (
     <div className="stage" ref={stageRef}>
@@ -693,7 +683,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       </div>
 
       <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
-        <div className={`xmas-label${idle ? " is-ref" : ""}`}>{winner ? "🎉 ¡Ganador!" : spinning ? "🎶 Girando…" : "🎄 ¡Listos para el sorteo!"}</div>
+        <div className={`xmas-label${idle ? " is-ref" : ""}`}>{winner ? "🎉 ¡Ganador!" : photoProgress ? "Preparando fotos…" : spinning ? "🎶 Girando…" : "🎄 ¡Listos para el sorteo!"}</div>
         <div className="xmas-face" key={`f-${shown?.id}`}>{face(shown, 150, "3.2rem", true)}</div>
         <div className="num" key={`n-${shown?.id}`}><span className="num-ced">{shown ? label(shown) : idle ? "\u00a0" : "—"}</span></div>
         {/* Nombre y grado ocupan siempre el mismo alto: la tarjeta no salta mientras gira. */}
@@ -701,8 +691,10 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
         <div className="xmas-rank">{shown ? shown.rank || "Civil" : "\u00a0"}</div>
         <p className="xmas-count">{n} en la ruleta{history.length ? ` · ${history.length} ${history.length === 1 ? "ganador" : "ganadores"}` : ""}</p>
         <button className="btn xmas-btn" onClick={() => spin()} disabled={spinning || (!!winner && !showWin)}>
-          {spinning ? "Girando…" : "🎁 Girar ruleta"}
+          {photoProgress ? "Preparando fotos…" : spinning ? "Girando…" : "🎁 Girar ruleta"}
         </button>
+        {photoProgress && <p className="small" role="status">{photoProgress.total ? `${photoProgress.ready} / ${photoProgress.total} fotos revisadas` : "Consultando el sorteo…"}</p>}
+        {photoNotice && <p className="small" role="status">{photoNotice}</p>}
         <p className="key-hint"><kbd>Espacio</kbd> girar · <kbd>F</kbd> pantalla completa</p>
         {error && <p className="error">{error}</p>}
       </aside>

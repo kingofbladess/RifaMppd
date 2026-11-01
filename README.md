@@ -97,6 +97,14 @@ cédula terminada en **0** = no encontrada, en número **par** = con foto, **imp
   desactivado ya no puede guardar registros.
 - **Sorteo:** `POST /api/draw` elige con `crypto.randomInt` entre quienes no han ganado y lo guarda en `draws`.
 
+### Fotos durante el giro
+
+La tarjeta prepara antes de animar únicamente los retratos de su secuencia visual (hasta 101 posiciones en un giro de 10 segundos), también con más de 400 inscritos. Descarga hasta cuatro fotos a la vez, reintenta una vez y conserva versiones decodificadas de 192 × 192 px en memoria. Durante el giro no necesita descargar las fotos de la tarjeta; la secuencia y el ganador mantienen sus datos correspondientes.
+
+La pantalla muestra el progreso de preparación, con un máximo de 20 segundos de espera para las fotos. Si una foto falta o sigue sin responder, informa y muestra las iniciales de esa persona, sin excluirla ni cambiar el ganador. No requiere cambios de base de datos ni de configuración.
+
+Pruebas del cargador (Node con soporte TypeScript): `node --test tests/spin-photos.test.mjs`.
+
 ## Privacidad y seguridad
 
 - RLS activado sin políticas: la clave pública no puede leer nada. Solo el servidor (clave secreta) accede.
