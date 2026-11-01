@@ -2,7 +2,7 @@ import "server-only";
 import { supabaseAdmin, BUCKET_PHOTOS } from "./supabase";
 import type { WheelParticipant } from "@/components/Wheel";
 import { isNetErr, readLocal, saveLocal } from "./local-cache";
-import { getInvitados, gradoEfectivo } from "./invitados";
+import { getInvitados, gradoEfectivo, saleEnRuleta } from "./invitados";
 import { esMilitar } from "./grados";
 
 // Supabase devuelve como máximo 1000 filas por consulta: esto pide página por página hasta traerlas todas.
@@ -72,7 +72,7 @@ export async function getWheelParticipants(): Promise<{ participants: WheelParti
   const raffle = await getActiveRaffle();
   if (!raffle) return { participants: [], winners: [] };
   const sb = supabaseAdmin();
-  const [data, draws, { invitados }] = await Promise.all([
+  const [data, draws, listas] = await Promise.all([
     fetchAll<{ id: string; full_name: string; raffle_number: number; rank: string | null; photo_path: string; document_number: string }>((from, to) =>
       sb.from("participants").select("id, full_name, raffle_number, rank, photo_path, document_number")
         .eq("raffle_id", raffle.id).order("raffle_number").range(from, to)),
@@ -86,14 +86,14 @@ export async function getWheelParticipants(): Promise<{ participants: WheelParti
   const urlByPath = await signPhotos(data.map((p) => p.photo_path), 12 * 60 * 60);
   const all = new Map(data.map((p) => [p.id, {
     id: p.id, name: p.full_name, number: p.raffle_number,
-    rank: gradoEfectivo(p.rank, invitados?.get(p.document_number), esMilitar),
+    rank: gradoEfectivo(p.rank, listas.invitados?.get(p.document_number), esMilitar),
     photoUrl: urlByPath.get(p.photo_path) ?? null,
   }]));
   const won = new Set(draws.map((d) => d.participant_id));
-  // Con lista de invitados cargada, en la ruleta solo quedan los inscritos que están en ella.
-  const enLista = invitados ? new Set(data.filter((p) => invitados.has(p.document_number)).map((p) => p.id)) : null;
+  // En la ruleta quedan los inscritos que no están excluidos y, con lista de invitados cargada, que estén en ella.
+  const enLista = new Set(data.filter((p) => saleEnRuleta(listas, p.document_number)).map((p) => p.id));
   return {
-    participants: [...all.values()].filter((p) => !won.has(p.id) && (!enLista || enLista.has(p.id))),
+    participants: [...all.values()].filter((p) => !won.has(p.id) && enLista.has(p.id)),
     winners: [...new Set(draws.map((d) => d.participant_id))].map((id) => all.get(id)).filter((p): p is WheelParticipant => !!p),
   };
 }

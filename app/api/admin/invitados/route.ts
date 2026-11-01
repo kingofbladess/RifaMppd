@@ -2,7 +2,7 @@ import { seeOther } from "@/lib/redirect";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getActiveRaffle } from "@/lib/participants";
 import { leerListaInvitados } from "@/lib/lista-invitados";
-import { olvidarInvitados } from "@/lib/invitados";
+import { olvidarInvitados, sinTabla, type TablaLista } from "@/lib/invitados";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,25 +10,27 @@ export const maxDuration = 60;
 const MAX_BYTES = 10 * 1024 * 1024;
 const CHUNK = 1000;
 
-// Solo admin (middleware protege /api/admin). Sube la lista de invitados (Excel .xlsx o CSV) y reemplaza la
-// anterior de la rifa activa; con action=clear la borra (vuelven a salir todos los inscritos en la ruleta).
+// Solo admin (middleware protege /api/admin). Sube la lista de invitados o la de excluidos (lista=excluidos),
+// en Excel .xlsx o CSV, y reemplaza la anterior de la rifa activa; con action=clear la borra.
 export async function POST(req: Request) {
-  const back = (params: Record<string, string | number>) =>
-    seeOther(`/admin?${new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))}`);
   const form = await req.formData().catch(() => null);
+  const cual = form?.get("lista") === "excluidos" ? "excluidos" : "invitados";
+  const tabla: TablaLista = cual === "excluidos" ? "excluded_guests" : "guests";
+  const back = (params: Record<string, string | number>) =>
+    seeOther(`/admin?${new URLSearchParams(Object.entries({ ...params, lista: cual }).map(([k, v]) => [k, String(v)]))}`);
   if (!form) return back({ inv: "error", msg: "No llegó el archivo" });
   const raffle = await getActiveRaffle();
   if (!raffle) return back({ inv: "error", msg: "No hay una rifa activa" });
   const sb = supabaseAdmin();
   const falla = (e: { message?: string; code?: string }) => back({
     inv: "error",
-    msg: ["42P01", "PGRST205"].includes(e.code ?? "")
-      ? "Falta crear la tabla de invitados en Supabase (corre el SQL de la actualización)"
+    msg: sinTabla(e)
+      ? "Falta crear las tablas de invitados/excluidos en Supabase (corre el SQL de la actualización)"
       : e.message ?? "Error al guardar",
   });
 
   if (form.get("action") === "clear") {
-    const { error } = await sb.from("guests").delete().eq("raffle_id", raffle.id);
+    const { error } = await sb.from(tabla).delete().eq("raffle_id", raffle.id);
     olvidarInvitados();
     return error ? falla(error) : back({ inv: "borrada" });
   }
@@ -46,12 +48,12 @@ export async function POST(req: Request) {
   if (!lectura.invitados.length) return back({ inv: "error", msg: "No se encontró ninguna cédula en el archivo (revisa que tenga una columna de cédula)" });
 
   // Se reemplaza la lista completa: primero se borra la anterior y luego se guarda la nueva por tandas.
-  const del = await sb.from("guests").delete().eq("raffle_id", raffle.id);
+  const del = await sb.from(tabla).delete().eq("raffle_id", raffle.id);
   if (del.error) return falla(del.error);
   for (let i = 0; i < lectura.invitados.length; i += CHUNK) {
     const rows = lectura.invitados.slice(i, i + CHUNK)
       .map((g) => ({ raffle_id: raffle.id, document_number: g.doc, full_name: g.name, rank: g.rank }));
-    const { error } = await sb.from("guests").insert(rows);
+    const { error } = await sb.from(tabla).insert(rows);
     if (error) { olvidarInvitados(); return falla(error); }
   }
   olvidarInvitados();

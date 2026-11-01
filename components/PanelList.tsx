@@ -8,7 +8,7 @@ export type PanelRow = {
   doc: string; phone: string | null; birthDate: string | null;
   photoUrl: string | null; hasIdDoc: boolean; photoSource: string | null;
   by: string | null; createdAt: string;
-  fuera?: boolean; // hay lista de invitados y esta cédula no está: no sale en la ruleta
+  fuera?: "no-invitado" | "excluido"; // no sale en la ruleta: no está en la lista de invitados, o está excluido
 };
 
 // Lista de inscritos: tabla en PC, tarjetas en celular. El buscador consulta en el servidor
@@ -69,7 +69,9 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
     return Number.isFinite(a) ? a : null;
   };
   // Mismo criterio que la ruleta: un grado escrito que no está en la lista sortea como civil (se marca para corregirlo).
-  const fueraBadge = (r: PanelRow) => r.fuera ? <span className="badge warn" title="No está en la lista de invitados: no sale en la ruleta">Fuera de lista</span> : null;
+  const fueraBadge = (r: PanelRow) => r.fuera === "excluido"
+    ? <span className="badge warn" title="Está en la lista de excluidos: no sale en la ruleta">Excluido</span>
+    : r.fuera ? <span className="badge warn" title="No está en la lista de invitados: no sale en la ruleta">Fuera de lista</span> : null;
   const tipo = (r: PanelRow) => esMilitar(r.rank) ? <span className="badge on">Militar</span>
     : r.rank?.trim() ? <span className="badge warn" title="Grado no reconocido: en la ruleta sortea como civil">Civil ⚠️</span>
     : <span className="badge">Civil</span>;

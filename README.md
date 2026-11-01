@@ -58,9 +58,11 @@ reemplaza la anterior.
 - Con lista cargada, en la ruleta (y en el sorteo) solo salen los inscritos cuya cédula está en la lista.
 - Quien no está se puede registrar igual: el operador ve "No está en la lista de invitados" y en el panel queda marcado
   **Fuera de lista** (botón para verlos todos). Si luego se agrega a la lista, entra a la ruleta sin registrarlo otra vez.
+- **Lista de excluidos** (mismo formato, en el mismo recuadro del panel): esas cédulas nunca salen en la ruleta,
+  aunque estén registradas o en la lista de invitados. El operador ve "Excluido de la ruleta" y el panel lo marca.
 - La regla por grado no cambia; si el registro no trae un grado reconocido se usa el grado de la lista.
 - Sin lista (o con **Quitar lista**) salen todos los inscritos, como antes. Las personas de prueba no están en la lista.
-- Requiere la tabla `guests` (está en `supabase/schema.sql`).
+- Requiere las tablas `guests` y `excluded_guests` (están en `supabase/schema.sql`).
 
 ## Conectar la API de personas
 

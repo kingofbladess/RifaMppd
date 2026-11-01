@@ -5,7 +5,7 @@ import { getActiveRaffle, fetchAll } from "@/lib/participants";
 import { readWheelState } from "@/lib/wheel-state";
 import { getSession } from "@/lib/auth";
 import { elegirGanador, esMilitar } from "@/lib/grados";
-import { getInvitados, gradoEfectivo } from "@/lib/invitados";
+import { getInvitados, gradoEfectivo, saleEnRuleta, type Listas } from "@/lib/invitados";
 
 export const runtime = "nodejs";
 
@@ -61,9 +61,9 @@ async function drawWinner(req: Request) {
   const sb = supabaseAdmin();
 
   let participants: { id: string; rank: string | null; document_number: string }[], prev: { participant_id: string }[];
-  let invitados: Awaited<ReturnType<typeof getInvitados>>["invitados"];
+  let listas: Listas;
   try {
-    [participants, prev, { invitados }] = await Promise.all([
+    [participants, prev, listas] = await Promise.all([
       fetchAll<{ id: string; rank: string | null; document_number: string }>((from, to) => sb.from("participants").select("id, rank, document_number").eq("raffle_id", raffle.id).order("id").range(from, to)),
       fetchAll<{ participant_id: string }>((from, to) => sb.from("draws").select("participant_id").eq("raffle_id", raffle.id).order("id").range(from, to)),
       getInvitados(raffle.id),
@@ -73,11 +73,11 @@ async function drawWinner(req: Request) {
   }
 
   const won = new Set(prev.map((d) => d.participant_id));
-  // Con lista de invitados cargada solo sortean los inscritos que están en ella (y con el grado de la lista
-  // si el registro no trae uno reconocido), igual que lo que muestra la ruleta.
+  // Solo sortean los no excluidos y, con lista de invitados cargada, los que están en ella (con el grado de la
+  // lista si el registro no trae uno reconocido), igual que lo que muestra la ruleta.
   const pool = participants
-    .filter((p) => !won.has(p.id) && (!onScreen || onScreen.has(p.id)) && (!invitados || invitados.has(p.document_number)))
-    .map((p) => ({ id: p.id, rank: gradoEfectivo(p.rank, invitados?.get(p.document_number), esMilitar) }));
+    .filter((p) => !won.has(p.id) && (!onScreen || onScreen.has(p.id)) && saleEnRuleta(listas, p.document_number))
+    .map((p) => ({ id: p.id, rank: gradoEfectivo(p.rank, listas.invitados?.get(p.document_number), esMilitar) }));
   if (!pool.length) return NextResponse.json({ error: onScreen?.size ? "Las personas de esta ruleta ya no están disponibles. Recarga la página." : "No quedan participantes sin premio" }, { status: 409 });
 
   // Si dos pantallas sortean a la vez y sale la misma persona, la base lo rechaza (índice único) y se elige otra.

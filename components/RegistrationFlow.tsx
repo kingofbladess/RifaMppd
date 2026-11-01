@@ -13,7 +13,7 @@ type Person = {
 type Lookup = {
   found: boolean; source: "api" | "demo"; person: Person | null; photo: string | null; photoDate: string | null;
   apiError?: string; photoPending?: boolean;
-  invited?: boolean | null; // ¿en la lista de invitados? null = no hay lista cargada
+  invited?: boolean | "excluido" | null; // ¿en la lista de invitados? null = no hay lista cargada
   existing: { raffle_number: number; full_name: string; registered_by_name: string | null } | null;
 };
 type Saved = { number: number; name: string; photo: string | null };
@@ -293,6 +293,12 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
         <div className="card error-card">⚠️ Esta cédula ya está en la cola de pendientes de este teléfono (se enviará sola).</div>
       )}
 
+      {lookup && !lookup.existing && lookup.invited === "excluido" && (
+        <div className="card warn-card">
+          ⚠️ <strong>Esta persona está en la lista de excluidos.</strong> Puedes registrarla, pero no saldrá en la ruleta.
+        </div>
+      )}
+
       {lookup && !lookup.existing && lookup.invited === false && (
         <div className="card warn-card">
           ⚠️ <strong>No está en la lista de invitados.</strong> Puedes registrarlo, pero no saldrá en la ruleta.
@@ -322,6 +328,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
                   : <span className="badge">Civil</span>)}
                 {lookup.invited === true && <span className="badge on">✓ Invitado</span>}
                 {lookup.invited === false && <span className="badge warn">No invitado</span>}
+                {lookup.invited === "excluido" && <span className="badge warn">Excluido de la ruleta</span>}
                 {lookup.source === "demo" && <span className="badge">Demo</span>}
               </div>
               <input className="name-input" aria-label="Nombre completo" placeholder="Nombre completo" value={fields.full_name}

@@ -13,9 +13,11 @@ const existingFor = (doc: string) => getActiveRaffle().then((raffle) => raffle
       .eq("raffle_id", raffle.id).eq("document_number", doc).maybeSingle().then((r) => r.data)
   : null).catch(() => null);
 
-// ¿Está en la lista de invitados? null = no hay lista cargada (salen todos). Sin internet usa la copia de la laptop.
-const invitedFor = (doc: string) => getActiveRaffleOrCached().then(({ raffle }) => raffle ? getInvitados(raffle.id) : null)
-  .then((r) => (r?.invitados ? r.invitados.has(doc) : null)).catch(() => null);
+// ¿Sale en la ruleta? "excluido" (lista de excluidos), true/false según la lista de invitados, o null si no hay
+// lista cargada (salen todos). Sin internet usa la copia de la laptop.
+const invitedFor = (doc: string): Promise<boolean | "excluido" | null> =>
+  getActiveRaffleOrCached().then(({ raffle }) => raffle ? getInvitados(raffle.id) : null)
+    .then((l) => (!l ? null : l.excluidos.has(doc) ? "excluido" : l.invitados ? l.invitados.has(doc) : null)).catch(() => null);
 
 export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
