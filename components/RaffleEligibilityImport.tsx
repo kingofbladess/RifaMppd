@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { registerImportedList, type ImportRegistration } from "@/lib/register-imported-list";
 import { normalizeRaffleDocument } from "@/lib/raffle-eligibility";
 import { parseRaffleCsv, reviewRaffleColumn } from "@/lib/raffle-import";
 
@@ -10,7 +11,7 @@ type Sheet = { sheet: string; data: unknown[][] };
 export default function RaffleEligibilityImport({ raffleId, savedDocuments, registered, disabled }: {
   raffleId: string; savedDocuments: string[]; registered: Registered[]; disabled: boolean;
 }) {
-  const [manual, setManual] = useState(savedDocuments.join("\n"));
+  const [manual, setManual] = useState("");
   const [sheets, setSheets] = useState<Sheet[]>([]);
   const [sheet, setSheet] = useState(0);
   const [column, setColumn] = useState(0);
@@ -18,12 +19,20 @@ export default function RaffleEligibilityImport({ raffleId, savedDocuments, regi
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const sequence = useRef(0);
+  const [registering, setRegistering] = useState(false);
+  const [results, setResults] = useState<ImportRegistration[]>([]);
+  const [saved, setSaved] = useState(false);
+  const [processTotal, setProcessTotal] = useState(0);
+  const [nat, setNat] = useState<"V" | "E">("V");
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => () => controller.current?.abort(), []);
   const rows = sheets[sheet]?.data;
   const review = useMemo(() => reviewRaffleColumn(rows ?? manual.split(/[\r\n,;]+/).map((v) => [v]), rows ? column : 0, rows ? header : false), [rows, manual, column, header]);
-  const selected = new Set(review.documents);
+  const completeDocuments = [...new Set([...savedDocuments, ...review.documents])];
+  const selected = new Set(completeDocuments);
   const matched = registered.filter((p) => selected.has(normalizeRaffleDocument(p.document_number) ?? ""));
   const registeredDocs = new Set(registered.map((p) => normalizeRaffleDocument(p.document_number)));
-  const absent = review.documents.filter((doc) => !registeredDocs.has(doc));
+  const absent = completeDocuments.filter((doc) => !registeredDocs.has(doc));
   const outside = registered.filter((p) => !selected.has(normalizeRaffleDocument(p.document_number) ?? ""));
   const maxColumns = rows ? Math.max(0, ...rows.slice(0, 100).map((row) => row.length)) : 0;
 
@@ -54,8 +63,37 @@ export default function RaffleEligibilityImport({ raffleId, savedDocuments, regi
     finally { if (sequence.current === id) setLoading(false); }
   }
 
-  return <form className="card" method="post" action="/api/admin/eligibility" style={{ marginTop: 16 }}>
-    <h2>Importar y cruzar la lista</h2>
+  async function saveAndRegister(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (controller.current || disabled) return;
+    const form = new FormData(event.currentTarget);
+    const abort = new AbortController();
+    controller.current = abort;
+    setRegistering(true); setError(""); setResults([]); setSaved(false); setProcessTotal(completeDocuments.length);
+    try {
+      const response = await fetch("/api/admin/eligibility", { method: "POST", body: form,
+        headers: { Accept: "application/json" }, signal: abort.signal });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "No se pudo guardar la lista");
+      setSaved(true);
+      await registerImportedList(completeDocuments, raffleId, nat, abort.signal, setResults);
+    } catch (e) {
+      setError(abort.signal.aborted ? "Proceso detenido. Los registros confirmados se conservan y puedes reintentar sin duplicarlos." : (e as Error).message);
+    } finally { controller.current = null; setRegistering(false); }
+  }
+
+  async function completeSaved() {
+    if (controller.current || disabled || !savedDocuments.length) return;
+    const abort = new AbortController(); controller.current = abort;
+    setRegistering(true); setError(""); setResults([]); setSaved(true); setProcessTotal(savedDocuments.length);
+    try { await registerImportedList(savedDocuments, raffleId, nat, abort.signal, setResults); }
+    finally { controller.current = null; setRegistering(false); }
+  }
+
+  return <form className="card" method="post" action="/api/admin/eligibility" onSubmit={saveAndRegister} style={{ marginTop: 16 }}>
+    <h2>Importar y registrar participantes</h2>
+    <p>Al guardar se añaden las cédulas a la lista y se registran automáticamente las personas nuevas consultando Infopress/API. Quienes ya están registrados no se duplican.</p>
+    <fieldset disabled={registering} style={{ border: 0, padding: 0, margin: 0 }}>
     <label htmlFor="roster-file">Archivo Excel (.xlsx) o CSV</label>
     <input id="roster-file" type="file" accept=".xlsx,.csv" disabled={loading} onChange={(e) => void importFile(e.target.files?.[0])}/>
     {loading && <p role="status">Leyendo archivo…</p>}
@@ -73,18 +111,29 @@ export default function RaffleEligibilityImport({ raffleId, savedDocuments, regi
       <label htmlFor="manual-documents">Entrada manual (una cédula por línea, sin nombres)</label>
       <textarea id="manual-documents" rows={12} maxLength={250000} value={manual} onChange={(e) => { setManual(e.target.value); setError(""); }} style={{ width: "100%" }}/>
     </>}
+    <label htmlFor="import-nationality">Nacionalidad para las consultas de personas nuevas</label>
+    <select id="import-nationality" value={nat} onChange={(e) => setNat(e.target.value as "V" | "E")}><option value="V">Venezolana (V)</option><option value="E">Extranjera (E)</option></select>
+    <input type="hidden" name="mode" value="append"/>
     <input type="hidden" name="raffle_id" value={raffleId}/>
     <input type="hidden" name="documents" value={review.documents.join("\n")}/>
     <p role="status">{review.documents.length} cédulas únicas · {review.duplicates} duplicadas · {review.invalid.length} inválidas.</p>
     {review.invalid.length > 0 && <p className="error">Revisa las filas {review.invalid.slice(0, 20).join(", ")}{review.invalid.length > 20 ? "…" : ""}. No se puede guardar mientras haya cédulas inválidas.</p>}
-    {review.documents.length > 10000 && <p className="error">La lista admite hasta 10000 cédulas.</p>}
+    <p className="small">La lista actual conserva sus {savedDocuments.length} integrantes y quedará con {completeDocuments.length} cédulas únicas después de añadir.</p>
+    {completeDocuments.length > 10000 && <p className="error">La lista admite hasta 10000 cédulas.</p>}
     <h3>Cruce con los asistentes registrados</h3>
     <p>{matched.length} registrados en la lista · {absent.length} de la lista aún sin registrar · {outside.length} asistentes fuera de la lista.</p>
     <details><summary>En la lista y registrados ({matched.length})</summary><ul>{matched.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
     <details><summary>En la lista, pendientes por registrar ({absent.length})</summary><p style={{ overflowWrap: "anywhere" }}>{absent.join(", ")}</p></details>
     <details><summary>Registrados fuera de la lista ({outside.length})</summary><ul>{outside.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
     <p className="small">El cruce se hace por cédula, no por similitud de nombres. Los nuevos registros se cruzan automáticamente con la lista guardada al sortear.</p>
-    <p className="small">Guardar reemplaza la lista completa de esta rifa. No elimina asistentes ni cambia ganadores anteriores.</p>
-    <button className="btn" type="submit" disabled={disabled || loading || !!error || review.invalid.length > 0 || review.documents.length === 0 || review.documents.length > 10000}>Guardar lista revisada</button>
+    <p className="small">Las cédulas nuevas se añaden a la lista existente. Las repetidas se omiten; ningún integrante se elimina.</p>
+    <button className="btn" type="submit" disabled={disabled || loading || !!error || review.invalid.length > 0 || review.documents.length === 0 || completeDocuments.length > 10000}>Guardar lista y registrar personas</button>
+    {savedDocuments.length > 0 && <button className="btn secondary" type="button" disabled={disabled || loading} onClick={() => void completeSaved()}>Completar registros de la lista guardada</button>}
+    </fieldset>
+    {registering && <p role="status">Registrando: {results.length} de {processTotal} cédulas revisadas. Mantén esta pantalla abierta.</p>}
+    {registering && <button className="btn secondary" type="button" onClick={() => controller.current?.abort()}>Detener proceso</button>}
+    {saved && !registering && <p role="status">Lista guardada. {results.filter((r) => r.status === "registered").length} registros nuevos · {results.filter((r) => r.status === "existing").length} ya registrados · {results.filter((r) => r.status === "error").length} casos sin completar{results.length < processTotal ? ` · ${processTotal - results.length} sin procesar` : ""}.</p>}
+    {results.some((r) => r.status === "error") && <details open><summary>Casos que requieren revisión</summary><ul>{results.filter((r) => r.status === "error").map((r) => <li key={r.doc}>{r.doc}: {r.error}</li>)}</ul></details>}
+    {saved && !registering && <a className="btn secondary" href="/admin/rifa">Ver lista y registros actualizados</a>}
   </form>;
 }
