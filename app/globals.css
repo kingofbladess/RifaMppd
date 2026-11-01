@@ -691,6 +691,8 @@ html[data-presenter][data-idle] .xmas-page, html[data-presenter][data-idle] .xma
 .face-stack { position: relative; display: inline-block; vertical-align: top; line-height: 0; }
 .face-stack > img { position: absolute; inset: 0; opacity: 0; transition: opacity .15s; }
 .face-stack > img.ok { opacity: 1; }
+/* Girando: sin fundido (cada persona dura 85 ms en el recuadro y el fundido no alcanzaba a mostrar la foto). */
+.is-spinning .face-stack > img { transition: none; }
 .face-stack > .xmas-initials { line-height: normal; }
 
 /* Pantalla espejo (TV): sin botones ni ayudas; Salir/pantalla completa aparecen solo al pasar el mouse */
