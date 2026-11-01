@@ -1,6 +1,7 @@
 import "server-only";
 import { supabaseAdmin, BUCKET_PHOTOS } from "./supabase";
 import type { WheelParticipant } from "@/components/Wheel";
+import { formatCedula } from "./cedula";
 import { isNetErr, readLocal, saveLocal } from "./local-cache";
 import { getInvitados, gradoEfectivo, saleEnRuleta } from "./invitados";
 import { esMilitar } from "./grados";
@@ -66,7 +67,7 @@ export async function getActiveRaffleOrCached(): Promise<{ raffle: Raffle | null
   }
 }
 
-// Participantes de la rifa activa con URL firmada (12 h) de su foto. Nunca expone el documento.
+// Participantes de la rifa activa con URL firmada (12 h) de su foto y la cédula ya formateada (la TV la muestra).
 // Los que ya ganaron salen de la ruleta y se devuelven aparte, en orden de sorteo (el más reciente primero).
 export async function getWheelParticipants(): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[] }> {
   const raffle = await getActiveRaffle();
@@ -88,6 +89,7 @@ export async function getWheelParticipants(): Promise<{ participants: WheelParti
     id: p.id, name: p.full_name, number: p.raffle_number,
     rank: gradoEfectivo(p.rank, listas.invitados?.get(p.document_number), esMilitar),
     photoUrl: urlByPath.get(p.photo_path) ?? null,
+    cedula: formatCedula(p.document_number),
   }]));
   const won = new Set(draws.map((d) => d.participant_id));
   // En la ruleta quedan los inscritos que no están excluidos y, con lista de invitados cargada, que estén en ella.

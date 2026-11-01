@@ -2,11 +2,13 @@ import "server-only";
 import { supabaseAdmin } from "./supabase";
 import { fetchAll } from "./participants";
 import { isNetErr, readLocal, saveLocal } from "./local-cache";
+import { EXCLUIDOS_FIJOS } from "./excluidos-fijos";
 
 // Dos listas por rifa, cruzadas por cédula:
 // - Invitados (guests): con lista cargada, solo los inscritos que están en ella salen en la ruleta.
 //   Sin lista (vacía) salen todos los inscritos, como antes.
-// - Excluidos (excluded_guests): nunca salen en la ruleta, aunque estén inscritos o en la lista de invitados.
+// - Excluidos (excluded_guests + EXCLUIDOS_FIJOS del código): nunca salen en la ruleta, aunque estén inscritos
+//   o en la lista de invitados.
 export type Invitados = Map<string, { name: string | null; rank: string | null }>;
 export type Listas = { invitados: Invitados | null; excluidos: Invitados; faltaTabla: boolean };
 type Fila = { document_number: string; full_name: string | null; rank: string | null };
@@ -43,7 +45,10 @@ export async function getInvitados(raffleId: string): Promise<Listas> {
   const [inv, exc] = await Promise.all([leer(raffleId, "guests"), leer(raffleId, "excluded_guests")]);
   const data: Listas = {
     invitados: inv.rows.length ? aMapa(inv.rows) : null,
-    excluidos: aMapa(exc.rows),
+    excluidos: new Map([
+      ...Object.entries(EXCLUIDOS_FIJOS).map(([doc, name]) => [doc, { name, rank: null }] as const),
+      ...aMapa(exc.rows),
+    ]),
     faltaTabla: inv.falta || exc.falta,
   };
   cache = { raffleId, at: Date.now(), data };

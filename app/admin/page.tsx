@@ -102,7 +102,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
     <main className="container wide tema">
       <div className="topbar panel-top">
         <div>
-          <h1>Panel · {raffle?.name ?? "Sin rifa activa"}</h1>
+          <h1>Sistema de control de asistencia</h1>
           <p className="sub only-desk" style={{ margin: 0 }}>
             {totalCount} inscritos{hayListas ? ` · ${enRuleta.length} en la ruleta · ${fueraCount} fuera de la ruleta` : ""}
             {" "}({militares} militares · {civiles} civiles{sinReconocer ? `, ${sinReconocer} con grado no reconocido` : ""}) · {total - totalCount} números disponibles
