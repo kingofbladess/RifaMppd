@@ -16,7 +16,11 @@ const FIRST = ["Ana", "Bruno", "Carla", "Diego", "Elena", "Fabián", "Gabriela",
 const LAST = ["Prueba", "Ejemplo", "Demo", "Muestra", "Ensayo", "Piloto", "Test", "Simulado", "Provisional", "Temporal",
   "Modelo", "Borrador", "Patrón", "Boceto", "Esbozo", "Maqueta", "Prototipo", "Plantilla", "Testigo", "Control",
   "Referencia", "Ficticio", "Inventado", "Supuesto", "Virtual"];
-const RANKS = ["Coordinador", "Analista", "Jefe de área", "Supervisor", "Asistente", "Técnico", "Director", "Operador"];
+// Mezcla de civiles (sin grado) y los grados de la regla de la ruleta (lib/grados.ts), para probarla.
+const RANKS = ["", "", "", "Mayor General", "General de División", "Vicealmirante", "General de Brigada", "Coronel",
+  "Capitán de Fragata", "Teniente Coronel", "Mayor", "Capitán", "Primer Teniente", "Teniente", "Sargento Supervisor",
+  "Sargento Ayudante", "Sargento Mayor de Primera", "Sargento Mayor de Segunda", "Sargento Mayor de Tercera",
+  "Sargento Primero", "Sargento Segundo"];
 // Nombre + dos apellidos: 20 × 25 × 25 combinaciones distintas.
 const nameFor = (i: number) => `${FIRST[i % 20]} ${LAST[Math.floor(i / 20) % 25]} ${LAST[Math.floor(i / 500) % 25]}`;
 
@@ -57,7 +61,7 @@ export async function POST(req: Request) {
       rows.push({
         raffle_id: raffle.id, raffle_number: free[rows.length], full_name: nameFor(i), document_type: "OTRO",
         document_number: doc, phone: "0000000000", birth_date: "1990-01-01", city: "Prueba",
-        photo_path: "temp/sin-foto.jpg", photo_source: "camera", rank: RANKS[i % RANKS.length],
+        photo_path: "temp/sin-foto.jpg", photo_source: "camera", rank: RANKS[i % RANKS.length] || null,
         registered_by_name: by, consent_at: now,
       });
     }

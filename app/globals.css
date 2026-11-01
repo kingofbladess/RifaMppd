@@ -251,6 +251,9 @@ body { padding-top: env(safe-area-inset-top); -webkit-tap-highlight-color: trans
 .demo-box { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; margin-top: 16px; }
 .demo-box .small { margin-right: auto; }
 .demo-box .btn { min-height: 0; padding: 8px 12px; font-size: .85rem; }
+.grados-box { margin-bottom: 12px; }
+.grados-box summary { cursor: pointer; margin-bottom: 6px; }
+.grados-box .op-badges { flex-wrap: wrap; margin-bottom: 8px; }
 .row-del { font: inherit; font-size: .8rem; padding: 4px 8px; border-radius: 8px; cursor: pointer; color: var(--err); background: transparent;
   border: 1px solid color-mix(in srgb, var(--err) 35%, var(--border)); white-space: nowrap; }
 .row-del:hover { background: color-mix(in srgb, var(--err) 8%, var(--surface)); }
