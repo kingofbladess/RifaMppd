@@ -51,15 +51,28 @@ export async function removeCadetDraws(cedula: string | null) {
   await writeStorageJson(GANADORES, { draws: cedula ? cur.filter((d) => d.cedula !== cedula) : [] } satisfies Ganadores);
 }
 
+// Cédulas de la lista de cadetes (y de los que ganaron en su ruleta): cada ruleta tiene sus propios
+// participantes, así que estas personas nunca salen ni ganan en la ruleta normal.
+export async function cedulasCadetes(): Promise<Set<string>> {
+  const [lista, ganados] = await Promise.all([readCadetes(), readCadetDraws()]);
+  return new Set([...(lista?.cadetes ?? []).map((c) => c.cedula), ...ganados]);
+}
+
 // Los cadetes se registran en la app como cualquier asistente (salen como civiles). La lista de cadetes
 // los reconoce por la cédula: en la ruleta de cadetes salen solo los REGISTRADOS que están en la lista.
-export type CadeteRegistrado = Cadete & { photo_path: string; full_name: string };
-export async function cadetesRegistrados(raffleId: string | null): Promise<{ lista: Cadete[]; registrados: CadeteRegistrado[] }> {
+export type CadeteRegistrado = Cadete & { participant_id: string; photo_path: string; full_name: string };
+export async function cadetesRegistrados(raffleId: string | null): Promise<{ lista: Cadete[]; registrados: CadeteRegistrado[]; ganaronNormal: Set<string> }> {
   const lista = (await readCadetes())?.cadetes ?? [];
-  if (!raffleId || !lista.length) return { lista, registrados: [] };
+  const ganaronNormal = new Set<string>(); // cédulas de cadetes que ya ganaron en la ruleta normal
+  if (!raffleId || !lista.length) return { lista, registrados: [], ganaronNormal };
   const sb = supabaseAdmin();
-  const inscritos = await fetchAll<{ document_number: string; photo_path: string; full_name: string; raffle_number: number }>((from, to) =>
-    sb.from("participants").select("document_number, photo_path, full_name, raffle_number").eq("raffle_id", raffleId).order("raffle_number").range(from, to));
+  // Sin cruce de ganadores: quien ya ganó en la ruleta normal (p. ej. antes de cargar la lista) no entra en la de cadetes.
+  const [inscritos, premiados] = await Promise.all([
+    fetchAll<{ id: string; document_number: string; photo_path: string; full_name: string; raffle_number: number }>((from, to) =>
+      sb.from("participants").select("id, document_number, photo_path, full_name, raffle_number").eq("raffle_id", raffleId).order("raffle_number").range(from, to)),
+    fetchAll<{ participant_id: string }>((from, to) => sb.from("draws").select("participant_id").eq("raffle_id", raffleId).order("id").range(from, to)),
+  ]);
+  const ganoNormal = new Set(premiados.map((d) => d.participant_id));
   const porCedula = new Map(lista.map((c) => [c.cedula, c]));
   const registrados: CadeteRegistrado[] = [];
   const vistos = new Set<string>();
@@ -67,10 +80,11 @@ export async function cadetesRegistrados(raffleId: string | null): Promise<{ lis
     const doc = normalizeRaffleDocument(p.document_number);
     const c = doc ? porCedula.get(doc) : undefined;
     if (!c || vistos.has(c.cedula)) continue;
+    if (ganoNormal.has(p.id)) { ganaronNormal.add(c.cedula); continue; }
     vistos.add(c.cedula);
-    registrados.push({ ...c, photo_path: p.photo_path, full_name: p.full_name });
+    registrados.push({ ...c, participant_id: p.id, photo_path: p.photo_path, full_name: p.full_name });
   }
-  return { lista, registrados };
+  return { lista, registrados, ganaronNormal };
 }
 
 // Ruleta de cadetes: los cadetes registrados que no han ganado, y los ganadores aparte (el más reciente primero).
