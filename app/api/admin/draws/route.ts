@@ -21,7 +21,7 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: (e as Error).message }, { status: 503 });
   }
   if (typeof body?.modo === "string" && body.modo !== modo)
-    return NextResponse.json({ error: "Cambió el modo de la ruleta (normal/cadetes). Recarga la página." }, { status: 409 });
+    return NextResponse.json({ error: "La lista de la ruleta cambió. Recarga la página." }, { status: 409 });
   if (cedula || (body?.all === true && modo === "cadetes")) {
     try {
       await removeCadetDraws(cedula);
