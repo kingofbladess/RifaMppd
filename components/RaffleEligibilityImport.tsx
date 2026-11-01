@@ -128,10 +128,11 @@ export default function RaffleEligibilityImport({ raffleId, savedDocuments, regi
     {completeDocuments.length > 10000 && <p className="error">La lista admite hasta 10000 cédulas.</p>}
     <h3>Cruce con los asistentes registrados</h3>
     <p>{matched.length} registrados en la lista · {absent.length} de la lista aún sin registrar · {outside.length} asistentes fuera de la lista.</p>
-    <p>{listOnly.length} registrados solo por lista, sin confirmación · {otherOrConfirmed.length} registrados por otra vía o confirmados por operador{unverified.length > 0 ? ` · ${unverified.length} con origen o confirmación sin verificar` : ""}.</p>
+    <p>✅ {listOnly.length + absent.length} solo lista, sin registro por otra vía · ✅✅ {otherOrConfirmed.length} en la lista y registrados por otra vía o confirmados por operador{unverified.length > 0 ? ` · ${unverified.length} con origen o confirmación sin verificar` : ""}.</p>
     <details><summary>En la lista y registrados ({matched.length})</summary><ul>{matched.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
-    <details><summary>Solo registrados por lista, sin confirmación ({listOnly.length})</summary><ul>{listOnly.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
-    <details><summary>En la lista, registrados por otra vía o confirmados ({otherOrConfirmed.length})</summary><ul>{otherOrConfirmed.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
+    <details><summary>✅ Solo lista, sin registro por otra vía ({listOnly.length + absent.length})</summary><ul>{listOnly.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}{absent.map((doc) => <li key={doc}>{doc} · Pendiente de registro</li>)}</ul></details>
+    <details><summary>✅✅ En la lista, registrados por otra vía o confirmados ({otherOrConfirmed.length})</summary><ul>{otherOrConfirmed.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
+    <p className="small">Las dos palometas también incluyen a quienes ya estaban registrados por otra vía antes de importar la lista.</p>
     {unverified.length > 0 && <details><summary>En la lista, origen o confirmación sin verificar ({unverified.length})</summary><p>No se pueden clasificar como registros sin confirmación hasta verificar su origen y las confirmaciones.</p><ul>{unverified.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>}
     <details><summary>En la lista, pendientes por registrar ({absent.length})</summary><p style={{ overflowWrap: "anywhere" }}>{absent.join(", ")}</p></details>
     <details><summary>Registrados fuera de la lista ({outside.length})</summary><ul>{outside.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
