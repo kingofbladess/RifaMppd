@@ -1,4 +1,4 @@
-import RaffleEligibilityImport from "@/components/RaffleEligibilityImport";
+import RaffleListManager from "@/components/RaffleListManager";
 import { getSession } from "@/lib/auth";
 import { getActiveRaffle, fetchAll } from "@/lib/participants";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -27,8 +27,8 @@ export default async function RaffleListPage({ searchParams }: { searchParams: P
   const absent = documents.filter((doc) => !registered.has(doc));
   const pool = eligibleRafflePool(participants, documents, new Set(draws.map((d) => d.participant_id)));
   const canWin = pool.filter((p) => { const g = gradoDe(p.rank); return !g || g.peso > 0; }).length;
-  return <main className="container tema">
-    <div className="topbar"><div><h1>Participantes de la rifa</h1><p>{raffle.name}</p></div><a className="btn secondary" href="/admin">Volver al panel</a></div>
+  return <main className="container wide tema">
+    <div className="topbar"><div><h1>Administración de la lista de la rifa</h1><p>{raffle.name}</p></div><a className="btn secondary" href="/admin">Volver al panel</a></div>
     <p>Esta lista limita quién puede ganar. Todos los asistentes siguen registrados y visibles en la pantalla pública. Se mantienen los pesos por grado y la exclusión de ganadores anteriores.</p>
     {(loadError || params.error) && <p className="error" role="alert">{loadError || params.error}</p>}
     {params.ok && <p role="status">Lista guardada. Se aplicará a los próximos sorteos.</p>}
@@ -38,7 +38,9 @@ export default async function RaffleListPage({ searchParams }: { searchParams: P
       {!list && <p className="error">El sorteo está bloqueado hasta cargar una lista válida.</p>}
       {list && <p className="small">Actualizada por {list.updated_by} · {list.updated_at}</p>}
     </div>
-    <RaffleEligibilityImport raffleId={raffle.id} savedDocuments={documents} registered={participants} disabled={!!loadError}/>
-    {absent.length > 0 && <details className="card" style={{ marginTop: 16 }}><summary>Cédulas de la lista aún sin registrar ({absent.length})</summary><p style={{ overflowWrap: "anywhere" }}>{absent.join(", ")}</p></details>}
+    <RaffleListManager raffleId={raffle.id} documents={documents} registered={participants.map((p) => ({ ...p,
+      drawStatus: draws.some((d) => d.participant_id === p.id) ? "winner" as const : gradoDe(p.rank)?.peso === 0 ? "excluded" as const : "available" as const,
+    }))} disabled={!!loadError}/>
+
   </main>;
 }
