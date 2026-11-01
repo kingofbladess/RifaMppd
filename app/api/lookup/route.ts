@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getActiveRaffle, getActiveRaffleOrCached } from "@/lib/participants";
+import { getActiveRaffle } from "@/lib/participants";
 import { lookupByQr, lookupPerson } from "@/lib/person-api";
-import { getInvitados } from "@/lib/invitados";
 
 export const runtime = "nodejs";
 export const maxDuration = 130; // Infopress puede tardar hasta ~2 minutos
@@ -13,12 +12,6 @@ const existingFor = (doc: string) => getActiveRaffle().then((raffle) => raffle
       .eq("raffle_id", raffle.id).eq("document_number", doc).maybeSingle().then((r) => r.data)
   : null).catch(() => null);
 
-// ¿Sale en la ruleta? "excluido" (lista de excluidos), true/false según la lista de invitados, o null si no hay
-// lista cargada (salen todos). Sin internet usa la copia de la laptop.
-const invitedFor = (doc: string): Promise<boolean | "excluido" | null> =>
-  getActiveRaffleOrCached().then(({ raffle }) => raffle ? getInvitados(raffle.id) : null)
-    .then((l) => (!l ? null : l.excluidos.has(doc) ? "excluido" : l.invitados ? l.invitados.has(doc) : null)).catch(() => null);
-
 export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
   // QR del carnet: Infopress resuelve la cédula a partir del código y devuelve los datos de la persona.
@@ -27,9 +20,9 @@ export async function GET(req: Request) {
     const t0 = Date.now();
     try {
       const { nat, doc, result } = await lookupByQr(qr.trim());
-      const [existing, invited] = await Promise.all([existingFor(doc), invitedFor(doc)]);
+      const existing = await existingFor(doc);
       console.log(`lookup QR: API ${((Date.now() - t0) / 1000).toFixed(1)} s`);
-      return NextResponse.json({ ...result, nat, doc, existing, invited });
+      return NextResponse.json({ ...result, nat, doc, existing });
     } catch (e) {
       const err = e as Error;
       const msg = err.name === "TimeoutError" || /fetch failed|ECONN|ENOTFOUND|EAI_AGAIN/i.test(err.message + String(err.cause ?? ""))
@@ -49,7 +42,8 @@ export async function GET(req: Request) {
   const lookupP = lookupPerson(doc, nat)
     .catch((e: Error) => ({ error: e.message }))
     .finally(() => { apiMs = Date.now() - t0; });
-  const [existing, invited, lookup] = await Promise.all([existingFor(doc), invitedFor(doc), lookupP]);
+  const existingP = existingFor(doc);
+  const [existing, lookup] = await Promise.all([existingP, lookupP]);
   // Tiempos en la terminal: muestra cuánto tardó la API externa y cuánto la app.
   console.log(`lookup ${nat}${doc.slice(0, 2)}***: API ${(apiMs / 1000).toFixed(1)} s, total ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 
@@ -58,8 +52,8 @@ export async function GET(req: Request) {
     return NextResponse.json({
       found: false, source: "api", person: null, photo: null, photoDate: null,
       apiError: `No se pudo consultar la API (${lookup.error}). Puedes registrar los datos manualmente.`,
-      existing, invited,
+      existing,
     });
   }
-  return NextResponse.json({ ...lookup, existing, invited });
+  return NextResponse.json({ ...lookup, existing });
 }

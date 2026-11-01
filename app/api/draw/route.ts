@@ -4,8 +4,9 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getActiveRaffle, fetchAll } from "@/lib/participants";
 import { readWheelState } from "@/lib/wheel-state";
 import { getSession } from "@/lib/auth";
-import { elegirGanador, esMilitar } from "@/lib/grados";
-import { getInvitados, gradoEfectivo, saleEnRuleta, type Listas } from "@/lib/invitados";
+import { readEligibilityList } from "@/lib/raffle-eligibility-store";
+import { eligibleRafflePool } from "@/lib/raffle-eligibility";
+import { elegirGanador } from "@/lib/grados";
 
 export const runtime = "nodejs";
 
@@ -60,25 +61,24 @@ async function drawWinner(req: Request) {
   if (!raffle) return NextResponse.json({ error: "No hay rifa activa" }, { status: 409 });
   const sb = supabaseAdmin();
 
+  const eligibility = await readEligibilityList(raffle.id);
+  if (!eligibility?.document_numbers.length) return NextResponse.json({ error: "Carga primero la lista de participantes de la rifa en el panel del administrador." }, { status: 409 });
+
   let participants: { id: string; rank: string | null; document_number: string }[], prev: { participant_id: string }[];
-  let listas: Listas;
   try {
-    [participants, prev, listas] = await Promise.all([
+    [participants, prev] = await Promise.all([
       fetchAll<{ id: string; rank: string | null; document_number: string }>((from, to) => sb.from("participants").select("id, rank, document_number").eq("raffle_id", raffle.id).order("id").range(from, to)),
       fetchAll<{ participant_id: string }>((from, to) => sb.from("draws").select("participant_id").eq("raffle_id", raffle.id).order("id").range(from, to)),
-      getInvitados(raffle.id),
     ]);
   } catch (e) {
     return NextResponse.json({ error: (e as { message?: string }).message ?? "Error al leer participantes" }, { status: 500 });
   }
 
   const won = new Set(prev.map((d) => d.participant_id));
-  // Solo sortean los no excluidos y, con lista de invitados cargada, los que están en ella (con el grado de la
-  // lista si el registro no trae uno reconocido), igual que lo que muestra la ruleta.
-  const pool = participants
-    .filter((p) => !won.has(p.id) && (!onScreen || onScreen.has(p.id)) && saleEnRuleta(listas, p.document_number))
-    .map((p) => ({ id: p.id, rank: gradoEfectivo(p.rank, listas.invitados?.get(p.document_number), esMilitar) }));
-  if (!pool.length) return NextResponse.json({ error: onScreen?.size ? "Las personas de esta ruleta ya no están disponibles. Recarga la página." : "No quedan participantes sin premio" }, { status: 409 });
+  const available = eligibleRafflePool(participants, eligibility.document_numbers, won);
+  if (!available.length) return NextResponse.json({ error: "No quedan participantes de la lista registrados y sin premio." }, { status: 409 });
+  const pool = available.filter((p) => !onScreen || onScreen.has(p.id));
+  if (!pool.length) return NextResponse.json({ error: "Los participantes elegibles no están en esta pantalla. Recarga la ruleta." }, { status: 409 });
 
   // Si dos pantallas sortean a la vez y sale la misma persona, la base lo rechaza (índice único) y se elige otra.
   const pick = () => elegirGanador(pool, randomInt);

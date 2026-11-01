@@ -59,24 +59,6 @@ create table if not exists public.draws (
   participant_id  uuid not null references public.participants(id) on delete cascade,
   created_at      timestamptz not null default now()
 );
--- Lista de invitados: con lista cargada, solo los inscritos cuya cédula está aquí salen en la ruleta.
-create table if not exists public.guests (
-  raffle_id        uuid not null references public.raffles(id) on delete cascade,
-  document_number  text not null,   -- solo números, igual que participants.document_number
-  full_name        text,
-  rank             text,            -- grado según la lista (se usa si el registro no trae uno reconocido)
-  created_at       timestamptz not null default now(),
-  primary key (raffle_id, document_number)
-);
--- Lista de excluidos: nunca salen en la ruleta, aunque estén inscritos o en la lista de invitados.
-create table if not exists public.excluded_guests (
-  raffle_id        uuid not null references public.raffles(id) on delete cascade,
-  document_number  text not null,
-  full_name        text,
-  rank             text,
-  created_at       timestamptz not null default now(),
-  primary key (raffle_id, document_number)
-);
 -- Una persona no puede ganar dos veces en la misma rifa
 create unique index if not exists draws_one_win_per_person on public.draws (raffle_id, participant_id);
 
@@ -104,8 +86,6 @@ alter table public.raffles      enable row level security;
 alter table public.participants enable row level security;
 alter table public.draws        enable row level security;
 alter table public.app_users    enable row level security;
-alter table public.guests       enable row level security;
-alter table public.excluded_guests enable row level security;
 
 -- ---------- Registro atómico con número único ----------
 -- Elige un número aleatorio libre dentro del rango de la rifa activa e inserta.
@@ -180,3 +160,17 @@ on conflict (id) do update
 insert into public.raffles (name, prize, number_min, number_max)
 select 'Rifa principal', 'Premio por definir', 1, 9999
 where not exists (select 1 from public.raffles);
+-- Aplicar una vez antes de publicar el filtro de elegibilidad.
+-- Lista privada por rifa. Reemplazar una fila publica la lista completa de forma atómica.
+-- No modifica participants ni draws existentes.
+create table if not exists public.raffle_eligibility_lists (
+  raffle_id uuid primary key references public.raffles(id) on delete cascade,
+  document_numbers text[] not null,
+  updated_at timestamptz not null default now(),
+  updated_by text not null,
+  constraint raffle_eligibility_list_size check (cardinality(document_numbers) between 1 and 10000),
+  constraint raffle_eligibility_no_nulls check (array_position(document_numbers, null) is null)
+);
+alter table public.raffle_eligibility_lists enable row level security;
+revoke all on public.raffle_eligibility_lists from public, anon, authenticated;
+grant select, insert, update on public.raffle_eligibility_lists to service_role;

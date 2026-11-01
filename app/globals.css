@@ -760,3 +760,14 @@ html:has(.xmas-page), body:has(.xmas-page) { height: 100%; overflow: hidden; ove
 .xmas-card.winner > .xmas-label.is-ref { font-size: 1.15em; }
 /* Modo presentador (pantalla de la TV): sin botones en pantalla. Se gira con Espacio; Esc o clic cierra el cartel. */
 html[data-presenter] .xmas-card .xmas-btn, html[data-presenter] .win-actions { display: none !important; }
+
+/* Módulo privado de administración de elegibles. */
+.list-module-tabs, .list-module-add, .list-module-save, .list-module-pagination { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 20px 0; }
+.list-module-add { align-items: end; }
+.list-module-search { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin-top: 20px; }
+.list-module-table { width: 100%; border-collapse: collapse; }
+.list-module-table th, .list-module-table td { text-align: left; padding: 12px; border-bottom: 1px solid var(--line, #dce2eb); }
+.list-module-table th { white-space: nowrap; }
+.list-module-table .btn { padding: 6px 10px; font-size: .85rem; }
+.list-module-draft { padding: 12px; border-left: 3px solid var(--brand, #2457e8); }
+@media (max-width: 600px) { .list-module-search { grid-template-columns: 1fr; } .list-module-tabs > .btn { flex: 1 1 100%; } }
