@@ -352,7 +352,10 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== " " && e.key !== "Enter") return;
-      if (e.repeat || e.target instanceof HTMLButtonElement || e.target instanceof HTMLInputElement || e.target instanceof HTMLAnchorElement) return;
+      // Un botón enfocado pero oculto (p. ej. en modo presentador, que esconde los botones) no se activa: ahí gira la tecla.
+      const el = e.target;
+      const visibleControl = (el instanceof HTMLButtonElement || el instanceof HTMLAnchorElement) && el.getClientRects().length > 0;
+      if (e.repeat || visibleControl || el instanceof HTMLInputElement) return;
       e.preventDefault();
       keySpin.current();
     };
