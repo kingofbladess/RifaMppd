@@ -43,10 +43,9 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
     totalCount = byOps.length;
   }
   const photo = await signPhotos(list.map((r) => r.photo_path), 600);
-  // Militar = tiene grado (lo trae Infopress de IPSFA o Resoluciones); sin grado = civil.
-  const militares = byOps.filter((p) => p.rank?.trim()).length;
-  const civiles = totalCount - militares;
   // Conteo por grado (regla de la ruleta) y grados escritos que no están en la lista: esos sortean como civiles.
+  // Militar = grado reconocido, igual que en el sorteo (antes bastaba con tener algo escrito en "Grado", y el panel
+  // contaba como militares a personas que la ruleta trata como civiles).
   const porGrado = new Map<number, number>();
   const noReconocidos = new Map<string, number>();
   byOps.forEach((p) => {
@@ -57,6 +56,8 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
     else noReconocidos.set(rank, (noReconocidos.get(rank) ?? 0) + 1);
   });
   const sinReconocer = [...noReconocidos.values()].reduce((a, b) => a + b, 0);
+  const militares = [...porGrado.values()].reduce((a, b) => a + b, 0);
+  const civiles = totalCount - militares;
   const tempCount = byOps.filter((p) => p.document_number.startsWith("TEMP")).length;
   const demoMsg: Record<string, string> = {
     agregados: `Se agregaron ${n ?? 0} personas de prueba.`, borrados: "Se borraron las personas de prueba.",
@@ -79,7 +80,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
       <div className="topbar panel-top">
         <div>
           <h1>Panel · {raffle?.name ?? "Sin rifa activa"}</h1>
-          <p className="sub only-desk" style={{ margin: 0 }}>{totalCount} inscritos ({militares} militares · {civiles} civiles) · {total - totalCount} números disponibles</p>
+          <p className="sub only-desk" style={{ margin: 0 }}>{totalCount} inscritos ({militares} militares · {civiles} civiles{sinReconocer ? `, ${sinReconocer} con grado no reconocido` : ""}) · {total - totalCount} números disponibles</p>
         </div>
         <div className="panel-actions">
           <a className="btn" href="/ruleta">🎡 <span className="only-desk">Abrir ruleta</span><span className="only-mobile">Ruleta</span></a>
@@ -117,7 +118,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
                 {g.n}. {g.nombre} · peso {g.peso}: <strong>{porGrado.get(g.n) ?? 0}</strong>
               </span>
             ))}
-            <span className="badge on">Civiles: <strong>{civiles}</strong></span>
+            <span className="badge on">Civiles{sinReconocer ? " (incluye no reconocidos)" : ""}: <strong>{civiles}</strong></span>
           </div>
           {sinReconocer > 0 && (
             <>

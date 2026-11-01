@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { esMilitar } from "@/lib/grados";
 
 export type PanelRow = {
   id: string; number: string; name: string; rank: string | null;
@@ -66,6 +67,10 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
     const a = now.getFullYear() - y - (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < day) ? 1 : 0);
     return Number.isFinite(a) ? a : null;
   };
+  // Mismo criterio que la ruleta: un grado escrito que no está en la lista sortea como civil (se marca para corregirlo).
+  const tipo = (r: PanelRow) => esMilitar(r.rank) ? <span className="badge on">Militar</span>
+    : r.rank?.trim() ? <span className="badge warn" title="Grado no reconocido: en la ruleta sortea como civil">Civil ⚠️</span>
+    : <span className="badge">Civil</span>;
   const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   const [badPhotos, setBadPhotos] = useState<Set<string>>(() => new Set());
   const markBad = (id: string) => setBadPhotos((s) => (s.has(id) ? s : new Set(s).add(id)));
@@ -97,7 +102,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
                 <td>{avatar(r)}</td>
                 <td><strong>{r.number}</strong></td>
                 <td>{r.name}</td>
-                <td>{r.rank ? <span className="badge on">Militar</span> : <span className="badge">Civil</span>}</td>
+                <td>{tipo(r)}</td>
                 <td>{r.rank || "—"}</td>
                 <td className="nowrap">{r.doc}</td>
                 <td>{age(r.birthDate) ?? "—"}</td>
@@ -118,7 +123,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
             {avatar(r)}
             <div className="p-body">
               <div className="p-name">{r.name}</div>
-              <div className="small">{[r.rank || "Civil", r.doc, age(r.birthDate) !== null ? `${age(r.birthDate)} años` : ""].filter(Boolean).join(" · ")}</div>
+              <div className="small">{[r.rank ? (esMilitar(r.rank) ? r.rank : `${r.rank} (civil ⚠️)`) : "Civil", r.doc, age(r.birthDate) !== null ? `${age(r.birthDate)} años` : ""].filter(Boolean).join(" · ")}</div>
               <div className="small p-meta">
                 <span>{r.by ?? "—"} · {date(r.createdAt)}</span>
                 {extra(r)}
