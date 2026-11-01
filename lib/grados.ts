@@ -1,5 +1,5 @@
 // Regla de probabilidades por grado militar (ver ruleta-probabilidades/regla-por-grado.md).
-// A más antigüedad, menos probabilidad: el grado 1 nunca gana y el 16 es el que más tiene.
+// A más antigüedad, menos probabilidad: los grados 1, 2 y 3 (generales/almirantes) nunca ganan y el 16 es el que más tiene.
 // Ejército y Armada valen lo mismo. El peso es del GRADO (no de cada persona), así el orden se cumple
 // aunque haya muchos más de un grado que de otro.
 
@@ -7,8 +7,8 @@ export type Grado = { n: number; nombre: string; peso: number; nombres: string[]
 
 export const GRADOS: Grado[] = [
   { n: 1, nombre: "Mayor General = Almirante (y General/Almirante en Jefe)", peso: 0, nombres: ["Mayor General", "Almirante", "General en Jefe", "Almirante en Jefe"] },
-  { n: 2, nombre: "General de División = Vicealmirante", peso: 5, nombres: ["General de División", "Vicealmirante", "Vice Almirante"] },
-  { n: 3, nombre: "General de Brigada = Contraalmirante", peso: 6, nombres: ["General de Brigada", "Contraalmirante", "Contralmirante", "Contra Almirante"] },
+  { n: 2, nombre: "General de División = Vicealmirante", peso: 0, nombres: ["General de División", "Vicealmirante", "Vice Almirante"] },
+  { n: 3, nombre: "General de Brigada = Contraalmirante", peso: 0, nombres: ["General de Brigada", "Contraalmirante", "Contralmirante", "Contra Almirante"] },
   { n: 4, nombre: "Coronel = Capitán de Navío", peso: 8, nombres: ["Coronel", "Capitán de Navío"] },
   { n: 5, nombre: "Teniente Coronel = Capitán de Fragata", peso: 10, nombres: ["Teniente Coronel", "Capitán de Fragata"] },
   { n: 6, nombre: "Mayor = Capitán de Corbeta", peso: 12, nombres: ["Mayor", "Capitán de Corbeta"] },
@@ -85,7 +85,7 @@ export const esMilitar = (rank: string | null | undefined) => !!gradoDe(rank);
 // 1) Civil o militar, según cuántos hay de cada uno (los civiles quedan igual que antes).
 // 2) Si es militar, el grado según su peso, entre los grados que todavía tienen gente.
 // 3) Una persona al azar de ese grado.
-// Los de peso 0 (Mayor General) siguen en la ruleta pero nunca salen. Devuelve null si nadie puede ganar.
+// Los de peso 0 (grados 1, 2 y 3: generales y almirantes) siguen en la ruleta pero nunca salen. Devuelve null si nadie puede ganar.
 export function elegirGanador<T extends { rank: string | null }>(pool: T[], azar: (n: number) => number): T | null {
   const civiles: T[] = [];
   const porGrado = new Map<number, T[]>();
