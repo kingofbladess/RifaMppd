@@ -16,25 +16,30 @@ const clean = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim();
 
 export type Columnas = { cedula: number; nombre: number; grado: number };
 
-// Busca las columnas por el encabezado; sin encabezado reconocible: cédula, nombre, grado en ese orden.
-export function detectarColumnas(primeraFila: unknown[]): { columnas: Columnas; encabezado: boolean } {
-  const h = primeraFila.map(plain);
-  const find = (re: RegExp) => h.findIndex((c) => re.test(c));
-  const cedula = find(/cedula|documento|^c\.?\s?i\.?$|^ci$/);
-  const nombre = find(/nombre|apellido/);
-  const grado = find(/grado|jerarquia|rango/);
-  if (cedula < 0 && nombre < 0) return { columnas: { cedula: 0, nombre: 1, grado: 2 }, encabezado: false };
-  return { columnas: { cedula: Math.max(0, cedula), nombre: nombre < 0 ? -1 : nombre, grado }, encabezado: true };
+// Busca la fila de títulos (puede no ser la primera: hay Excel con filas vacías o un membrete arriba,
+// y columnas vacías a la izquierda) y las columnas de cédula, nombre y grado.
+// `inicio` es el índice de la fila de títulos; sin títulos reconocibles: cédula, nombre, grado en ese orden.
+export function detectarColumnas(rows: unknown[][]): { columnas: Columnas; encabezado: boolean; inicio: number } {
+  for (let r = 0; r < Math.min(rows.length, 30); r++) {
+    const h = (rows[r] ?? []).map(plain);
+    const find = (re: RegExp) => h.findIndex((c) => re.test(c));
+    const cedula = find(/cedula|documento|^c\.?\s?i\.?$|^ci$/);
+    const nombre = find(/nombre|apellido/);
+    if (cedula < 0 || nombre < 0) continue;
+    return { columnas: { cedula, nombre, grado: find(/grado|jerarquia|rango/) }, encabezado: true, inicio: r };
+  }
+  return { columnas: { cedula: 0, nombre: 1, grado: 2 }, encabezado: false, inicio: 0 };
 }
 
 const cedulaDe = (v: unknown) =>
-  typeof v === "string" || (typeof v === "number" && Number.isSafeInteger(v)) ? normalizeRaffleDocument(String(v)) : null;
+  typeof v === "string" || (typeof v === "number" && Number.isSafeInteger(v)) ? normalizeRaffleDocument(String(v).replace(/,/g, "")) : null; // "30,667.501" = 30.667.501
 
 // Revisa las filas del Excel/CSV: cadetes válidos (sin repetir cédula), filas inválidas (número de fila) y repetidos.
 export function revisarCadetes(rows: unknown[][], col: Columnas, encabezado: boolean) {
   const cadetes: Cadete[] = [];
   const vistos = new Set<string>();
   const invalidas: number[] = [];
+  const filasRepetidas: number[] = []; // misma cédula que una fila anterior (puede ser un error de tipeo)
   let repetidos = 0;
   rows.slice(encabezado ? 1 : 0).forEach((row, i) => {
     if (!row.some((c) => clean(c))) return; // fila vacía
@@ -42,11 +47,11 @@ export function revisarCadetes(rows: unknown[][], col: Columnas, encabezado: boo
     const cedula = cedulaDe(row[col.cedula]);
     const nombre = col.nombre >= 0 ? clean(row[col.nombre]).slice(0, 120) : "";
     if (!cedula || nombre.length < 3) { invalidas.push(fila); return; }
-    if (vistos.has(cedula)) { repetidos++; return; }
+    if (vistos.has(cedula)) { repetidos++; filasRepetidas.push(fila); return; }
     vistos.add(cedula);
     cadetes.push({ cedula, nombre, grado: col.grado >= 0 ? clean(row[col.grado]).slice(0, 80) || null : null });
   });
-  return { cadetes, invalidas, repetidos };
+  return { cadetes, invalidas, repetidos, filasRepetidas };
 }
 
 // Validación del lado del servidor de lo que manda el formulario.

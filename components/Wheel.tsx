@@ -713,7 +713,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
         <div className="num" key={`n-${shown?.id}`}><span className="num-ced">{shown ? label(shown) : idle ? "\u00a0" : "—"}</span></div>
         {/* Nombre y grado ocupan siempre el mismo alto: la tarjeta no salta mientras gira. */}
         <div className="xmas-name">{shown?.name ?? (idle ? "¡Gira la ruleta!" : "\u00a0")}</div>
-        <div className="xmas-rank">{shown ? shown.rank || "Civil" : "\u00a0"}</div>
+        {/* Ruleta de cadetes: todos son cadetes, así que no se muestra grado mientras gira; "Cadete" sale solo con el ganador. */}
+        <div className="xmas-rank">{modo === "cadetes" ? (winner && !spinning ? winner.rank || "Cadete" : "\u00a0") : shown ? shown.rank || "Civil" : "\u00a0"}</div>
         <button className="btn xmas-btn" onClick={() => spin()} disabled={spinning || (!!winner && !showWin)}>
           {photoProgress ? "Preparando fotos…" : spinning ? "Girando…" : "🎁 Girar ruleta"}
         </button>

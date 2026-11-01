@@ -1,4 +1,5 @@
 import CadetesImport from "@/components/CadetesImport";
+import CadetesLista from "@/components/CadetesLista";
 import { getSession } from "@/lib/auth";
 import { readModo, cadetesRegistrados, readCadetDraws, readCadetes } from "@/lib/cadetes-store";
 import { getActiveRaffle } from "@/lib/participants";
@@ -6,7 +7,7 @@ import { getActiveRaffle } from "@/lib/participants";
 export const dynamic = "force-dynamic";
 
 // Ruleta de cadetes: cargar la lista y cambiar entre la ruleta normal y la de cadetes.
-export default async function CadetesPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; n?: string }> }) {
+export default async function CadetesPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; n?: string; c?: string }> }) {
   if ((await getSession())?.role !== "admin") return <main>No autorizado</main>;
   const params = await searchParams;
   let modo: "normal" | "cadetes" = "normal", lista = null, ganados: string[] = [], registrados: { cedula: string }[] = [], ganaronNormal = new Set<string>(), loadError = "";
@@ -21,6 +22,8 @@ export default async function CadetesPage({ searchParams }: { searchParams: Prom
   const okText: Record<string, string> = {
     lista: `Lista guardada: ${params.n ?? cadetes.length} cadetes.`,
     cadetes: "Ruleta de cadetes activada. La TV cambia sola en unos segundos.",
+    quitado: `Cédula ${params.c ?? ""} quitada de la lista de cadetes.`,
+    agregado: `Cédula ${params.c ?? ""} agregada a la lista de cadetes.`,
     normal: "Se volvió a la ruleta normal. La TV cambia sola en unos segundos.",
   };
 
@@ -48,13 +51,7 @@ export default async function CadetesPage({ searchParams }: { searchParams: Prom
 
     <CadetesImport />
 
-    {cadetes.length > 0 && <div className="card" style={{ marginTop: 16 }}>
-      <details><summary>Ver lista guardada ({cadetes.length})</summary>
-        <div className="table-wrap"><table className="list-module-table">
-          <thead><tr><th>#</th><th>Cédula</th><th>Nombre</th><th>Grado</th><th>Estado</th></tr></thead>
-          <tbody>{cadetes.map((c, i) => <tr key={c.cedula}><td>{i + 1}</td><td>{c.cedula}</td><td>{c.nombre}</td><td>{c.grado ?? "—"}</td><td>{ganaronNormal.has(c.cedula) ? "Ganó en la ruleta normal" : ganadosSet.has(c.cedula) && registradoSet.has(c.cedula) ? "Ya ganó" : registradoSet.has(c.cedula) ? "Registrado · en la ruleta" : "Aún sin registrar"}</td></tr>)}</tbody>
-        </table></div>
-      </details>
-    </div>}
+    {cadetes.length > 0 && <CadetesLista filas={cadetes.map((c) => ({ ...c,
+      estado: ganaronNormal.has(c.cedula) ? "Ganó en la ruleta normal" : ganadosSet.has(c.cedula) && registradoSet.has(c.cedula) ? "Ya ganó" : registradoSet.has(c.cedula) ? "Registrado · en la ruleta" : "Aún sin registrar" }))} />}
   </main>;
 }

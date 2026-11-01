@@ -6,6 +6,7 @@ import { formatCedula } from "@/lib/cedula";
 import { normalizeRaffleDocument } from "@/lib/raffle-eligibility";
 import { cadeteId, cedulaDeId, type Cadete, type Modo } from "@/lib/cadetes";
 import type { WheelParticipant } from "@/components/Wheel";
+import { gradoDe } from "@/lib/grados";
 
 // Todo en JSON del bucket privado: no hace falta SQL nuevo en Supabase.
 const MODO = "_estado/modo.json";
@@ -88,14 +89,15 @@ export async function cadetesRegistrados(raffleId: string | null): Promise<{ lis
 }
 
 // Ruleta de cadetes: los cadetes registrados que no han ganado, y los ganadores aparte (el más reciente primero).
-// En pantalla se ve igual que la ruleta normal: nombre, foto, número y grado son los del registro
-// (el grado de la lista de cadetes no se muestra, para que el público no note el cambio).
+// En pantalla: nombre, foto y número del registro; el grado se muestra como "Cadete".
 export async function getCadetWheel(raffleId: string | null): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[] }> {
   const [{ registrados }, ganados] = await Promise.all([cadetesRegistrados(raffleId), readCadetDraws()]);
   if (!registrados.length) return { participants: [], winners: [] };
   const urls = await signPhotos(registrados.map((c) => c.photo_path), 12 * 60 * 60);
   const all = new Map(registrados.map((c) => [c.cedula, {
-    id: cadeteId(c.cedula), name: c.full_name || c.nombre, number: c.raffle_number, rank: c.rank,
+    // Grado (solo se ve en el cartel del ganador): "Cadete", salvo que alguien "colado" en la lista esté
+    // registrado con un grado militar reconocido (p. ej. "Capitán"): entonces se ve su grado real.
+    id: cadeteId(c.cedula), name: c.full_name || c.nombre, number: c.raffle_number, rank: (gradoDe(c.rank) ? c.rank : "Cadete") as string | null,
     photoUrl: urls.get(c.photo_path) ?? null, cedula: formatCedula(c.cedula),
   } satisfies WheelParticipant]));
   const won = new Set(ganados);
