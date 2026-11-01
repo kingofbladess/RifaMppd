@@ -115,7 +115,7 @@ function useSounds() {
 // Espejo (usuario TV): no tiene botones; repite en vivo los giros que se hacen desde otra pantalla.
 const MIRROR_POLL_MS = 1500;
 
-export default function Wheel({ participants: initial, pastWinners = [], digits, canManage = false, mirror = false }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number; canManage?: boolean; mirror?: boolean }) {
+export default function Wheel({ participants: initial, pastWinners = [], digits, canManage = false, mirror = false, modo = "normal" }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number; canManage?: boolean; mirror?: boolean; modo?: "normal" | "cadetes" }) {
   // Quien gana sale de la ruleta para que no pueda volver a salir.
   const [participants, setParticipants] = useState(initial);
   useEffect(() => setParticipants(initial), [initial]);
@@ -158,7 +158,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     try {
       const res = await fetch("/api/admin/draws", {
         method: "DELETE", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(w ? { participantId: w.id } : { all: true }),
+        body: JSON.stringify(w ? { participantId: w.id, modo } : { all: true, modo }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "No se pudo quitar el ganador");
@@ -175,7 +175,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     } finally {
       setRemoving(null);
     }
-  }, [spinning, removing, history]);
+  }, [spinning, removing, history, modo]);
 
   const n = participants.length;
   const seg = n ? TAU / n : TAU;
@@ -411,7 +411,9 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       try {
         const res = await fetch("/api/draw", { cache: "no-store" });
         if (res.ok) {
-          const { draws, closed } = (await res.json()) as { draws: { participantId: string }[]; closed?: string | null };
+          const { draws, closed, modo: modoAhora } = (await res.json()) as { draws: { participantId: string }[]; closed?: string | null; modo?: string };
+          // El admin cambió entre la ruleta normal y la de cadetes: se recarga para mostrar la otra lista.
+          if (modoAhora && modoAhora !== modo) { if (!busy.current) location.reload(); return; }
           closedRef.current = closed ?? null;
           const ids = draws.map((d) => d.participantId), now = new Set(ids);
           if ([...knownDraws.current].some((id) => !now.has(id))) { if (!busy.current) location.reload(); return; }
@@ -424,7 +426,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     };
     timer = setTimeout(tick, MIRROR_POLL_MS);
     return () => { stop = true; clearTimeout(timer); };
-  }, [mirror]);
+  }, [mirror, modo]);
   // La TV: el navegador solo deja sonar después de un clic o tecla; además se recarga cada 6 h en reposo
   // porque los enlaces de las fotos vencen a las 12 h.
   useEffect(() => {
@@ -476,7 +478,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
         try {
           res = await fetch("/api/draw", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ids: participants.map((p) => p.id) }), signal: ctrl.signal,
+            body: JSON.stringify({ ids: participants.map((p) => p.id), modo }), signal: ctrl.signal,
           });
           json = await res.json().catch(() => ({ error: "Respuesta inválida del servidor" }));
         } catch { /* sin respuesta: se revisa abajo si el sorteo igual quedó guardado */ } finally {
