@@ -24,15 +24,29 @@ export const GRADOS: Grado[] = [
   { n: 16, nombre: "Sargento Segundo", peso: 100, nombres: ["Sargento Segundo"] },
 ];
 
-// Minúsculas, sin acentos, sin puntos ni lo que venga entre paréntesis, espacios simples.
+// Abreviaturas comunes, por si el grado llega escrito corto ("Tte. Cnel.", "Sgto. 1ro", "Gral. de Div.").
+// Solo se cambian palabras sueltas completas; un texto que aun así no coincide sale en el panel como no reconocido.
+const ABREV: Record<string, string> = {
+  gral: "general", grl: "general", my: "mayor", cnel: "coronel", tcnel: "teniente coronel", tte: "teniente", tnte: "teniente",
+  cap: "capitan", capt: "capitan", cptn: "capitan", sgto: "sargento", sgt: "sargento", sarg: "sargento",
+  sm: "sargento mayor", div: "division", brig: "brigada", alm: "almirante", valm: "vicealmirante", calm: "contraalmirante",
+  "1er": "primer", "1ro": "primero", "1ra": "primera", "1era": "primera", "2do": "segundo", "2da": "segunda",
+  "3ro": "tercero", "3ra": "tercera", "3era": "tercera",
+};
+
+// Minúsculas, sin acentos, sin puntos ni lo que venga entre paréntesis, abreviaturas escritas completas
+// y sin la palabra "de" ("Sargento Mayor 1ra" = "Sargento Mayor de Primera").
 export function normalizarGrado(texto: string | null | undefined): string {
   return (texto ?? "")
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/\(.*?\)/g, " ")
     .replace(/[^a-z0-9 ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/\bs m\b/g, "sm") // "S/M 1ra"
+    .split(" ")
+    .filter((w) => w && w !== "de")
+    .map((w) => ABREV[w] ?? w)
+    .join(" ");
 }
 
 const POR_NOMBRE = new Map<string, Grado>();
@@ -51,6 +65,10 @@ export function gradoDe(rank: string | null | undefined): Grado | null {
   }
   return g;
 }
+
+// Militar para la ruleta = grado reconocido. Un grado escrito que no está en la lista sortea como civil,
+// así que el panel y el registro también lo cuentan como civil (antes bastaba con tener algo escrito).
+export const esMilitar = (rank: string | null | undefined) => !!gradoDe(rank);
 
 // Elige al ganador en 3 pasos. `azar(n)` devuelve un entero 0..n-1 (en el servidor, randomInt de crypto).
 // 1) Civil o militar, según cuántos hay de cada uno (los civiles quedan igual que antes).

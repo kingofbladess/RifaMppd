@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Camera from "./Camera";
 import { dataUrlToJpeg } from "@/lib/image";
+import { esMilitar } from "@/lib/grados";
 
 type Person = {
   full_name: string; document_type: string; document_number: string;
@@ -221,7 +222,9 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
                 {lookup.found
                   ? <span className="badge on">✓ Encontrado</span>
                   : <span className="badge warn">{lookup.apiError ? "API no disponible" : "No encontrado"}</span>}
-                {lookup.found && <span className="badge">{fields.rank.trim() ? "Militar" : "Civil"}</span>}
+                {lookup.found && (esMilitar(fields.rank) ? <span className="badge">Militar</span>
+                  : fields.rank.trim() ? <span className="badge warn" title="Este grado no está en la lista de la ruleta: sorteará como civil">Grado no reconocido</span>
+                  : <span className="badge">Civil</span>)}
                 {lookup.source === "demo" && <span className="badge">Demo</span>}
               </div>
               <input className="name-input" aria-label="Nombre completo" placeholder="Nombre completo" value={fields.full_name}
