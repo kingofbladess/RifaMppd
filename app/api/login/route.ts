@@ -10,7 +10,10 @@ export const runtime = "nodejs";
 const sha = (v: string) => createHash("sha256").update(v).digest();
 
 export async function POST(req: Request) {
-  const form = await req.formData();
+  // Un POST que no viene del formulario (otro programa, una extensión, un escáner de la red) no trae un formulario:
+  // antes eso lanzaba "Content-Type was not one of multipart/form-data..." en la consola. Ahora vuelve al login.
+  const form = await req.formData().catch(() => null);
+  if (!form) return seeOther("/login?error=1");
   const username = String(form.get("username") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
   const next = String(form.get("next") ?? "");
