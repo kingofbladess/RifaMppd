@@ -1,12 +1,14 @@
 import RegistrationFlow from "@/components/RegistrationFlow";
 import DbError from "@/components/DbError";
-import { getActiveRaffle } from "@/lib/participants";
+import { getActiveRaffleOrCached } from "@/lib/participants";
 import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 async function RegistroPageContent() {
-  const [raffle, session] = await Promise.all([getActiveRaffle(), getSession()]);
+  const [{ raffle: cached, offline }, session] = await Promise.all([getActiveRaffleOrCached(), getSession()]);
+  // Sin internet y sin copia local (laptop recién instalada): se deja registrar igual, todo va a la cola del teléfono.
+  const raffle = cached ?? (offline ? { name: "Rifa", number_max: 9999 } : null);
   return (
     <main className="container tema reg-page">
       <div className="topbar compact">
@@ -19,6 +21,7 @@ async function RegistroPageContent() {
           <form method="post" action="/api/logout"><button className="btn secondary">Salir</button></form>
         </div>
       </div>
+      {offline && <div className="card warn-card small">⚠️ Sin internet: puedes seguir consultando y registrando. Los registros quedan guardados en este teléfono y se envían solos cuando vuelva la conexión (el número de rifa llega en ese momento).</div>}
       {raffle ? <RegistrationFlow digits={String(raffle.number_max).length} />
         : <div className="card">No hay una rifa activa. Pide al administrador que active una.</div>}
     </main>

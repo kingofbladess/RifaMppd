@@ -1,6 +1,7 @@
 import "server-only";
 import { supabaseAdmin, BUCKET_PHOTOS } from "./supabase";
 import type { WheelParticipant } from "@/components/Wheel";
+import { isNetErr, readLocal, saveLocal } from "./local-cache";
 
 // Supabase devuelve como máximo 1000 filas por consulta: esto pide página por página hasta traerlas todas.
 const PAGE = 1000;
@@ -48,7 +49,19 @@ export async function getActiveRaffle() {
     .from("raffles").select("*").eq("is_active", true)
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (error) throw error;
+  void saveLocal("rifa", data ?? null); // copia para abrir el registro sin internet (solo en la laptop)
   return data;
+}
+
+type Raffle = NonNullable<Awaited<ReturnType<typeof getActiveRaffle>>>;
+// Para el registro: si no hay internet usa la última rifa activa conocida (los registros quedan en la cola del teléfono).
+export async function getActiveRaffleOrCached(): Promise<{ raffle: Raffle | null; offline: boolean }> {
+  try {
+    return { raffle: await getActiveRaffle(), offline: false };
+  } catch (e) {
+    if (!isNetErr(e)) throw e;
+    return { raffle: await readLocal<Raffle>("rifa"), offline: true };
+  }
 }
 
 // Participantes de la rifa activa con URL firmada (12 h) de su foto. Nunca expone el documento.

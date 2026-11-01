@@ -4,13 +4,18 @@ import { SESSION_COOKIE, createSessionToken, sessionMaxAge, homeFor, type Sessio
 import { verifyPassword } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { adminPassword } from "@/lib/env";
+import { isNetErr } from "@/lib/local-cache";
+import { cachedUser, syncUsers } from "@/lib/user-cache";
 
 export const runtime = "nodejs";
 
 const sha = (v: string) => createHash("sha256").update(v).digest();
 
 export async function POST(req: Request) {
-  const form = await req.formData();
+  // Un POST que no viene del formulario (otro programa, una extensión, un escáner de la red) no trae un formulario:
+  // antes eso lanzaba "Content-Type was not one of multipart/form-data..." en la consola. Ahora vuelve al login.
+  const form = await req.formData().catch(() => null);
+  if (!form) return seeOther("/login?error=1");
   const username = String(form.get("username") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
   const next = String(form.get("next") ?? "");
@@ -24,14 +29,23 @@ export async function POST(req: Request) {
     user = { uid: "env-admin", name: "Administrador", role: "admin" };
   } else if (username !== "admin") {
     try {
-      const { data } = await supabaseAdmin().from("app_users")
+      const { data, error } = await supabaseAdmin().from("app_users")
         .select("id, full_name, role, password_hash, is_active").eq("username", username).maybeSingle();
+      if (error) throw error;
       if (data?.is_active && verifyPassword(password, data.password_hash)) {
         user = { uid: data.id, name: data.full_name, role: data.role };
+        void syncUsers().catch(() => {}); // deja al día la copia local para entrar sin internet
       }
     } catch (e) {
-      console.error("login", e);
-      return seeOther(`/login?error=config&next=${encodeURIComponent(next)}`);
+      // Sin internet (laptop): se valida contra la copia local de usuarios, con la misma contraseña cifrada.
+      if (isNetErr(e)) {
+        const c = await cachedUser(username);
+        if (!c) return seeOther(`/login?error=offline&next=${encodeURIComponent(next)}`);
+        if (c.is_active && verifyPassword(password, c.password_hash)) user = { uid: c.id, name: c.full_name, role: c.role };
+      } else {
+        console.error("login", e);
+        return seeOther(`/login?error=config&next=${encodeURIComponent(next)}`);
+      }
     }
   }
   if (!user) return fail();

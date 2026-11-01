@@ -6,7 +6,8 @@ export const runtime = "nodejs";
 
 // Crear usuario (form POST desde /admin/usuarios). Protegido por middleware (solo admin).
 export async function POST(req: Request) {
-  const form = await req.formData();
+  const form = await req.formData().catch(() => null); // un POST sin formulario no debe romper con error en la consola
+  if (!form) return seeOther("/admin/usuarios?error=Solicitud+inválida");
   const action = String(form.get("action") ?? "create");
   const back = (q: string) => seeOther(`/admin/usuarios?${q}`);
   const sb = supabaseAdmin();

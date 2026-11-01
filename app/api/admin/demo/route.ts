@@ -25,7 +25,8 @@ const RANKS = ["", "", "", "Mayor General", "General de División", "Vicealmiran
 const nameFor = (i: number) => `${FIRST[i % 20]} ${LAST[Math.floor(i / 20) % 25]} ${LAST[Math.floor(i / 500) % 25]}`;
 
 export async function POST(req: Request) {
-  const form = await req.formData();
+  const form = await req.formData().catch(() => null); // un POST sin formulario no debe romper con error en la consola
+  if (!form) return seeOther("/admin?demo=error");
   const back = (q: string) => seeOther(`/admin?${q}`);
   const sb = supabaseAdmin();
   const raffle = await getActiveRaffle();

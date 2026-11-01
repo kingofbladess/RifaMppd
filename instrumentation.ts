@@ -3,6 +3,14 @@
 // Node cierra las conexiones tras 4 s sin uso, así que entre una cédula y otra se pagaban esos 4 s varias veces.
 // Aquí se alargan las conexiones vivas y, en la PC local, se mantienen calientes con un ping liviano.
 export async function register() {
+  // Copia local de usuarios para poder iniciar sesión sin internet (ver lib/user-cache.ts): al arrancar y cada 5 min.
+  // El import va dentro de este "if" para que no se incluya en la versión edge (no tiene disco).
+  if (process.env.NEXT_RUNTIME === "nodejs" && !process.env.VERCEL) {
+    const { syncUsers } = await import("./lib/user-cache");
+    const sync = () => syncUsers().catch(() => {});
+    void sync();
+    setInterval(sync, 5 * 60_000).unref();
+  }
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   // En Vercel no se toca nada: cada función vive poco y, con Node 26, cambiar el despachador rompe el fetch de toda la app.
   if (process.env.VERCEL) return;
@@ -29,4 +37,6 @@ export async function register() {
   const ping = () => fetch(`${url}/auth/v1/health`, { cache: "no-store" }).then((r) => r.body?.cancel()).catch(() => {});
   ping();
   setInterval(ping, 20_000).unref();
+
+
 }
