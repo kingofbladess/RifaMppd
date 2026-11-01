@@ -3,6 +3,7 @@ import { supabaseAdmin, BUCKET_DOCS, BUCKET_PHOTOS } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 import { getActiveRaffle } from "@/lib/participants";
 import { optimizeJpeg, FOTO, CEDULA } from "@/lib/optimize-photo";
+import { isNetErr } from "@/lib/local-cache";
 
 export const runtime = "nodejs";
 
@@ -14,8 +15,7 @@ const NO_PHONE = "0000000"; // la base exige teléfono hasta que se aplique supa
 const MAX_FILE = 3 * 1024 * 1024;
 
 // Sin internet la laptop no llega a Supabase: se dice así (antes salía "Tu usuario está desactivado" o un error genérico).
-const NET_ERR = /fetch failed|ENOTFOUND|EAI_AGAIN|ECONN|ETIMEDOUT|UND_ERR|network|socket/i;
-const isNetErr = (e: unknown) => !!e && NET_ERR.test(`${(e as { message?: string }).message ?? ""} ${(e as { details?: string }).details ?? ""} ${String((e as { cause?: unknown }).cause ?? "")}`);
+// El teléfono guarda el registro en su cola y lo reenvía solo (responde 503 = reintentar).
 const SIN_INTERNET = "Sin conexión a internet: no se guardó. Los datos siguen en pantalla; presiona Guardar cuando vuelva el internet (no se duplica).";
 
 function isJpeg(buf: Uint8Array) {

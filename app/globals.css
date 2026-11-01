@@ -742,3 +742,16 @@ html[data-presenter][data-idle] .hidden-logout button { cursor: none; }
 }
 /* La ruleta nunca hace scroll en el teléfono (ni el "rebote" al arrastrar) */
 html:has(.xmas-page), body:has(.xmas-page) { height: 100%; overflow: hidden; overscroll-behavior: none; }
+/* Aviso informativo (sin internet, quedó en cola) */
+.warn-card { border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); background: color-mix(in srgb, var(--warn) 8%, var(--surface)); color: var(--text); margin-bottom: 12px; }
+/* Cola de registros del teléfono (sin internet) */
+.cola { margin-bottom: 12px; padding: 12px 14px; }
+.cola-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-bottom: 6px; }
+.cola ul { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; }
+.cola-item { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); }
+.cola-who { display: flex; flex-direction: column; min-width: 0; }
+.cola-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cola-num { color: var(--ok); white-space: nowrap; }
+.cola-err { color: var(--err); }
+.cola-actions { display: flex; gap: 8px; }
+.cola-item.enviado .cola-name { opacity: .75; }

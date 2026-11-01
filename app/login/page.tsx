@@ -11,7 +11,8 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <label htmlFor="password" style={{ marginTop: 12 }}>Contraseña</label>
         <input id="password" name="password" type="password" required autoComplete="current-password" />
         {error === "config" && <p className="error">El servidor no tiene configurada la conexión con Supabase. Revisa las variables de entorno en Vercel.</p>}
-        {error && error !== "config" && <p className="error">Usuario o contraseña incorrectos</p>}
+        {error === "offline" && <p className="error">Sin internet y este usuario todavía no está guardado en la laptop. Entra con el usuario &quot;admin&quot; o espera a que vuelva el internet.</p>}
+        {error && error !== "config" && error !== "offline" && <p className="error">Usuario o contraseña incorrectos</p>}
         <button className="btn" style={{ width: "100%", marginTop: 16 }}>Entrar</button>
       </form>
     </main>

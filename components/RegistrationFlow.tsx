@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Camera from "./Camera";
 import { dataUrlToJpeg } from "@/lib/image";
 import { esMilitar } from "@/lib/grados";
+import { colaDisponible, enviarRegistro, formularioRegistro, guardarEnCola, listarCola, quitarDeCola, type Pendiente } from "@/lib/cola-registro";
 
 type Person = {
   full_name: string; document_type: string; document_number: string;
@@ -64,6 +65,9 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   const [scanning, setScanning] = useState(false);
   const searchId = useRef(0); // para ignorar respuestas de una consulta anterior
   const requestId = useRef(newId()); // código del intento de registro: repetir Guardar no duplica ni falla
+  const [notice, setNotice] = useState<string | null>(null); // aviso (no error): p. ej. "quedó en la cola"
+  const [cola, setCola] = useState<Pendiente[]>([]); // registros guardados en el teléfono mientras no hay internet
+  const flushing = useRef(false);
   const newPhotoUrl = useObjectUrl(newPhoto);
   const idPhotoUrl = useObjectUrl(idPhoto);
 
@@ -74,6 +78,50 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   const age = yearsSince(fields.birth_date || null);
 
   useEffect(() => { docRef.current?.focus(); }, []);
+
+  // ---------- Cola sin internet ----------
+  const refreshCola = useCallback(async () => {
+    if (!colaDisponible()) return;
+    try { setCola(await listarCola()); } catch { /* sin IndexedDB (modo privado): no hay cola */ }
+  }, []);
+  // Envía los pendientes en orden; se detiene al primer fallo de red (se reintenta en el siguiente ciclo).
+  const flush = useCallback(async () => {
+    if (flushing.current || !colaDisponible()) return;
+    flushing.current = true;
+    try {
+      const now = Date.now();
+      for (const p of await listarCola()) {
+        // Los ya enviados se guardan 12 h para poder decirle el número a la persona; luego se borran solos.
+        if (p.status === "enviado") { if (now - p.at > 12 * 3600e3) await quitarDeCola(p.id); continue; }
+        if (p.status !== "pendiente") continue;
+        const r = await enviarRegistro(formularioRegistro(p));
+        if (r.ok) {
+          await guardarEnCola({ ...p, status: "enviado", number: r.number, photo: new Blob(), idPhoto: null, error: undefined });
+          setCount((c) => c + 1);
+        } else if (r.reintentar) break;
+        else await guardarEnCola({ ...p, status: "error", error: r.error });
+      }
+    } catch { /* se reintenta en el siguiente ciclo */ } finally {
+      flushing.current = false;
+      await refreshCola();
+    }
+  }, [refreshCola]);
+  useEffect(() => {
+    void refreshCola().then(flush);
+    const iv = setInterval(() => { void flush(); }, 20_000);
+    const onOnline = () => { void flush(); };
+    window.addEventListener("online", onOnline);
+    return () => { clearInterval(iv); window.removeEventListener("online", onOnline); };
+  }, [refreshCola, flush]);
+  const pendientes = cola.filter((p) => p.status === "pendiente").length;
+  const enCola = (docNum: string) => cola.find((p) => p.doc === docNum && p.status !== "enviado");
+  async function quitar(p: Pendiente) {
+    if (p.status !== "enviado" && !confirm(`¿Quitar a ${p.name} de la cola? Su registro NO quedará guardado.`)) return;
+    try { await quitarDeCola(p.id); } finally { await refreshCola(); }
+  }
+  async function reintentar(p: Pendiente) {
+    try { await guardarEnCola({ ...p, status: "pendiente", error: undefined }); } finally { await refreshCola(); void flush(); }
+  }
 
   function clear() {
     setLookup(null); setFields(EMPTY); setNewPhoto(null); setIdPhoto(null);
@@ -95,7 +143,7 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
     let nat = natArg ?? natState;
     let clean = (docArg ?? doc).replace(/\D/g, "");
     if (!qrCode && clean.length < 4) return setError("Escribe un número de cédula válido");
-    clear(); setSaved(null); setLoading(true);
+    clear(); setSaved(null); setNotice(null); setLoading(true);
     const id = ++searchId.current;
     try {
       const r = await fetch(qrCode ? `/api/lookup?qr=${encodeURIComponent(qrCode)}` : `/api/lookup?doc=${clean}&nat=${nat}`);
@@ -132,29 +180,38 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setError(null); setNotice(null);
     if (!shownPhoto) return setError("Falta la foto de la persona. Tómala con la cámara.");
+    const queued = enCola(fields.document_number);
+    if (queued && queued.id !== requestId.current) return setError("Esta cédula ya está en la cola de pendientes (se enviará sola).");
     setSaving(true);
     try {
       const photoBlob = newPhoto ?? (await dataUrlToJpeg(lookup!.photo!, 640));
-      const fd = new FormData();
-      Object.entries(fields).forEach(([k, v]) => fd.set(k, v));
-      fd.set("photo", photoBlob, "foto.jpg");
-      fd.set("photo_source", newPhoto ? "camera" : "api");
-      if (idPhoto) fd.set("id_document", idPhoto, "documento.jpg");
-      fd.set("request_id", requestId.current);
-      // Si el servidor no responde en 60 s se avisa; volver a presionar Guardar es seguro (mismo código).
-      const r = await fetch("/api/register", { method: "POST", body: fd, signal: AbortSignal.timeout(60_000) })
-        .catch((e: Error) => {
-          throw new Error(e.name === "TimeoutError" || e.name === "AbortError"
-            ? "El servidor no respondió. Presiona Guardar otra vez (no se duplica)."
-            : "Se perdió la conexión con el servidor. Presiona Guardar otra vez (no se duplica).");
-        });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error ?? "No se pudo guardar");
-      setSaved({ number: j.number, name: j.name, photo: shownPhoto });
-      setCount((c) => c + 1);
+      const item = { id: requestId.current, fields: { ...fields }, photo: photoBlob, idPhoto, photoSource: (newPhoto ? "camera" : "api") as Pendiente["photoSource"] };
+      // Si el servidor no responde en 60 s se avisa; volver a enviar es seguro (mismo código).
+      const r = await enviarRegistro(formularioRegistro(item));
+      if (r.ok) {
+        setSaved({ number: r.number, name: r.name, photo: shownPhoto });
+        setCount((c) => c + 1);
+        clear(); setDoc("");
+        setTimeout(() => docRef.current?.focus(), 50);
+        void flush(); // si había pendientes y volvió el internet, salen ya
+        return;
+      }
+      if (!r.reintentar) throw new Error(r.error);
+      // Sin internet (o la laptop no responde): el registro queda en el teléfono y se envía solo después.
+      let enColaOk = false;
+      if (colaDisponible()) {
+        try {
+          await guardarEnCola({ ...item, name: fields.full_name, doc: fields.document_number, at: Date.now(), status: "pendiente" });
+          enColaOk = true;
+        } catch { /* el teléfono no deja guardar (modo privado o sin espacio) */ }
+      }
+      if (!enColaOk) throw new Error(`${r.error}. Presiona Guardar otra vez cuando vuelva la conexión (no se duplica).`);
+      await refreshCola();
+      setSaved(null);
       clear(); setDoc("");
+      setNotice(`Sin conexión: ${fields.full_name} quedó en la cola del teléfono y se enviará sola cuando vuelva el internet. Puedes seguir registrando.`);
       setTimeout(() => docRef.current?.focus(), 50);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
@@ -172,6 +229,32 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
             <div className="small">✓ Registrado: {saved.name}</div>
             <div className="num">{pad(saved.number)}</div>
           </div>
+        </div>
+      )}
+
+      {notice && <div className="card warn-card small">📥 {notice}</div>}
+
+      {cola.length > 0 && (
+        <div className="card cola">
+          <div className="cola-head">
+            <strong>{pendientes ? `📤 ${pendientes} sin enviar` : "📤 Cola del teléfono"}</strong>
+            <span className="small">{pendientes ? "Se envían solos cuando vuelva el internet. No borres los datos del navegador." : "Todo enviado."}</span>
+            {pendientes > 0 && <button type="button" className="link" onClick={() => void flush()}>Enviar ahora</button>}
+          </div>
+          <ul>
+            {[...cola].reverse().map((p) => (
+              <li key={p.id} className={`cola-item ${p.status}`}>
+                <div className="cola-who"><span className="cola-name">{p.name}</span><span className="small">{groupDigits(p.doc)}</span></div>
+                {p.status === "enviado" ? <strong className="cola-num">N.º {pad(p.number ?? 0)}</strong>
+                  : p.status === "error" ? <span className="small cola-err">{p.error}</span>
+                  : <span className="small">⏳ en espera</span>}
+                <span className="cola-actions">
+                  {p.status === "error" && <button type="button" className="link" onClick={() => void reintentar(p)}>Reintentar</button>}
+                  {p.status !== "pendiente" && <button type="button" className="link" onClick={() => void quitar(p)}>{p.status === "enviado" ? "Listo" : "Quitar"}</button>}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -202,6 +285,10 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
           ⚠️ Esta cédula ya está inscrita con el número <strong>{pad(lookup.existing.raffle_number)}</strong> ({lookup.existing.full_name}
           {lookup.existing.registered_by_name ? `, registrado por ${lookup.existing.registered_by_name}` : ""}).
         </div>
+      )}
+
+      {lookup && !lookup.existing && enCola(fields.document_number) && enCola(fields.document_number)!.id !== requestId.current && (
+        <div className="card error-card">⚠️ Esta cédula ya está en la cola de pendientes de este teléfono (se enviará sola).</div>
       )}
 
       {lookup && !lookup.existing && (
