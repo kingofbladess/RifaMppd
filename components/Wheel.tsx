@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Fireworks from "./Fireworks";
 import WavingFlag from "./WavingFlag";
-import { CARD_INTERVAL_MS, prepareSpinPhotos } from "@/lib/spin-photos";
+import { CARD_INTERVAL_MS, prepareSpinPhotos, preloadPhotos, pausePhotoPreload, type PreloadStatus } from "@/lib/spin-photos";
 
 // cedula: ya formateada (12.345.678); es lo que se muestra en la TV en lugar del número de rifa.
 export type WheelParticipant = { id: string; name: string; number: number; cedula: string; rank: string | null; photoUrl: string | null };
@@ -135,6 +135,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const spinPhotos = useRef(new Map<string, HTMLCanvasElement>());
   const [photoProgress, setPhotoProgress] = useState<{ ready: number; total: number } | null>(null);
   const [photoNotice, setPhotoNotice] = useState<string | null>(null);
+  const [preload, setPreload] = useState<PreloadStatus | null>(null);
+  const [preloadShown, setPreloadShown] = useState(true);
   const [spinning, setSpinning] = useState(false);
   const [current, setCurrent] = useState<WheelParticipant | null>(null);
   const [winner, setWinner] = useState<WheelParticipant | null>(null);
@@ -293,6 +295,19 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     ctx.drawImage(s.hub, 0, 0);
     ctx.save(); ctx.translate(c, c); ctx.rotate(r * .25); ctx.drawImage(s.star, -STAR / 2, -STAR / 2); ctx.restore();
   }, [renderDisc, n, seg]);
+
+  // Precarga: al abrir la ruleta se bajan de a pocas las fotos de todos, así al girar no hay que esperarlas.
+  const photoKey = useMemo(() => participants.flatMap((p) => p.photoUrl ? [p.photoUrl] : []).join("\n"), [participants]);
+  useEffect(() => {
+    if (!photoKey) { setPreload(null); return; }
+    return preloadPhotos(photoKey.split("\n"), setPreload);
+  }, [photoKey]);
+  const preloadDone = !!preload && preload.ready >= preload.total;
+  useEffect(() => {
+    if (!preloadDone) { setPreloadShown(true); return; }
+    const t = setTimeout(() => setPreloadShown(false), 8000); // el aviso "listas" se va solo
+    return () => clearTimeout(t);
+  }, [preloadDone]);
 
   useEffect(() => {
     if (!showPhotos) return;
@@ -463,6 +478,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     setError(null);
     setPhotoNotice(null);
     setPhotoProgress({ ready: 0, total: 0 });
+    pausePhotoPreload(true); // la red queda libre para el sorteo y las fotos de este giro
     setCurrent(null);
     setWinner(null);
     setShowWin(false);
@@ -504,18 +520,24 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       target += Math.ceil((minEnd - target) / TAU) * TAU;
 
       // La tarjeta tiene una secuencia fija de 100 ms, independiente de los cuadros que logre la TV.
-      // Se preparan TODOS sus retratos antes de animar; el sorteo y el ángulo final no se modifican.
+      // Sus retratos ya vienen precargados; si falta alguno se espera como mucho 2,5 s y el resto aparece
+      // en cuanto llega (antes, iniciales). El sorteo y el ángulo final no se modifican.
       const cardPlan = Array.from({ length: Math.ceil(SPIN_MS / CARD_INTERVAL_MS) + 1 }, (_, step) => {
         const t = Math.min(1, step * CARD_INTERVAL_MS / SPIN_MS);
         const wind = t < WIND_UP ? -.16 * Math.sin(Math.PI * t / WIND_UP) : 0;
         return participants[indexAtPointer(start + (target - start) * spinProgress(t) + wind)];
       });
       cardPlan[cardPlan.length - 1] = participants[idx];
-      const result = await prepareSpinPhotos([participants[idx], ...cardPlan].flatMap((p) => p.photoUrl ? [p.photoUrl] : []),
-        (ready, total) => setPhotoProgress({ ready, total }));
+      let preparing = true;
+      const result = prepareSpinPhotos([participants[idx], ...cardPlan].flatMap((p) => p.photoUrl ? [p.photoUrl] : []),
+        (ready, total) => { if (preparing) setPhotoProgress({ ready, total }); });
       spinPhotos.current = result.photos;
-      const missing = new Set(cardPlan.filter((p) => !p.photoUrl || !result.photos.has(p.photoUrl)).map((p) => p.id)).size;
-      if (missing) setPhotoNotice(`${missing} participante${missing === 1 ? "" : "s"} de la secuencia sin foto disponible; se mostrarán sus iniciales.`);
+      await result.ready;
+      preparing = false;
+      void result.done.then(() => {
+        const missing = new Set(cardPlan.filter((p) => !p.photoUrl || !result.photos.has(p.photoUrl)).map((p) => p.id)).size;
+        if (missing) setPhotoNotice(`${missing} participante${missing === 1 ? "" : "s"} de la secuencia sin foto disponible; se mostraron sus iniciales.`);
+      });
       setPhotoProgress(null);
       setCurrent(cardPlan[0]);
 
@@ -570,6 +592,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       setError(e instanceof Error ? e.message : "Error");
     } finally {
       busy.current = false;
+      pausePhotoPreload(false);
       setPhotoProgress(null);
       setSpinning(false);
     }
@@ -696,6 +719,11 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
         </button>
         {photoProgress && <p className="small" role="status">{photoProgress.total ? `${photoProgress.ready} / ${photoProgress.total} fotos revisadas` : "Consultando el sorteo…"}</p>}
         {photoNotice && <p className="small" role="status">{photoNotice}</p>}
+        {preload && preload.total > 0 && preloadShown && !spinning && (
+          <p className="small preload-status" role="status">
+            {preloadDone ? `✓ Fotos listas (${preload.total - preload.failed}${preload.failed ? `, ${preload.failed} sin foto` : ""})` : `Precargando fotos ${preload.ready} / ${preload.total}`}
+          </p>
+        )}
         <p className="key-hint"><kbd>Espacio</kbd> girar · <kbd>F</kbd> pantalla completa</p>
         {error && <p className="error">{error}</p>}
       </aside>
