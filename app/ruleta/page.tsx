@@ -3,25 +3,19 @@ import Wheel, { type WheelParticipant } from "@/components/Wheel";
 import Snow from "@/components/Snow";
 import PresenterControls from "@/components/PresenterControls";
 import HiddenLogout from "@/components/HiddenLogout";
-import { getActiveRaffle, getWheelParticipants } from "@/lib/participants";
+import { getActiveRaffle } from "@/lib/participants";
 import { getSession } from "@/lib/auth";
-import { readModo, getCadetWheel, excluidosRuletaNormal } from "@/lib/cadetes-store";
+import { readModo, getCadetWheel, ruletaVisible } from "@/lib/cadetes-store";
 
 export const dynamic = "force-dynamic";
 
 async function RuletaPageContent({ espejo }: { espejo: boolean }) {
   const [raffle, modo, session] = await Promise.all([getActiveRaffle(), readModo(), getSession()]);
-  // Modo cadetes: solo los de la lista de cadetes, todos con la misma probabilidad (ver lib/cadetes.ts).
+  // La ruleta se ve igual en los dos modos: pasan todos los inscritos que no han ganado (ver ruletaVisible).
+  // Solo cambia quién puede ganar: en modo cadetes, solo un cadete de la lista; en el normal, los de la lista de la rifa.
   // drawIds (solo cadetes): todos los sorteos guardados, para que la TV no se recargue sin parar (ver getCadetWheel).
-  const wheel: { participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds?: string[] } =
-    modo === "cadetes" ? await getCadetWheel(raffle?.id ?? null) : await getWheelParticipants();
-  let { participants } = wheel;
-  const { winners, drawIds } = wheel;
-  // Ruleta normal: los de la lista de cadetes no se dibujan (salvo un colado con grado militar).
-  if (modo === "normal") {
-    const excluido = await excluidosRuletaNormal();
-    participants = participants.filter((p) => !excluido(p.cedula, p.rank));
-  }
+  const { participants, winners, drawIds }: { participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds?: string[] } =
+    modo === "cadetes" ? await getCadetWheel(raffle?.id ?? null) : await ruletaVisible();
   const digits = String(raffle?.number_max ?? 9999).length;
   // La TV es un espejo: muestra en vivo lo que se gira desde otra pantalla. Un admin puede verlo con ?espejo=1.
   const mirror = session?.role === "tv" || espejo;
