@@ -2,6 +2,8 @@ import "server-only";
 import { supabaseAdmin, BUCKET_PHOTOS } from "./supabase";
 import type { WheelParticipant } from "@/components/Wheel";
 import { isNetErr, readLocal, saveLocal } from "./local-cache";
+import { getInvitados, gradoEfectivo } from "./invitados";
+import { esMilitar } from "./grados";
 
 // Supabase devuelve como máximo 1000 filas por consulta: esto pide página por página hasta traerlas todas.
 const PAGE = 1000;
@@ -70,24 +72,28 @@ export async function getWheelParticipants(): Promise<{ participants: WheelParti
   const raffle = await getActiveRaffle();
   if (!raffle) return { participants: [], winners: [] };
   const sb = supabaseAdmin();
-  const [data, draws] = await Promise.all([
-    fetchAll<{ id: string; full_name: string; raffle_number: number; rank: string | null; photo_path: string }>((from, to) =>
-      sb.from("participants").select("id, full_name, raffle_number, rank, photo_path")
+  const [data, draws, { invitados }] = await Promise.all([
+    fetchAll<{ id: string; full_name: string; raffle_number: number; rank: string | null; photo_path: string; document_number: string }>((from, to) =>
+      sb.from("participants").select("id, full_name, raffle_number, rank, photo_path, document_number")
         .eq("raffle_id", raffle.id).order("raffle_number").range(from, to)),
     fetchAll<{ participant_id: string }>((from, to) =>
       sb.from("draws").select("participant_id").eq("raffle_id", raffle.id).order("created_at", { ascending: false }).range(from, to)),
+    getInvitados(raffle.id),
   ]);
   if (!data.length) return { participants: [], winners: [] };
 
   // 12 h: la ruleta suele quedar abierta toda la jornada en la TV; con 1 h las fotos dejaban de verse.
   const urlByPath = await signPhotos(data.map((p) => p.photo_path), 12 * 60 * 60);
   const all = new Map(data.map((p) => [p.id, {
-    id: p.id, name: p.full_name, number: p.raffle_number, rank: p.rank,
+    id: p.id, name: p.full_name, number: p.raffle_number,
+    rank: gradoEfectivo(p.rank, invitados?.get(p.document_number), esMilitar),
     photoUrl: urlByPath.get(p.photo_path) ?? null,
   }]));
   const won = new Set(draws.map((d) => d.participant_id));
+  // Con lista de invitados cargada, en la ruleta solo quedan los inscritos que están en ella.
+  const enLista = invitados ? new Set(data.filter((p) => invitados.has(p.document_number)).map((p) => p.id)) : null;
   return {
-    participants: [...all.values()].filter((p) => !won.has(p.id)),
+    participants: [...all.values()].filter((p) => !won.has(p.id) && (!enLista || enLista.has(p.id))),
     winners: [...new Set(draws.map((d) => d.participant_id))].map((id) => all.get(id)).filter((p): p is WheelParticipant => !!p),
   };
 }

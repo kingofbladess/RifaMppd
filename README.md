@@ -49,6 +49,19 @@ Para **instalar** la app en el celular se necesita un certificado válido: eso s
 4. Teléfono → **Guardar**. Aparece el número y la casilla de cédula queda lista para la siguiente persona.
 5. Opcional: adjuntar foto de la cédula (queda en un bucket privado).
 
+## Lista de invitados
+
+En el panel admin, **Lista de invitados → Cargar lista** acepta un Excel (.xlsx) o CSV con las columnas cédula,
+nombre completo y grado (se reconocen por el encabezado; sin encabezado se toman en ese orden). Subir otra lista
+reemplaza la anterior.
+
+- Con lista cargada, en la ruleta (y en el sorteo) solo salen los inscritos cuya cédula está en la lista.
+- Quien no está se puede registrar igual: el operador ve "No está en la lista de invitados" y en el panel queda marcado
+  **Fuera de lista** (botón para verlos todos). Si luego se agrega a la lista, entra a la ruleta sin registrarlo otra vez.
+- La regla por grado no cambia; si el registro no trae un grado reconocido se usa el grado de la lista.
+- Sin lista (o con **Quitar lista**) salen todos los inscritos, como antes. Las personas de prueba no están en la lista.
+- Requiere la tabla `guests` (está en `supabase/schema.sql`).
+
 ## Conectar la API de personas
 
 Variables `PERSON_API_URL` (con `{doc}` donde va el número, ej. `https://api.tuproveedor.com/personas/{doc}`)
