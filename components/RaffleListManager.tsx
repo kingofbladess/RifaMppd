@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ORIGIN_LABELS, type RegistrationOrigin } from "@/lib/registration-evidence";
+import { ORIGIN_LABELS, CHECK_LABELS, listRegistrationChecks, listRegistrationLabel, type RegistrationOrigin } from "@/lib/registration-evidence";
 import RaffleEligibilityImport from "./RaffleEligibilityImport";
 import { normalizeRaffleDocument } from "@/lib/raffle-eligibility";
 
@@ -33,7 +33,11 @@ export default function RaffleListManager({ raffleId, raffleName, documents, reg
       .map((attendee) => ({ doc: attendee.document_number, attendee, status: "outside" }));
     const source = tab === "cross" ? [...list, ...outside] : list;
     const q = normalized(query.trim());
-    return source.filter((row) => (filter === "all" || row.status === filter || row.attendee?.registrationOrigin === filter) && (!q || normalized(`${row.doc} ${row.attendee?.full_name ?? ""}`).includes(q)));
+    return source.filter((row) => {
+      const checks = listRegistrationChecks(row.attendee?.registrationOrigin, row.status !== "outside", !!row.attendee);
+      const matches = filter === "one_check" ? checks === 1 : filter === "two_checks" ? checks === 2 : filter === "list_unverified" ? checks === null : filter === "all" || row.status === filter;
+      return matches && (!q || normalized(`${row.doc} ${row.attendee?.full_name ?? ""}`).includes(q));
+    });
   }, [draft, byDoc, registered, members, tab, query, filter]);
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages - 1);
@@ -44,13 +48,14 @@ export default function RaffleListManager({ raffleId, raffleName, documents, reg
     setExporting(true); setPdfError("");
     try {
       const { buildRaffleListPdf } = await import("@/lib/raffle-list-pdf");
-      const filterLabel: Record<string, string> = { ...statusLabel, ...ORIGIN_LABELS, all: "Todos" };
+      const filterLabel: Record<string, string> = { ...statusLabel, ...ORIGIN_LABELS, all: "Todos", one_check: CHECK_LABELS[1], two_checks: CHECK_LABELS[2] };
       const pdf = await buildRaffleListPdf({
         title: tab === "cross" ? "Cruce con la asistencia" : "Integrantes de la lista",
         raffleName,
         description: `${changed ? "Borrador con cambios sin guardar" : "Lista guardada"} | Filtro: ${filterLabel[filter] ?? filter}${query.trim() ? ` | Búsqueda: ${query.trim().slice(0, 200)}` : ""}`,
         rows: rows.map((row) => ({ document: row.doc, name: row.attendee?.full_name ?? "Sin registro de asistencia", rank: row.attendee?.rank || "—", status: statusLabel[row.status],
-          origin: `${row.attendee?.registrationOrigin ? ORIGIN_LABELS[row.attendee.registrationOrigin] : "Sin registro"}${row.attendee?.operatorConfirmation ? ` · Confirmó: ${row.attendee.operatorConfirmation}` : ""}` })),
+          checks: listRegistrationChecks(row.attendee?.registrationOrigin, row.status !== "outside", !!row.attendee),
+          origin: `${listRegistrationLabel(row.attendee?.registrationOrigin, row.status !== "outside", !!row.attendee).replaceAll("✅", "").trim()}${row.attendee?.operatorConfirmation ? ` · Confirmó: ${row.attendee.operatorConfirmation}` : ""}` })),
       });
       pdf.save(`lista-rifa-${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch { setPdfError("No se pudo generar el PDF. Intenta nuevamente."); }
@@ -76,6 +81,7 @@ export default function RaffleListManager({ raffleId, raffleName, documents, reg
       <RaffleEligibilityImport raffleId={raffleId} savedDocuments={documents} registered={registered} disabled={disabled || changed}/>
     </> : <div className="card">
       <h2>{tab === "list" ? "Integrantes de la lista" : "Cruce con la asistencia"}</h2>
+      <p className="small">✅ Solo lista, sin registro por otra vía. ✅✅ En la lista y registrado por otra vía o confirmado por operador, incluso si el registro fue anterior a la importación. Los casos sin información suficiente quedan «Por verificar».</p>
       {tab === "list" && <form className="list-module-add" onSubmit={(event) => { event.preventDefault(); add(); }}>
         <div><label htmlFor="new-member">Añadir cédula</label><input id="new-member" value={newDoc} onChange={(e) => setNewDoc(e.target.value)} placeholder="V-12.345.678" disabled={disabled}/></div>
         <button className="btn secondary" disabled={disabled} type="submit">Añadir a la lista</button>
@@ -84,7 +90,7 @@ export default function RaffleListManager({ raffleId, raffleName, documents, reg
       <div className="list-module-search">
         <div><label htmlFor="member-search">Buscar por cédula o nombre</label><input id="member-search" value={query} onChange={(e) => { setQuery(e.target.value); setPage(0); }}/></div>
         <div><label htmlFor="member-filter">Estado</label><select id="member-filter" value={filter} onChange={(e) => { setFilter(e.target.value); setPage(0); }}>
-          <option value="all">Todos</option><option value="list_only">Solo lista de rifa, sin confirmación</option><option value="list_operator">Lista + operador</option><option value="list_unverified">Lista, confirmación no disponible</option><option value="available">Disponibles para ganar</option><option value="pending">Pendientes de registro</option><option value="winner">Ya ganaron</option><option value="excluded">Grado con peso cero</option>{tab === "cross" && <option value="outside">Fuera de la lista</option>}
+          <option value="all">Todos</option><option value="one_check">✅ Solo lista</option><option value="two_checks">✅✅ Lista + otra vía o confirmado</option><option value="list_unverified">Por verificar</option><option value="available">Disponibles para ganar</option><option value="pending">Pendientes de registro</option><option value="winner">Ya ganaron</option><option value="excluded">Grado con peso cero</option>{tab === "cross" && <option value="outside">Fuera de la lista</option>}
         </select></div>
       </div>
       <p className="small">{rows.length} resultados · {draft.length} cédulas en {changed ? "el borrador" : "la lista guardada"}.</p>
@@ -93,7 +99,7 @@ export default function RaffleListManager({ raffleId, raffleName, documents, reg
       {pdfError && <p className="error" role="alert">{pdfError}</p>}
       <div className="table-wrap"><table className="list-module-table"><thead><tr><th>Cédula</th><th>Nombre registrado</th><th>Grado</th><th>Estado</th><th>Origen / confirmación</th>{tab === "list" && <th>Acciones</th>}</tr></thead>
         <tbody>{rows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((row) => <tr key={row.doc}>
-          <td>{row.doc}</td><td>{row.attendee?.full_name ?? "Sin registro de asistencia"}</td><td>{row.attendee?.rank || "—"}</td><td>{statusLabel[row.status]}</td><td>{row.attendee?.registrationOrigin ? ORIGIN_LABELS[row.attendee.registrationOrigin] : "Sin registro"}{row.attendee?.operatorConfirmation && <div className="small">Confirmó: {row.attendee.operatorConfirmation}</div>}</td>
+          <td>{row.doc}</td><td>{row.attendee?.full_name ?? "Sin registro de asistencia"}</td><td>{row.attendee?.rank || "—"}</td><td>{statusLabel[row.status]}</td><td>{listRegistrationLabel(row.attendee?.registrationOrigin, row.status !== "outside", !!row.attendee)}{row.attendee?.operatorConfirmation && <div className="small">Confirmó: {row.attendee.operatorConfirmation}</div>}</td>
           {tab === "list" && <td><button type="button" className="btn secondary danger" disabled={disabled} aria-label={`Quitar cédula ${row.doc}`} onClick={() => { setDraft((list) => list.filter((doc) => doc !== row.doc)); setNotice("Cédula quitada del borrador. El registro de asistencia se conserva."); }}>Quitar</button></td>}
         </tr>)}</tbody></table></div>
       {!rows.length && <p>No hay personas que coincidan con esta búsqueda.</p>}
