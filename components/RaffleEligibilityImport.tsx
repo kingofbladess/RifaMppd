@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { registrationBatch, registerImportedList, type ImportRegistration } from "@/lib/register-imported-list";
 import { normalizeRaffleDocument } from "@/lib/raffle-eligibility";
 import { parseRaffleCsv, reviewRaffleColumn } from "@/lib/raffle-import";
+import { type RegistrationOrigin } from "@/lib/registration-evidence";
 
-type Registered = { id: string; document_number: string; full_name: string };
+type Registered = { id: string; document_number: string; full_name: string; registrationOrigin?: RegistrationOrigin };
 type Sheet = { sheet: string; data: unknown[][] };
 
 export default function RaffleEligibilityImport({ raffleId, savedDocuments, registered, disabled }: {
@@ -31,6 +32,9 @@ export default function RaffleEligibilityImport({ raffleId, savedDocuments, regi
   const completeDocuments = [...new Set([...savedDocuments, ...review.documents])];
   const selected = new Set(completeDocuments);
   const matched = registered.filter((p) => selected.has(normalizeRaffleDocument(p.document_number) ?? ""));
+  const listOnly = matched.filter((p) => p.registrationOrigin === "list_only");
+  const otherOrConfirmed = matched.filter((p) => p.registrationOrigin === "other" || p.registrationOrigin === "list_operator");
+  const unverified = matched.filter((p) => !p.registrationOrigin || p.registrationOrigin === "list_unverified");
   const registeredDocs = new Set(registered.map((p) => normalizeRaffleDocument(p.document_number)));
   const inputBatch = registrationBatch(review.documents);
   const pendingBatch = registrationBatch(savedDocuments, new Set([...registeredDocs].filter((doc): doc is string => doc !== null)));
@@ -124,7 +128,11 @@ export default function RaffleEligibilityImport({ raffleId, savedDocuments, regi
     {completeDocuments.length > 10000 && <p className="error">La lista admite hasta 10000 cédulas.</p>}
     <h3>Cruce con los asistentes registrados</h3>
     <p>{matched.length} registrados en la lista · {absent.length} de la lista aún sin registrar · {outside.length} asistentes fuera de la lista.</p>
+    <p>{listOnly.length} registrados solo por lista, sin confirmación · {otherOrConfirmed.length} registrados por otra vía o confirmados por operador{unverified.length > 0 ? ` · ${unverified.length} con origen o confirmación sin verificar` : ""}.</p>
     <details><summary>En la lista y registrados ({matched.length})</summary><ul>{matched.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
+    <details><summary>Solo registrados por lista, sin confirmación ({listOnly.length})</summary><ul>{listOnly.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
+    <details><summary>En la lista, registrados por otra vía o confirmados ({otherOrConfirmed.length})</summary><ul>{otherOrConfirmed.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
+    {unverified.length > 0 && <details><summary>En la lista, origen o confirmación sin verificar ({unverified.length})</summary><p>No se pueden clasificar como registros sin confirmación hasta verificar su origen y las confirmaciones.</p><ul>{unverified.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>}
     <details><summary>En la lista, pendientes por registrar ({absent.length})</summary><p style={{ overflowWrap: "anywhere" }}>{absent.join(", ")}</p></details>
     <details><summary>Registrados fuera de la lista ({outside.length})</summary><ul>{outside.map((p) => <li key={p.id}>{p.full_name} · {p.document_number}</li>)}</ul></details>
     <p className="small">El cruce se hace por cédula, no por similitud de nombres. Los nuevos registros se cruzan automáticamente con la lista guardada al sortear.</p>
