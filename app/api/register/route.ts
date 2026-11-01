@@ -13,6 +13,11 @@ const NAT_TO_DOC: Record<string, string> = { V: "CC", E: "CE" };
 const NO_PHONE = "0000000"; // la base exige teléfono hasta que se aplique supabase/schema.sql actualizado
 const MAX_FILE = 3 * 1024 * 1024;
 
+// Sin internet la laptop no llega a Supabase: se dice así (antes salía "Tu usuario está desactivado" o un error genérico).
+const NET_ERR = /fetch failed|ENOTFOUND|EAI_AGAIN|ECONN|ETIMEDOUT|UND_ERR|network|socket/i;
+const isNetErr = (e: unknown) => !!e && NET_ERR.test(`${(e as { message?: string }).message ?? ""} ${(e as { details?: string }).details ?? ""} ${String((e as { cause?: unknown }).cause ?? "")}`);
+const SIN_INTERNET = "Sin conexión a internet: no se guardó. Los datos siguen en pantalla; presiona Guardar cuando vuelva el internet (no se duplica).";
+
 function isJpeg(buf: Uint8Array) {
   return buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
 }
@@ -21,7 +26,8 @@ export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   if (session.uid !== "env-admin") {
-    const { data: u } = await supabaseAdmin().from("app_users").select("is_active").eq("id", session.uid).maybeSingle();
+    const { data: u, error: userErr } = await supabaseAdmin().from("app_users").select("is_active").eq("id", session.uid).maybeSingle();
+    if (userErr) return NextResponse.json({ error: isNetErr(userErr) ? SIN_INTERNET : "No se pudo verificar tu usuario. Intenta otra vez." }, { status: 503 });
     if (!u?.is_active) return NextResponse.json({ error: "Tu usuario está desactivado" }, { status: 403 });
   }
   let form: FormData;
@@ -87,7 +93,7 @@ export async function POST(req: Request) {
   if (up1.error || up2.error) {
     await cleanup();
     console.error("upload", up1.error ?? up2.error);
-    return NextResponse.json({ error: "No se pudieron guardar las imágenes" }, { status: 500 });
+    return NextResponse.json({ error: isNetErr(up1.error ?? up2.error) ? SIN_INTERNET : "No se pudieron guardar las imágenes" }, { status: isNetErr(up1.error ?? up2.error) ? 503 : 500 });
   }
 
   const register = (phone: string | null) => sb.rpc("register_participant", {
@@ -110,8 +116,14 @@ export async function POST(req: Request) {
     let prevQuery = sb.from("participants").select("raffle_number, full_name, registered_by_name, photo_path")
       .eq("document_number", data.document_number);
     if (raffle) prevQuery = prevQuery.eq("raffle_id", raffle.id);
-    const { data: prev } = await prevQuery.order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: prev, error: prevErr } = await prevQuery.order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (prev?.photo_path === photoPath) return NextResponse.json({ number: prev.raffle_number, name: prev.full_name });
+    // Se cayó el internet: puede que el registro sí haya quedado guardado y solo se perdió la respuesta, así que la
+    // foto NO se borra (al volver a presionar Guardar se reconoce el mismo registro por su código, o se reemplaza).
+    if (isNetErr(error) || isNetErr(prevErr)) {
+      console.error("register_participant sin internet", error);
+      return NextResponse.json({ error: SIN_INTERNET }, { status: 503 });
+    }
     await cleanup();
     if (error.code === "23505") {
       const who = prev ? ` con el número ${prev.raffle_number}${prev.registered_by_name ? ` (la registró ${prev.registered_by_name})` : ""}` : "";
