@@ -3,8 +3,13 @@
 // Se suman a la lista de excluidos que se carga en el panel.
 export const EXCLUIDOS_FIJOS: Record<string, string> = {
   // Personal de secretaría
+  "16745695": "CC. Irca Escalante",
   "19756638": "CC. Hendryna Sequera",
   "15794586": "TN. Ivan Velazco",
+  "19568156": "Cap. Jorge Silva",
+  "26412133": "TN. Freynell Leon",
+  "26208707": "Cap. Luis Ruiz",
+  "27937894": "TF. Wilfredo González",
   "22483207": "TF. Rafael Romero",
   "20121407": "SM3. Edwin Estrada",
   "23541613": "SM3. Enyule Bracho",

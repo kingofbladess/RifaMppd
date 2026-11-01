@@ -69,9 +69,12 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
     return Number.isFinite(a) ? a : null;
   };
   // Mismo criterio que la ruleta: un grado escrito que no está en la lista sortea como civil (se marca para corregirlo).
-  const fueraBadge = (r: PanelRow) => r.fuera === "excluido"
-    ? <span className="badge warn" title="Está en la lista de excluidos: no sale en la ruleta">Excluido</span>
-    : r.fuera ? <span className="badge warn" title="No está en la lista de invitados: no sale en la ruleta">Fuera de lista</span> : null;
+  // ¿Sale en la ruleta? "Limitado" = excluido o fuera de la lista de invitados.
+  const ruleta = (r: PanelRow) => r.fuera
+    ? <span className="badge warn" title={r.fuera === "excluido" ? "Está en la lista de excluidos: no sale en la ruleta" : "No está en la lista de invitados: no sale en la ruleta"}>
+        Limitado{r.fuera === "no-invitado" ? " (no invitado)" : ""}
+      </span>
+    : <span className="badge on">Participa</span>;
   const tipo = (r: PanelRow) => esMilitar(r.rank) ? <span className="badge on">Militar</span>
     : r.rank?.trim() ? <span className="badge warn" title="Grado no reconocido: en la ruleta sortea como civil">Civil ⚠️</span>
     : <span className="badge">Civil</span>;
@@ -98,7 +101,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
       <div className="card table-wrap only-desk">
         <table>
           <thead>
-            <tr><th></th><th>N.º</th><th>Nombre</th><th>Tipo</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Registró</th><th>Fecha</th><th></th><th></th></tr>
+            <tr><th></th><th>N.º</th><th>Nombre</th><th>Tipo</th><th>Ruleta</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Registró</th><th>Fecha</th><th></th><th></th></tr>
           </thead>
           <tbody>
             {shown.map((r) => (
@@ -106,7 +109,8 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
                 <td>{avatar(r)}</td>
                 <td><strong>{r.number}</strong></td>
                 <td>{r.name}</td>
-                <td>{tipo(r)} {fueraBadge(r)}</td>
+                <td>{tipo(r)}</td>
+                <td>{ruleta(r)}</td>
                 <td>{r.rank || "—"}</td>
                 <td className="nowrap">{r.doc}</td>
                 <td>{age(r.birthDate) ?? "—"}</td>
@@ -116,7 +120,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
                 <td>{del(r)}</td>
               </tr>
             ))}
-            {!shown.length && <tr><td colSpan={11} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
+            {!shown.length && <tr><td colSpan={12} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -126,7 +130,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
           <li key={r.id} className="p-item">
             {avatar(r)}
             <div className="p-body">
-              <div className="p-name">{r.name} {fueraBadge(r)}</div>
+              <div className="p-name">{r.name} {ruleta(r)}</div>
               <div className="small">{[r.rank ? (esMilitar(r.rank) ? r.rank : `${r.rank} (civil ⚠️)`) : "Civil", r.doc, age(r.birthDate) !== null ? `${age(r.birthDate)} años` : ""].filter(Boolean).join(" · ")}</div>
               <div className="small p-meta">
                 <span>{r.by ?? "—"} · {date(r.createdAt)}</span>
