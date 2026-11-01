@@ -1,3 +1,6 @@
+import { createdFromRaffleList } from "@/lib/list-registration-id";
+import { readOperatorConfirmations } from "@/lib/operator-confirmations";
+import { registrationEvidence } from "@/lib/registration-evidence";
 import RaffleListManager from "@/components/RaffleListManager";
 import { getSession } from "@/lib/auth";
 import { getActiveRaffle, fetchAll } from "@/lib/participants";
@@ -17,11 +20,12 @@ export default async function RaffleListPage({ searchParams }: { searchParams: P
   let list = null, loadError = "";
   try { list = await readEligibilityList(raffle.id); } catch (e) { loadError = (e as Error).message; }
   const [participants, draws] = await Promise.all([
-    fetchAll<{ id: string; document_number: string; rank: string | null; full_name: string }>((from, to) => sb.from("participants")
-      .select("id, document_number, rank, full_name").eq("raffle_id", raffle.id).order("id").range(from, to)),
+    fetchAll<{ id: string; document_number: string; rank: string | null; full_name: string; photo_path: string }>((from, to) => sb.from("participants")
+      .select("id, document_number, rank, full_name, photo_path").eq("raffle_id", raffle.id).order("id").range(from, to)),
     fetchAll<{ participant_id: string }>((from, to) => sb.from("draws").select("participant_id")
       .eq("raffle_id", raffle.id).order("id").range(from, to)),
   ]);
+  const confirmations = await readOperatorConfirmations(participants.filter((p) => createdFromRaffleList(raffle.id, p.document_number, p.photo_path)).map((p) => p.id));
   const documents = list?.document_numbers ?? [];
   const registered = new Set(participants.map((p) => normalizeRaffleDocument(p.document_number)));
   const absent = documents.filter((doc) => !registered.has(doc));
@@ -38,7 +42,10 @@ export default async function RaffleListPage({ searchParams }: { searchParams: P
       {!list && <p className="error">El sorteo está bloqueado hasta cargar una lista válida.</p>}
       {list && <p className="small">Actualizada por {list.updated_by} · {list.updated_at}</p>}
     </div>
+    {!confirmations.available && <p className="card warn-card">El origen de los registros por lista ya puede identificarse. Para consultar y guardar confirmaciones de operadores, revisa la conexión y aplica supabase/operator-confirmations.sql.</p>}
     <RaffleListManager version={list?.updated_at ?? ""} raffleId={raffle.id} documents={documents} registered={participants.map((p) => ({ ...p,
+      registrationOrigin: registrationEvidence(createdFromRaffleList(raffle.id, p.document_number, p.photo_path), confirmations.available, confirmations.byId.has(p.id)),
+      operatorConfirmation: confirmations.byId.get(p.id)?.confirmed_by_name ?? null,
       drawStatus: draws.some((d) => d.participant_id === p.id) ? "winner" as const : gradoDe(p.rank)?.peso === 0 ? "excluded" as const : "available" as const,
     }))} disabled={!!loadError}/>
 

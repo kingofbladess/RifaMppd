@@ -134,3 +134,11 @@ Decidido: la foto actualizada **no** se envía de vuelta a la API; no habrá pag
 «Guardar lista y registrar personas» conserva la lista vigente, añade las cédulas nuevas y procesa secuencialmente solo las cédulas de la entrada o archivo actual, sin recorrer la lista anterior. Cada cédula existente se reutiliza; para las nuevas se consulta Infopress/API, se convierte la foto a JPEG y se usa el mismo registro atómico de operadores. Se elige nacionalidad V/E para las consultas y se muestra avance, registros nuevos, existentes, errores y casos sin procesar. Puede detenerse o repetirse sin duplicar cédulas. Mantén la pantalla abierta durante el proceso. «Completar registros pendientes» procesa únicamente las cédulas de la lista guardada que no figuraban registradas al abrir la pantalla.
 
 Si falta nombre, fecha o foto, la API no encuentra a la persona o no está configurada, se informa el caso y no se fabrican datos. El modo demo no se utiliza para registrar una importación. Esos casos requieren completar el registro o reintentar cuando la API esté disponible.
+
+## Origen del registro y confirmación del operador
+
+El panel y el módulo de lista identifican los registros creados automáticamente desde la lista, actuales y futuros, mediante la misma huella de foto que la importación utiliza desde su primera versión. Estar incluido en la lista o tener una foto de API no significa haber sido creado por importación. Los registros de otras vías mantienen su clasificación independiente.
+
+Ejecutar `supabase/operator-confirmations.sql` para habilitar la confirmación explícita del operador. En `/registro`, al consultar una persona creada por la lista, el operador puede pulsar «Confirmar registro con operador». Se conserva la primera fecha y el operador; los reintentos no duplican la confirmación ni al participante. En el módulo de lista hay filtros «Solo lista de rifa» y «Lista + operador».
+
+«Solo lista» significa que no hay constancia de confirmación del operador en el sistema; no demuestra ausencia física. Las consultas/atenciones anteriores que nunca se registraron como confirmación no pueden reconstruirse retrospectivamente. Si falta la tabla o falla su lectura se muestra «confirmación no disponible», sin afirmar que no exista. No se cambia la elegibilidad ni la pantalla pública.

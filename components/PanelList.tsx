@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { ORIGIN_LABELS, type RegistrationOrigin } from "@/lib/registration-evidence";
 import { esMilitar } from "@/lib/grados";
 
 export type PanelRow = {
   id: string; number: string; name: string; rank: string | null;
   doc: string; phone: string | null; birthDate: string | null;
   photoUrl: string | null; hasIdDoc: boolean; photoSource: string | null;
-  by: string | null; createdAt: string;
+  by: string | null; createdAt: string; registrationOrigin?: RegistrationOrigin;
 };
 
 // Lista de inscritos: tabla en PC, tarjetas en celular. El buscador consulta en el servidor
@@ -94,7 +95,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
       <div className="card table-wrap only-desk">
         <table>
           <thead>
-            <tr><th></th><th>N.º</th><th>Nombre</th><th>Tipo</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Registró</th><th>Fecha</th><th></th><th></th></tr>
+            <tr><th></th><th>N.º</th><th>Nombre</th><th>Tipo</th><th>Grado</th><th>Cédula</th><th>Edad</th><th>Registró</th><th>Origen</th><th>Fecha</th><th></th><th></th></tr>
           </thead>
           <tbody>
             {shown.map((r) => (
@@ -106,13 +107,13 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
                 <td>{r.rank || "—"}</td>
                 <td className="nowrap">{r.doc}</td>
                 <td>{age(r.birthDate) ?? "—"}</td>
-                <td>{r.by ?? "—"}</td>
+                <td>{r.by ?? "—"}</td><td><span className="badge">{r.registrationOrigin ? ORIGIN_LABELS[r.registrationOrigin] : "Sin verificar"}</span></td>
                 <td className="small">{date(r.createdAt)}</td>
                 <td>{extra(r)}</td>
                 <td>{del(r)}</td>
               </tr>
             ))}
-            {!shown.length && <tr><td colSpan={11} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
+            {!shown.length && <tr><td colSpan={12} className="small">{query ? "Sin resultados." : "Sin inscritos todavía."}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -125,7 +126,7 @@ export default function PanelList({ rows, total, query, limit }: { rows: PanelRo
               <div className="p-name">{r.name}</div>
               <div className="small">{[r.rank ? (esMilitar(r.rank) ? r.rank : `${r.rank} (civil ⚠️)`) : "Civil", r.doc, age(r.birthDate) !== null ? `${age(r.birthDate)} años` : ""].filter(Boolean).join(" · ")}</div>
               <div className="small p-meta">
-                <span>{r.by ?? "—"} · {date(r.createdAt)}</span>
+                <span>{r.by ?? "—"} · {date(r.createdAt)} · {r.registrationOrigin ? ORIGIN_LABELS[r.registrationOrigin] : "Sin verificar"}</span>
                 {extra(r)}
                 {del(r)}
               </div>
