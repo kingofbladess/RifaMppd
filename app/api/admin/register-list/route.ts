@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createHash } from "node:crypto";
+import { listRegistrationId } from "@/lib/list-registration-id";
 import { getSession } from "@/lib/auth";
 import { getActiveRaffle } from "@/lib/participants";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -44,8 +44,7 @@ export async function POST(req: Request) {
     form.set("raffle_id", raffle.id);
     form.set("photo_source", "api");
     form.set("photo", new File([new Uint8Array(jpeg)], "foto.jpg", { type: "image/jpeg" }));
-    const hex = createHash("sha256").update(`list:${raffle.id}:${doc}`).digest("hex");
-    form.set("request_id", `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`);
+    form.set("request_id", listRegistrationId(raffle.id, doc));
     const response = await registerParticipant(new Request(req.url, { method: "POST", body: form }));
     const saved = await response.json();
     if (!response.ok) return NextResponse.json({ error: saved.error ?? "No se pudo registrar", stop: response.status === 401 || response.status === 403 || /rifa activa cambió|números disponibles|rifa activa en este momento/i.test(saved.error ?? "") }, { status: response.status });

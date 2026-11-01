@@ -1,3 +1,6 @@
+import { createdFromRaffleList } from "@/lib/list-registration-id";
+import { readOperatorConfirmations } from "@/lib/operator-confirmations";
+import { registrationEvidence } from "@/lib/registration-evidence";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getActiveRaffle } from "@/lib/participants";
@@ -7,10 +10,24 @@ export const runtime = "nodejs";
 export const maxDuration = 130; // Infopress puede tardar hasta ~2 minutos
 
 // Consulta la API de personas y, a la vez, si la cédula ya está inscrita en la rifa activa.
-const existingFor = (doc: string) => getActiveRaffle().then((raffle) => raffle
-  ? supabaseAdmin().from("participants").select("raffle_number, full_name, registered_by_name")
-      .eq("raffle_id", raffle.id).eq("document_number", doc).maybeSingle().then((r) => r.data)
-  : null).catch(() => null);
+const existingFor = async (doc: string) => {
+  try {
+    const raffle = await getActiveRaffle();
+    if (!raffle) return null;
+    const { data, error } = await supabaseAdmin().from("participants")
+      .select("id, raffle_number, full_name, registered_by_name, photo_path, document_number")
+      .eq("raffle_id", raffle.id).eq("document_number", doc).maybeSingle();
+    if (error || !data) return null;
+    const fromList = createdFromRaffleList(raffle.id, data.document_number, data.photo_path);
+    const confirmations = fromList ? await readOperatorConfirmations([data.id]) : { available: true, byId: new Map() };
+    const confirmation = confirmations.byId.get(data.id);
+    return { id: data.id, raffle_number: data.raffle_number, full_name: data.full_name,
+      registered_by_name: data.registered_by_name,
+      registration_origin: registrationEvidence(fromList, confirmations.available, !!confirmation),
+      confirmation_available: confirmations.available, confirmed_at: confirmation?.confirmed_at ?? null,
+      confirmed_by_name: confirmation?.confirmed_by_name ?? null };
+  } catch { return null; }
+};
 
 export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;

@@ -1,3 +1,6 @@
+import { createdFromRaffleList } from "@/lib/list-registration-id";
+import { readOperatorConfirmations } from "@/lib/operator-confirmations";
+import { registrationEvidence } from "@/lib/registration-evidence";
 import DbError from "@/components/DbError";
 import { getActiveRaffle, fetchAll, signPhotos } from "@/lib/participants";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -68,11 +71,13 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
   byOps.forEach((p) => byOperator.set(p.registered_by_name ?? "—", (byOperator.get(p.registered_by_name ?? "—") ?? 0) + 1));
   const total = raffle ? raffle.number_max - raffle.number_min + 1 : 0;
 
+  const confirmations = await readOperatorConfirmations(list.filter((p) => raffle && createdFromRaffleList(raffle.id, p.document_number, p.photo_path)).map((p) => p.id));
   const panelRows: PanelRow[] = list.map((p) => ({
     id: p.id, number: String(p.raffle_number).padStart(digits, "0"), name: p.full_name, rank: p.rank,
     doc: `${({ CC: "V", CE: "E" } as Record<string, string>)[p.document_type] ?? p.document_type}-${p.document_number}`, phone: p.phone, birthDate: p.birth_date,
     photoUrl: photo.get(p.photo_path) ?? null, hasIdDoc: !!p.id_document_path, photoSource: p.photo_source,
     by: p.registered_by_name, createdAt: p.created_at,
+    registrationOrigin: registrationEvidence(!!raffle && createdFromRaffleList(raffle.id, p.document_number, p.photo_path), confirmations.available, confirmations.byId.has(p.id)),
   }));
 
   return (

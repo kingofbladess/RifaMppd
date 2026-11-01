@@ -2,6 +2,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Camera from "./Camera";
+import { ORIGIN_LABELS, type RegistrationOrigin } from "@/lib/registration-evidence";
 import { dataUrlToJpeg } from "@/lib/image";
 import { esMilitar } from "@/lib/grados";
 import { colaDisponible, enviarRegistro, formularioRegistro, guardarEnCola, listarCola, quitarDeCola, type Pendiente } from "@/lib/cola-registro";
@@ -12,7 +13,7 @@ type Person = {
 };
 type Lookup = {
   found: boolean; source: "api" | "demo"; person: Person | null; photo: string | null; photoDate: string | null;
-  apiError?: string; photoPending?: boolean; existing: { raffle_number: number; full_name: string; registered_by_name: string | null } | null;
+  apiError?: string; photoPending?: boolean; existing: { id: string; registration_origin: RegistrationOrigin; confirmation_available: boolean; confirmed_at: string | null; confirmed_by_name: string | null; raffle_number: number; full_name: string; registered_by_name: string | null } | null;
 };
 type Saved = { number: number; name: string; photo: string | null };
 
@@ -65,6 +66,8 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
   const [scanning, setScanning] = useState(false);
   const searchId = useRef(0); // para ignorar respuestas de una consulta anterior
   const requestId = useRef(newId()); // código del intento de registro: repetir Guardar no duplica ni falla
+  const [confirming, setConfirming] = useState(false);
+  const [confirmationError, setConfirmationError] = useState("");
   const [notice, setNotice] = useState<string | null>(null); // aviso (no error): p. ej. "quedó en la cola"
   const [cola, setCola] = useState<Pendiente[]>([]); // registros guardados en el teléfono mientras no hay internet
   const flushing = useRef(false);
@@ -123,7 +126,23 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
     try { await guardarEnCola({ ...p, status: "pendiente", error: undefined }); } finally { await refreshCola(); void flush(); }
   }
 
+  async function confirmExisting() {
+    const person = lookup?.existing;
+    if (!person || confirming) return;
+    setConfirming(true); setConfirmationError("");
+    try {
+      const response = await fetch("/api/confirm-registration", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ participantId: person.id }), signal: AbortSignal.timeout(20000) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "No se pudo confirmar");
+      setLookup((current) => current?.existing?.id === person.id ? { ...current, existing: { ...current.existing,
+        registration_origin: "list_operator", confirmed_at: data.confirmed_at, confirmed_by_name: data.confirmed_by_name } } : current);
+    } catch (e) { setConfirmationError((e as Error).message); }
+    finally { setConfirming(false); }
+  }
+
   function clear() {
+    setConfirmationError("");
     setLookup(null); setFields(EMPTY); setNewPhoto(null); setIdPhoto(null);
     setCamera(null); setError(null); searchId.current++; requestId.current = newId();
   }
@@ -284,6 +303,11 @@ export default function RegistrationFlow({ digits }: { digits: number }) {
         <div className="card error-card">
           ⚠️ Esta cédula ya está inscrita con el número <strong>{pad(lookup.existing.raffle_number)}</strong> ({lookup.existing.full_name}
           {lookup.existing.registered_by_name ? `, registrado por ${lookup.existing.registered_by_name}` : ""}).
+          <p>{ORIGIN_LABELS[lookup.existing.registration_origin]}</p>
+          {lookup.existing.registration_origin === "list_only" && <button type="button" className="btn" disabled={confirming} onClick={() => void confirmExisting()}>{confirming ? "Confirmando…" : "Confirmar registro con operador"}</button>}
+          {lookup.existing.confirmed_at && <p className="small">Confirmado por {lookup.existing.confirmed_by_name}.</p>}
+          {lookup.existing.registration_origin === "list_unverified" && <p className="small">Pide al administrador habilitar las confirmaciones de operadores.</p>}
+          {confirmationError && <p className="error" role="alert">{confirmationError}</p>}
         </div>
       )}
 
