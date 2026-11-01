@@ -1,5 +1,5 @@
 // Solo servidor (usa el disco). Sin "server-only" para poder usarse también desde instrumentation.ts.
-import { mkdir, readFile, writeFile, rename } from "fs/promises";
+import { mkdir, readFile, writeFile, rename, unlink } from "fs/promises";
 import path from "path";
 
 // Copia local (solo en la laptop, nunca en Vercel) de lo mínimo para seguir trabajando sin internet:
@@ -11,17 +11,49 @@ export const localCacheEnabled = () => !process.env.VERCEL;
 
 const mem = new Map<string, unknown>();
 
+// Escrituras en cola por archivo: cada consulta de cédula vuelve a guardar la rifa, y si dos escrituras
+// iban a la vez con el mismo .tmp, la segunda ya no lo encontraba al renombrar (ENOENT en la terminal).
+const queue = new Map<string, Promise<void>>();
+const lastSaved = new Map<string, string>();
+let seq = 0;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function writeFileAtomic(file: string, json: string) {
+  const tmp = `${file}.${process.pid}.${++seq}.tmp`; // nombre único por escritura
+  await writeFile(tmp, json, { mode: 0o600 });
+  for (let i = 0; ; i++) {
+    try {
+      await rename(tmp, file); // nunca queda un archivo a medio escribir
+      return;
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      // En Windows el antivirus o el indexador pueden tener el archivo abierto un instante.
+      if (i < 4 && (code === "EPERM" || code === "EBUSY" || code === "EACCES")) { await sleep(50 * (i + 1)); continue; }
+      await unlink(tmp).catch(() => {});
+      throw e;
+    }
+  }
+}
+
 export async function saveLocal(name: string, value: unknown) {
   if (!localCacheEnabled()) return;
   mem.set(name, value);
-  try {
-    await mkdir(DIR, { recursive: true });
-    const file = path.join(DIR, `${name}.json`), tmp = `${file}.tmp`;
-    await writeFile(tmp, JSON.stringify(value), { mode: 0o600 });
-    await rename(tmp, file); // nunca queda un archivo a medio escribir
-  } catch (e) {
-    console.warn(`no se pudo guardar la copia local ${name}: ${(e as Error).message}`);
-  }
+  const prev = queue.get(name) ?? Promise.resolve();
+  const next = prev.then(async () => {
+    const json = JSON.stringify(value ?? null);
+    if (lastSaved.get(name) === json) return; // sin cambios: no se toca el disco
+    try {
+      await mkdir(DIR, { recursive: true });
+      await writeFileAtomic(path.join(DIR, `${name}.json`), json);
+      lastSaved.set(name, json);
+    } catch (e) {
+      console.warn(`no se pudo guardar la copia local ${name}: ${(e as Error).message}`);
+    }
+  });
+  queue.set(name, next);
+  await next;
+  if (queue.get(name) === next) queue.delete(name);
 }
 
 export async function readLocal<T>(name: string): Promise<T | null> {
