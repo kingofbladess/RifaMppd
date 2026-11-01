@@ -708,7 +708,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       </div>
 
       <aside className={`xmas-card winner${spinning ? " is-spinning" : ""}${winner && !spinning ? " is-win" : ""}`} ref={cardRef}>
-        <div className={`xmas-label${idle ? " is-ref" : ""}`}>{winner ? "🎉 ¡Ganador!" : photoProgress ? "Preparando fotos…" : spinning ? "🎶 Girando…" : "🎄 ¡Listos para el sorteo!"}</div>
+        <div className={`xmas-label${idle ? " is-ref" : ""}`}>{winner ? "🎉 ¡Ganador!" : photoProgress ? <><span className="photo-prep">Preparando fotos…</span><span className="photo-prep-alt">🎶 Girando…</span></> : spinning ? "🎶 Girando…" : "🎄 ¡Listos para el sorteo!"}</div>
         <div className="xmas-face" key={`f-${shown?.id}`}>{face(shown, 150, "3.2rem", true)}</div>
         <div className="num" key={`n-${shown?.id}`}><span className="num-ced">{shown ? label(shown) : idle ? "\u00a0" : "—"}</span></div>
         {/* Nombre y grado ocupan siempre el mismo alto: la tarjeta no salta mientras gira. */}
@@ -718,8 +718,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
         <button className="btn xmas-btn" onClick={() => spin()} disabled={spinning || (!!winner && !showWin)}>
           {photoProgress ? "Preparando fotos…" : spinning ? "Girando…" : "🎁 Girar ruleta"}
         </button>
-        {photoProgress && <p className="small" role="status">{photoProgress.total ? `${photoProgress.ready} / ${photoProgress.total} fotos revisadas` : "Consultando el sorteo…"}</p>}
-        {photoNotice && <p className="small" role="status">{photoNotice}</p>}
+        {photoProgress && <p className="small photo-prep" role="status">{photoProgress.total ? `${photoProgress.ready} / ${photoProgress.total} fotos revisadas` : "Consultando el sorteo…"}</p>}
+        {photoNotice && <p className="small photo-prep" role="status">{photoNotice}</p>}
         {preload && preload.total > 0 && preloadShown && !spinning && (
           <p className="small preload-status" role="status">
             {preloadDone ? `✓ Fotos listas (${preload.total - preload.failed}${preload.failed ? `, ${preload.failed} sin foto` : ""})` : `Precargando fotos ${preload.ready} / ${preload.total}`}
