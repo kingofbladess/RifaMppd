@@ -605,7 +605,10 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     const fallback = <div className="xmas-initials" style={{ width: size, height: size, fontSize: font }}>{p ? initials(p.name) : "🎁"}</div>;
     const url = p?.photoUrl;
     if (!url || badPhotos.has(url) || (spinning && !loadedAtStart.current.has(url) && (preload(url), true))) return fallback;
-    const img = <img key={url} src={url} alt="" style={{ width: size, height: size }} onError={() => markBad(url)}
+    // Mientras gira la foto ya está descargada: se pinta visible de una vez ("ok"). Antes entraba con un fundido
+    // de 0,15 s, pero el recuadro cambia de persona cada 85 ms, así que el fundido nunca terminaba y en las
+    // vueltas solo se veían las iniciales.
+    const img = <img key={url} src={url} alt="" className={spinning ? "ok" : undefined} style={{ width: size, height: size }} onError={() => markBad(url)}
       onLoad={(e) => { loaded.current.add(url); e.currentTarget.classList.add("ok"); }}
       // Una foto que falló antes de que la página terminara de cargar no dispara onError: se revisa al montarla.
       ref={(el) => { if (!el?.complete) return; if (el.naturalWidth) el.classList.add("ok"); else markBad(url); }} />;
