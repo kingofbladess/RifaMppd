@@ -1,5 +1,5 @@
 import DbError from "@/components/DbError";
-import Wheel from "@/components/Wheel";
+import Wheel, { type WheelParticipant } from "@/components/Wheel";
 import Snow from "@/components/Snow";
 import PresenterControls from "@/components/PresenterControls";
 import HiddenLogout from "@/components/HiddenLogout";
@@ -12,7 +12,11 @@ export const dynamic = "force-dynamic";
 async function RuletaPageContent({ espejo }: { espejo: boolean }) {
   const [raffle, modo, session] = await Promise.all([getActiveRaffle(), readModo(), getSession()]);
   // Modo cadetes: solo los de la lista de cadetes, todos con la misma probabilidad (ver lib/cadetes.ts).
-  let { participants, winners } = modo === "cadetes" ? await getCadetWheel(raffle?.id ?? null) : await getWheelParticipants();
+  // drawIds (solo cadetes): todos los sorteos guardados, para que la TV no se recargue sin parar (ver getCadetWheel).
+  const wheel: { participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds?: string[] } =
+    modo === "cadetes" ? await getCadetWheel(raffle?.id ?? null) : await getWheelParticipants();
+  let { participants } = wheel;
+  const { winners, drawIds } = wheel;
   // Ruleta normal: los de la lista de cadetes no se dibujan (salvo un colado con grado militar).
   if (modo === "normal") {
     const excluido = await excluidosRuletaNormal();
@@ -43,7 +47,7 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
               : <a className="btn secondary xmas-ghost" href="/admin">Panel</a>}
           </div>
         </div>
-        <Wheel participants={participants} pastWinners={winners} digits={digits} canManage={session?.role === "admin" && !mirror} mirror={mirror} modo={modo} />
+        <Wheel participants={participants} pastWinners={winners} digits={digits} canManage={session?.role === "admin" && !mirror} mirror={mirror} modo={modo} drawIds={drawIds} />
       </main>
       {mirror && <HiddenLogout />}
     </div>

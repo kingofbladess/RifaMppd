@@ -99,9 +99,12 @@ export async function cadetesRegistrados(raffleId: string | null): Promise<{ lis
 
 // Ruleta de cadetes: los cadetes registrados que no han ganado, y los ganadores aparte (el más reciente primero).
 // En pantalla: nombre, foto y número del registro; el grado se muestra como "Cadete".
-export async function getCadetWheel(raffleId: string | null): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[] }> {
+// drawIds: TODOS los sorteos guardados, también los de alguien que ya no se dibuja (lo quitaron de la lista,
+// borraron su registro o se registró con grado). La TV los necesita: si no, cree que son sorteos nuevos y se recarga sin parar.
+export async function getCadetWheel(raffleId: string | null): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds: string[] }> {
   const [{ registrados }, ganados] = await Promise.all([cadetesRegistrados(raffleId), readCadetDraws()]);
-  if (!registrados.length) return { participants: [], winners: [] };
+  const drawIds = ganados.map(cadeteId);
+  if (!registrados.length) return { participants: [], winners: [], drawIds };
   const urls = await signPhotos(registrados.map((c) => c.photo_path), 12 * 60 * 60);
   const all = new Map(registrados.map((c) => [c.cedula, {
     // Grado (solo se ve en el cartel del ganador): siempre "Cadete"; los registrados con grado militar no llegan aquí.
@@ -112,5 +115,6 @@ export async function getCadetWheel(raffleId: string | null): Promise<{ particip
   return {
     participants: [...all.values()].filter((p) => !won.has(cedulaDeId(p.id) ?? "")),
     winners: [...ganados].reverse().map((c) => all.get(c)).filter((p): p is WheelParticipant => !!p),
+    drawIds,
   };
 }

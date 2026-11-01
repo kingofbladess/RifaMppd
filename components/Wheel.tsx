@@ -115,7 +115,7 @@ function useSounds() {
 // Espejo (usuario TV): no tiene botones; repite en vivo los giros que se hacen desde otra pantalla.
 const MIRROR_POLL_MS = 1500;
 
-export default function Wheel({ participants: initial, pastWinners = [], digits, canManage = false, mirror = false, modo = "normal" }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number; canManage?: boolean; mirror?: boolean; modo?: "normal" | "cadetes" }) {
+export default function Wheel({ participants: initial, pastWinners = [], digits, canManage = false, mirror = false, modo = "normal", drawIds }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number; canManage?: boolean; mirror?: boolean; modo?: "normal" | "cadetes"; drawIds?: string[] }) {
   // Quien gana sale de la ruleta para que no pueda volver a salir.
   const [participants, setParticipants] = useState(initial);
   useEffect(() => setParticipants(initial), [initial]);
@@ -147,7 +147,9 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const [queued, setQueued] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const [mirrorQueue, setMirrorQueue] = useState<string[]>([]);
-  const knownDraws = useRef(new Set(pastWinners.map((w) => w.id)));
+  // Todos los sorteos guardados (drawIds), no solo los ganadores que se ven: un ganador de cadetes que ya no se
+  // dibuja (quitado de la lista, registro borrado) hacía que la TV lo tomara como sorteo nuevo y se recargara sin parar.
+  const knownDraws = useRef(new Set([...pastWinners.map((w) => w.id), ...(drawIds ?? [])]));
   const closedRef = useRef<string | null>(null); // último cartel que cerró el admin (espejo)
   const [closedTick, setClosedTick] = useState(0);
   const winTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined); // espera antes del cartel de ganador
