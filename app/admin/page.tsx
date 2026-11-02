@@ -92,6 +92,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
           <a className="btn secondary" href="/registro">➕ Registrar</a>
           <a className="btn secondary" href="/admin/rifa">Lista de la rifa</a>
           <a className="btn secondary" href="/admin/cadetes">🎓 Cadetes</a>
+          <a className="btn secondary" href="/admin/ganadores">🏆 Ganadores</a>
           <a className="btn secondary" href="/admin/usuarios">👥 Usuarios</a>
           <form method="post" action="/api/logout"><button className="btn secondary">Salir</button></form>
         </div>
