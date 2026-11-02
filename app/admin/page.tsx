@@ -113,16 +113,18 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
       {totalCount > 0 && (
         <details className="grados-box">
           <summary className="small">
-            Probabilidad por grado en la ruleta{sinReconocer ? ` · ⚠️ ${sinReconocer} con grado no reconocido (sortean como civiles)` : ""}
+            Regla del sorteo y registrados por grado{sinReconocer ? ` · ⚠️ ${sinReconocer} con grado no reconocido (sortean como civiles)` : ""}
           </summary>
           <p className="small" style={{ margin: "6px 0" }}>
-            Primero se decide civil o militar según cuántos hay de cada uno. Si es militar, el grado sale según su peso
-            (no importa cuántos tenga) y luego una persona al azar de ese grado. Los grados 1, 2 y 3 (peso 0) nunca ganan.
+            Primero se decide civil o militar según cuántos candidatos elegibles hay de cada uno. Entre militares,
+            oficiales y sargentos tienen 50 % por grupo si ambos tienen candidatos; luego se elige una persona con igual
+            probabilidad dentro de ese grupo. Si un grupo se agota, se utiliza el otro. Los grados 1, 2 y 3 siguen excluidos.
+            El reparto no obliga a alternar ganadores. Las cantidades siguientes son registros por grado, no probabilidades.
           </p>
           <div className="op-badges">
             {GRADOS.map((g) => (
               <span key={g.n} className={`badge${porGrado.get(g.n) ? " on" : ""}`}>
-                {g.n}. {g.nombre} · peso {g.peso}: <strong>{porGrado.get(g.n) ?? 0}</strong>
+                {g.n}. {g.nombre} · {g.peso === 0 ? "Excluido" : g.n <= 9 ? "Oficiales" : "Sargentos"}: <strong>{porGrado.get(g.n) ?? 0}</strong>
               </span>
             ))}
             <span className="badge on">Civiles{sinReconocer ? " (incluye no reconocidos)" : ""}: <strong>{civiles}</strong></span>
