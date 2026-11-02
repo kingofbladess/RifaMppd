@@ -118,7 +118,7 @@ async function AdminPageContent({ searchParams }: { searchParams: Promise<{ demo
           <p className="small" style={{ margin: "6px 0" }}>
             Primero se decide civil o militar según cuántos candidatos elegibles hay de cada uno. Entre militares,
             oficiales y sargentos tienen 50 % por grupo si ambos tienen candidatos; luego se elige una persona con igual
-            probabilidad dentro de ese grupo. Si un grupo se agota, se utiliza el otro. Los grados 1, 2 y 3 siguen excluidos.
+            probabilidad dentro de ese grupo. Si un grupo se agota, se utiliza el otro. Los grados 1–5 están excluidos: generales/almirantes, coroneles y tenientes coroneles, incluidos capitanes de navío y de fragata.
             El reparto no obliga a alternar ganadores. Las cantidades siguientes son registros por grado, no probabilidades.
           </p>
           <div className="op-badges">

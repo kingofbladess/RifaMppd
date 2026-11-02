@@ -8,8 +8,8 @@ export const GRADOS: Grado[] = [
   { n: 1, nombre: "Mayor General = Almirante (y General/Almirante en Jefe)", peso: 0, nombres: ["Mayor General", "Almirante", "General en Jefe", "Almirante en Jefe"] },
   { n: 2, nombre: "General de División = Vicealmirante", peso: 0, nombres: ["General de División", "Vicealmirante", "Vice Almirante"] },
   { n: 3, nombre: "General de Brigada = Contraalmirante", peso: 0, nombres: ["General de Brigada", "Contraalmirante", "Contralmirante", "Contra Almirante"] },
-  { n: 4, nombre: "Coronel = Capitán de Navío", peso: 8, nombres: ["Coronel", "Capitán de Navío"] },
-  { n: 5, nombre: "Teniente Coronel = Capitán de Fragata", peso: 10, nombres: ["Teniente Coronel", "Capitán de Fragata"] },
+  { n: 4, nombre: "Coronel = Capitán de Navío", peso: 0, nombres: ["Coronel", "Capitán de Navío"] },
+  { n: 5, nombre: "Teniente Coronel = Capitán de Fragata", peso: 0, nombres: ["Teniente Coronel", "Capitán de Fragata"] },
   { n: 6, nombre: "Mayor = Capitán de Corbeta", peso: 12, nombres: ["Mayor", "Capitán de Corbeta"] },
   { n: 7, nombre: "Capitán = Teniente de Navío", peso: 15, nombres: ["Capitán", "Capitana", "Teniente de Navío"] },
   { n: 8, nombre: "Primer Teniente = Teniente de Fragata", peso: 19, nombres: ["Primer Teniente", "Primera Teniente", "Teniente de Fragata"] },
@@ -85,7 +85,7 @@ export const esMilitar = (rank: string | null | undefined) => !!gradoDe(rank);
 // 2) Si es militar: oficiales o sargentos al 50/50, independientemente de cuántos hay en cada grupo.
 //    Si solo queda un grupo con candidatos, se utiliza ese grupo.
 // 3) Una persona al azar del grupo elegido, sin ponderar por grado.
-// Los de peso 0 (grados 1, 2 y 3: generales y almirantes) siguen en la ruleta pero nunca salen. Devuelve null si nadie puede ganar.
+// Los de peso 0 (grados 1–5: generales, almirantes, coroneles y tenientes coroneles y sus equivalentes navales) siguen en la ruleta pero nunca salen. Devuelve null si nadie puede ganar.
 export function elegirGanador<T extends { rank: string | null }>(pool: T[], azar: (n: number) => number): T | null {
   const civiles: T[] = [];
   const oficiales: T[] = [], sargentos: T[] = [];
