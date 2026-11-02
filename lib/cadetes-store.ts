@@ -114,8 +114,8 @@ export async function ruletaVisible(): Promise<{ participants: WheelParticipant[
 // la TV y "quitar ganador") y el grado "Cadete" (solo se ve en el cartel del ganador).
 // drawIds: TODOS los sorteos guardados, también los de alguien que ya no se dibuja (lo quitaron de la lista,
 // borraron su registro o se registró con grado). La TV los necesita: si no, cree que son sorteos nuevos y se recarga sin parar.
-export async function getCadetWheel(raffleId: string | null): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds: string[] }> {
-  const [{ participants: visibles }, { registrados }, ganados] = await Promise.all([
+export async function getCadetWheel(raffleId: string | null): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds: string[]; otherWinners: WheelParticipant[] }> {
+  const [{ participants: visibles, winners: ganadoresNormal }, { registrados }, ganados] = await Promise.all([
     ruletaVisible(), cadetesRegistrados(raffleId), readCadetDraws(),
   ]);
   const cadetes = new Set(registrados.map((c) => c.cedula));
@@ -123,15 +123,21 @@ export async function getCadetWheel(raffleId: string | null): Promise<{ particip
     const doc = normalizeRaffleDocument(p.cedula);
     return doc && cadetes.has(doc) ? { ...p, id: cadeteId(doc), rank: "Cadete" } : p;
   };
-  // Ganadores de cadetes (el más reciente primero), con sus datos del registro.
-  const ganadoresDatos = registrados.length ? await datosPorCedula(raffleId, ganados) : new Map<string, WheelParticipant>();
   return {
     // Una cédula de cadete registrada dos veces se dibuja una sola vez (el id "cad-<cédula>" debe ser único).
     participants: visibles.map(comoCadete).filter((p, i, all) => !p.id.startsWith("cad-") || all.findIndex((q) => q.id === p.id) === i),
-    winners: [...ganados].reverse().map((c) => ganadoresDatos.get(c)).filter((p): p is WheelParticipant => !!p)
-      .map((p) => ({ ...p, id: cadeteId(normalizeRaffleDocument(p.cedula) ?? ""), rank: "Cadete" })),
+    winners: await ganadoresCadetes(raffleId, ganados),
     drawIds: ganados.map(cadeteId),
+    otherWinners: ganadoresNormal, // la lista de ganadores muestra también los de la ruleta normal
   };
+}
+
+// Ganadores de la ruleta de cadetes (el más reciente primero), con sus datos del registro.
+export async function ganadoresCadetes(raffleId: string | null, ganados?: string[]): Promise<WheelParticipant[]> {
+  const cedulas = ganados ?? await readCadetDraws();
+  const datos = await datosPorCedula(raffleId, cedulas);
+  return [...cedulas].reverse().map((c) => datos.get(c)).filter((p): p is WheelParticipant => !!p)
+    .map((p) => ({ ...p, id: cadeteId(normalizeRaffleDocument(p.cedula) ?? ""), rank: "Cadete" }));
 }
 
 // Datos para el carrusel de ganadores de cadetes (nombre, foto, cédula) a partir de sus cédulas.
