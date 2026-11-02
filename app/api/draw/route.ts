@@ -105,7 +105,7 @@ async function drawWinner(req: Request) {
   // Si dos pantallas sortean a la vez y sale la misma persona, la base lo rechaza (índice único) y se elige otra.
   const pick = () => elegirGanador(pool, randomInt);
   let winner = pick(), draw = null;
-  // Solo quedan personas que no pueden ganar (grados 1, 2 y 3, peso 0): siguen en la ruleta pero no salen.
+  // Solo quedan personas que no pueden ganar (grados 1–5, peso 0): siguen en la ruleta pero no salen.
   if (!winner) return NextResponse.json({ error: "No quedan participantes que puedan ganar" }, { status: 409 });
   for (let attempt = 0; attempt < 5 && winner; attempt++) {
     const { data, error: e2 } = await sb.from("draws")

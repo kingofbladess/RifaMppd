@@ -15,7 +15,7 @@ function scripted(pool, steps) {
 }
 
 test('oficiales y sargentos usan dos opciones equiprobables aunque haya 300 sargentos y un oficial', () => {
-  const officer = { id: 'oficial', rank: 'Coronel' };
+  const officer = { id: 'oficial', rank: 'Mayor' };
   const sergeants = Array.from({ length: 300 }, (_, i) => ({ id: `s${i}`, rank: 'Sargento Segundo' }));
   const pool = [officer, ...sergeants];
   assert.equal(scripted(pool, [[301, 0], [2, 0], [1, 0]]).id, 'oficial');
@@ -23,7 +23,7 @@ test('oficiales y sargentos usan dos opciones equiprobables aunque haya 300 sarg
 });
 
 test('dentro de cada grupo elige personas, sin favorecer grados con pesos históricos mayores', () => {
-  const pool = [{ id: 'coronel', rank: 'Coronel' }, { id: 'teniente', rank: 'Teniente' },
+  const pool = [{ id: 'mayor', rank: 'Mayor' }, { id: 'teniente', rank: 'Teniente' },
     { id: 'supervisor', rank: 'Sargento Supervisor' }, { id: 'segundo', rank: 'Sargento Segundo' }];
   for (let group = 0; group < 2; group++) for (let person = 0; person < 2; person++) {
     assert.equal(scripted(pool, [[4, 0], [2, group], [2, person]]).id, pool[group * 2 + person].id);
@@ -31,7 +31,7 @@ test('dentro de cada grupo elige personas, sin favorecer grados con pesos histó
 });
 
 test('conserva la proporción civil/militar y el tratamiento civil de grados no reconocidos', () => {
-  const pool = [{ rank: null, id: 'civil' }, { rank: 'No reconocido', id: 'otro' }, { rank: 'Coronel', id: 'oficial' },
+  const pool = [{ rank: null, id: 'civil' }, { rank: 'No reconocido', id: 'otro' }, { rank: 'Mayor', id: 'oficial' },
     ...Array.from({ length: 5 }, (_, i) => ({ rank: 'Sargento Primero', id: `s${i}` }))];
   for (let stage = 0; stage < 8; stage++) {
     const steps = stage < 2 ? [[8, stage], [2, stage]] : [[8, stage], [2, 0], [1, 0]];
@@ -46,8 +46,8 @@ test('si se agota un grupo el sorteo sigue con el restante y conserva equivalenc
   }
 });
 
-test('excluye generales y almirantes; no intenta sortear si no hay candidatos elegibles', () => {
-  const excluded = ['Mayor General', 'General de División', 'General de Brigada', 'Almirante', 'Vicealmirante', 'Contraalmirante'].map(rank => ({ rank }));
+test('excluye generales, coroneles, tenientes coroneles y equivalentes navales; no intenta sortear si no hay candidatos elegibles', () => {
+  const excluded = ['Mayor General', 'General de División', 'General de Brigada', 'Almirante', 'Vicealmirante', 'Contraalmirante', 'Coronel', 'Teniente Coronel', 'Capitán de Navío', 'Capitán de Fragata', 'Cnel.', 'Tte. Cnel.', 'Coronel EJ', 'Teniente Coronel Asimilado'].map(rank => ({ rank }));
   assert.equal(scripted(excluded, []), null);
   assert.equal(scripted([], []), null);
   assert.equal(scripted([...excluded, { id: 'civil', rank: null }], [[1, 0], [1, 0]]).id, 'civil');
