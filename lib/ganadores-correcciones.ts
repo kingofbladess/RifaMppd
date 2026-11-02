@@ -6,6 +6,7 @@ export const CORRECCIONES: Record<number, Correccion> = {
   9: {
     nombre: "Adrian Sebastian Lamus Barreto",
     cedula: "27169815",
+    grado: "Sargento Primero",
     unidad: "Apoyo del Desarrollo Nacional del CEOFAN",
     foto: "/informe/ganador-9.jpg",
   },
