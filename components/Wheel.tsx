@@ -188,7 +188,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const seg = n ? TAU / n : TAU;
   const showPhotos = n <= 40;
   const showNames = n <= 80;
-  const showNumbers = n <= 400; // con más, la ruleta queda como disco de colores y el recuadro muestra a quién señala
+  const showNumbers = n <= 400; // con más se ocultan los textos, pero se conserva una porción por participante
   // Con muchas personas el puntero pasa por cientos por segundo: mientras gira, el recuadro no descarga fotos
   // (se trabaría la TV y la red); solo pasan números e iniciales y la foto del ganador aparece al detenerse.
 
@@ -211,16 +211,9 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
     const ctx = canvas.getContext("2d")!;
     const c = SIZE / 2, RIM = 34, R = c - RIM - 6, r = 0;
 
-    if (!showNumbers) {
-      // Muchos participantes: franjas de color (cada una agrupa varias porciones) para que gire fluido.
-      const BANDS = 24, band = TAU / BANDS;
-      for (let b = 0; b < BANDS; b++) {
-        ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R, r + b * band, r + (b + 1) * band); ctx.closePath();
-        ctx.fillStyle = COLORS[b % COLORS.length]; ctx.fill();
-        ctx.strokeStyle = "rgba(212,160,23,.8)"; ctx.lineWidth = 2; ctx.stroke();
-      }
-    }
-    if (showNumbers) participants.forEach((p, i) => {
+    // Una porción por persona, con los mismos límites que usa el puntero y la tarjeta.
+    // El disco completo se guarda en caché: durante el giro solo se rota esta imagen.
+    participants.forEach((p, i) => {
       // Si la cantidad deja la última porción con el mismo color que la primera, se usa otro.
       const ci = i === n - 1 && n > 1 && i % COLORS.length === 0 ? 2 : i % COLORS.length;
       const color = COLORS[ci];
@@ -229,7 +222,8 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       ctx.fillStyle = color; ctx.fill();
       ctx.strokeStyle = "rgba(212,160,23,.85)";
       ctx.lineWidth = n <= 150 ? 2.5 : 0.6;
-      if (n > 1) ctx.stroke(); // con una sola persona no hay bordes entre porciones
+      if (n > 1 && showNumbers) ctx.stroke(); // en porciones muy finas, los bordes taparían los colores
+      if (!showNumbers) return;
 
       ctx.save();
       ctx.translate(c, c);
