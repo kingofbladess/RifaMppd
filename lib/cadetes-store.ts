@@ -1,10 +1,10 @@
 import "server-only";
 import { readStorageJson, writeStorageJson } from "@/lib/storage-json";
 import { supabaseAdmin } from "@/lib/supabase";
-import { fetchAll, signPhotos } from "@/lib/participants";
+import { fetchAll, signPhotos, getWheelParticipants } from "@/lib/participants";
 import { formatCedula } from "@/lib/cedula";
 import { normalizeRaffleDocument } from "@/lib/raffle-eligibility";
-import { cadeteId, cedulaDeId, type Cadete, type Modo } from "@/lib/cadetes";
+import { cadeteId, type Cadete, type Modo } from "@/lib/cadetes";
 import type { WheelParticipant } from "@/components/Wheel";
 import { gradoDe } from "@/lib/grados";
 
@@ -97,24 +97,56 @@ export async function cadetesRegistrados(raffleId: string | null): Promise<{ lis
   return { lista, registrados, ganaronNormal, conGrado };
 }
 
-// Ruleta de cadetes: los cadetes registrados que no han ganado, y los ganadores aparte (el más reciente primero).
-// En pantalla: nombre, foto y número del registro; el grado se muestra como "Cadete".
+// Quién se dibuja en la ruleta (igual en los dos modos, para que se vea idéntica): todos los inscritos que no
+// han ganado en ninguna de las dos ruletas. Quién puede GANAR lo decide el servidor al sortear.
+export async function ruletaVisible(): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[]; ganadosCadetes: string[] }> {
+  const [base, ganadosCadetes] = await Promise.all([getWheelParticipants(), readCadetDraws()]);
+  const won = new Set(ganadosCadetes);
+  return {
+    participants: base.participants.filter((p) => !won.has(normalizeRaffleDocument(p.cedula) ?? "")),
+    winners: base.winners,
+    ganadosCadetes,
+  };
+}
+
+// Ruleta de cadetes: se ve igual que la normal (todos los inscritos que no han ganado, mismas fotos), pero solo
+// puede ganar un cadete de la lista. A los cadetes se les da el id "cad-<cédula>" (así los reconoce el sorteo,
+// la TV y "quitar ganador") y el grado "Cadete" (solo se ve en el cartel del ganador).
 // drawIds: TODOS los sorteos guardados, también los de alguien que ya no se dibuja (lo quitaron de la lista,
 // borraron su registro o se registró con grado). La TV los necesita: si no, cree que son sorteos nuevos y se recarga sin parar.
 export async function getCadetWheel(raffleId: string | null): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds: string[] }> {
-  const [{ registrados }, ganados] = await Promise.all([cadetesRegistrados(raffleId), readCadetDraws()]);
-  const drawIds = ganados.map(cadeteId);
-  if (!registrados.length) return { participants: [], winners: [], drawIds };
-  const urls = await signPhotos(registrados.map((c) => c.photo_path), 12 * 60 * 60);
-  const all = new Map(registrados.map((c) => [c.cedula, {
-    // Grado (solo se ve en el cartel del ganador): siempre "Cadete"; los registrados con grado militar no llegan aquí.
-    id: cadeteId(c.cedula), name: c.full_name || c.nombre, number: c.raffle_number, rank: "Cadete" as string | null,
-    photoUrl: urls.get(c.photo_path) ?? null, cedula: formatCedula(c.cedula),
-  } satisfies WheelParticipant]));
-  const won = new Set(ganados);
-  return {
-    participants: [...all.values()].filter((p) => !won.has(cedulaDeId(p.id) ?? "")),
-    winners: [...ganados].reverse().map((c) => all.get(c)).filter((p): p is WheelParticipant => !!p),
-    drawIds,
+  const [{ participants: visibles }, { registrados }, ganados] = await Promise.all([
+    ruletaVisible(), cadetesRegistrados(raffleId), readCadetDraws(),
+  ]);
+  const cadetes = new Set(registrados.map((c) => c.cedula));
+  const comoCadete = (p: WheelParticipant): WheelParticipant => {
+    const doc = normalizeRaffleDocument(p.cedula);
+    return doc && cadetes.has(doc) ? { ...p, id: cadeteId(doc), rank: "Cadete" } : p;
   };
+  // Ganadores de cadetes (el más reciente primero), con sus datos del registro.
+  const ganadoresDatos = registrados.length ? await datosPorCedula(raffleId, ganados) : new Map<string, WheelParticipant>();
+  return {
+    // Una cédula de cadete registrada dos veces se dibuja una sola vez (el id "cad-<cédula>" debe ser único).
+    participants: visibles.map(comoCadete).filter((p, i, all) => !p.id.startsWith("cad-") || all.findIndex((q) => q.id === p.id) === i),
+    winners: [...ganados].reverse().map((c) => ganadoresDatos.get(c)).filter((p): p is WheelParticipant => !!p)
+      .map((p) => ({ ...p, id: cadeteId(normalizeRaffleDocument(p.cedula) ?? ""), rank: "Cadete" })),
+    drawIds: ganados.map(cadeteId),
+  };
+}
+
+// Datos para el carrusel de ganadores de cadetes (nombre, foto, cédula) a partir de sus cédulas.
+async function datosPorCedula(raffleId: string | null, cedulas: string[]): Promise<Map<string, WheelParticipant>> {
+  const out = new Map<string, WheelParticipant>();
+  if (!raffleId || !cedulas.length) return out;
+  const buscadas = new Set(cedulas);
+  const sb = supabaseAdmin();
+  const inscritos = await fetchAll<{ id: string; document_number: string; photo_path: string; full_name: string; raffle_number: number; rank: string | null }>((from, to) =>
+    sb.from("participants").select("id, document_number, photo_path, full_name, raffle_number, rank").eq("raffle_id", raffleId).order("id").range(from, to));
+  const propios = inscritos.filter((p) => buscadas.has(normalizeRaffleDocument(p.document_number) ?? ""));
+  const urls = await signPhotos(propios.map((p) => p.photo_path), 12 * 60 * 60);
+  for (const p of propios) {
+    const doc = normalizeRaffleDocument(p.document_number)!;
+    out.set(doc, { id: p.id, name: p.full_name, number: p.raffle_number, rank: p.rank, photoUrl: urls.get(p.photo_path) ?? null, cedula: formatCedula(doc) });
+  }
+  return out;
 }
