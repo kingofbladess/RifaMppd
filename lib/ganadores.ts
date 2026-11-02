@@ -4,11 +4,12 @@ import { fetchAll, getActiveRaffle, signPhotos } from "@/lib/participants";
 import { readStorageJson } from "@/lib/storage-json";
 import { normalizeRaffleDocument } from "@/lib/raffle-eligibility";
 import { formatCedula } from "@/lib/cedula";
+import { CORRECCIONES } from "@/lib/ganadores-correcciones";
 
 // Ganadores de las dos ruletas (normal y cadetes), en orden de sorteo, para el informe y el Excel.
 export type Ganador = {
   orden: number; ruleta: "Principal" | "Cadetes"; nombre: string; cedula: string; grado: string;
-  numero: number | null; hora: string; photoPath: string | null; photoUrl: string | null;
+  numero: number | null; hora: string; photoPath: string | null; photoUrl: string | null; unidad?: string;
 };
 
 export async function informeGanadores(conFotos: boolean): Promise<{ rifa: string; ganadores: Ganador[] }> {
@@ -37,6 +38,15 @@ export async function informeGanadores(conFotos: boolean): Promise<{ rifa: strin
     const urls = await signPhotos(ganadores.map((g) => g.photoPath).filter((p): p is string => !!p), 12 * 60 * 60);
     ganadores.forEach((g) => { g.photoUrl = g.photoPath ? urls.get(g.photoPath) ?? null : null; });
   }
+  ganadores.forEach((g) => {
+    const c = CORRECCIONES[g.orden];
+    if (!c) return;
+    if (c.nombre) g.nombre = c.nombre;
+    if (c.cedula) { g.cedula = formatCedula(c.cedula); g.numero = null; } // el N° de rifa era de la otra persona
+    if (c.grado) g.grado = c.grado;
+    if (c.unidad) g.unidad = c.unidad;
+    if (c.foto) g.photoUrl = c.foto;
+  });
   return { rifa: raffle.name, ganadores };
 }
 

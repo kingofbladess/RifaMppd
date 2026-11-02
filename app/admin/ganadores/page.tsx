@@ -20,6 +20,7 @@ export default async function GanadoresPage() {
       <div className="inf-nombre">{g.nombre}</div>
       <div className="inf-dato">C.I. {g.cedula}</div>
       <div className="inf-dato"><b>{g.grado}</b></div>
+      {g.unidad && <div className="inf-dato">{g.unidad}</div>}
       <div className="inf-hora">{horaVe(g.hora)}</div>
     </div>)}
   </div>;
