@@ -115,7 +115,7 @@ function useSounds() {
 // Espejo (usuario TV): no tiene botones; repite en vivo los giros que se hacen desde otra pantalla.
 const MIRROR_POLL_MS = 1500;
 
-export default function Wheel({ participants: initial, pastWinners = [], digits, canManage = false, mirror = false, modo = "normal", drawIds }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number; canManage?: boolean; mirror?: boolean; modo?: "normal" | "cadetes"; drawIds?: string[] }) {
+export default function Wheel({ participants: initial, pastWinners = [], digits, canManage = false, mirror = false, modo = "normal", drawIds, otherWinners = [] }: { participants: WheelParticipant[]; pastWinners?: WheelParticipant[]; digits: number; canManage?: boolean; mirror?: boolean; modo?: "normal" | "cadetes"; drawIds?: string[]; otherWinners?: WheelParticipant[] }) {
   // Quien gana sale de la ruleta para que no pueda volver a salir.
   const [participants, setParticipants] = useState(initial);
   useEffect(() => setParticipants(initial), [initial]);
@@ -141,7 +141,10 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
   const [current, setCurrent] = useState<WheelParticipant | null>(null);
   const [winner, setWinner] = useState<WheelParticipant | null>(null);
   const [showWin, setShowWin] = useState(false);
-  const [history, setHistory] = useState<WheelParticipant[]>(pastWinners);
+  // La lista de ganadores muestra los de las dos ruletas (normal y cadetes). Los de la otra ruleta (otherWinners)
+  // solo se muestran: no cuentan como sorteos de esta (knownDraws) y "Reiniciar" no los toca.
+  const [history, setHistory] = useState<WheelParticipant[]>(() => [...pastWinners, ...otherWinners]);
+  const otherIds = useRef(new Set(otherWinners.map((w) => w.id)));
   const [error, setError] = useState<string | null>(null);
   const sounds = useSounds();
   const [queued, setQueued] = useState(false);
@@ -166,7 +169,7 @@ export default function Wheel({ participants: initial, pastWinners = [], digits,
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "No se pudo quitar el ganador");
-      const back = w ? [w] : history;
+      const back = w ? [w] : history.filter((p) => !otherIds.current.has(p.id));
       const ids = new Set(back.map((p) => p.id));
       setHistory((h) => h.filter((p) => !ids.has(p.id)));
       setParticipants((list) => [...list.filter((p) => !ids.has(p.id)), ...back].sort((a, b) => a.number - b.number));

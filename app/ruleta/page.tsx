@@ -5,7 +5,7 @@ import PresenterControls from "@/components/PresenterControls";
 import HiddenLogout from "@/components/HiddenLogout";
 import { getActiveRaffle } from "@/lib/participants";
 import { getSession } from "@/lib/auth";
-import { readModo, getCadetWheel, ruletaVisible } from "@/lib/cadetes-store";
+import { readModo, getCadetWheel, ruletaVisible, ganadoresCadetes } from "@/lib/cadetes-store";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +14,11 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
   // La ruleta se ve igual en los dos modos: pasan todos los inscritos que no han ganado (ver ruletaVisible).
   // Solo cambia quién puede ganar: en modo cadetes, solo un cadete de la lista; en el normal, los de la lista de la rifa.
   // drawIds (solo cadetes): todos los sorteos guardados, para que la TV no se recargue sin parar (ver getCadetWheel).
-  const { participants, winners, drawIds }: { participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds?: string[] } =
-    modo === "cadetes" ? await getCadetWheel(raffle?.id ?? null) : await ruletaVisible();
+  // otherWinners: los ganadores de la otra ruleta, que también salen en la lista de ganadores (solo se muestran).
+  const { participants, winners, drawIds, otherWinners }: { participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds?: string[]; otherWinners: WheelParticipant[] } =
+    modo === "cadetes"
+      ? await getCadetWheel(raffle?.id ?? null)
+      : await Promise.all([ruletaVisible(), ganadoresCadetes(raffle?.id ?? null)]).then(([w, otherWinners]) => ({ ...w, otherWinners }));
   const digits = String(raffle?.number_max ?? 9999).length;
   // La TV es un espejo: muestra en vivo lo que se gira desde otra pantalla. Un admin puede verlo con ?espejo=1.
   const mirror = session?.role === "tv" || espejo;
@@ -41,7 +44,7 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
               : <a className="btn secondary xmas-ghost" href="/admin">Panel</a>}
           </div>
         </div>
-        <Wheel participants={participants} pastWinners={winners} digits={digits} canManage={session?.role === "admin" && !mirror} mirror={mirror} modo={modo} drawIds={drawIds} />
+        <Wheel participants={participants} pastWinners={winners} digits={digits} canManage={session?.role === "admin" && !mirror} mirror={mirror} modo={modo} drawIds={drawIds} otherWinners={otherWinners} />
       </main>
       {mirror && <HiddenLogout />}
     </div>
