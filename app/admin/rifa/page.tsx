@@ -33,7 +33,7 @@ export default async function RaffleListPage({ searchParams }: { searchParams: P
   const canWin = pool.filter((p) => { const g = gradoDe(p.rank); return !g || g.peso > 0; }).length;
   return <main className="container wide tema">
     <div className="topbar"><div><h1>Administración de la lista de la rifa</h1><p>{raffle.name}</p></div><a className="btn secondary" href="/admin">Volver al panel</a></div>
-    <p>Esta lista limita quién puede ganar. Todos los asistentes siguen registrados y visibles en la pantalla pública. Se mantienen los pesos por grado y la exclusión de ganadores anteriores.</p>
+    <p>Esta lista limita quién puede ganar. Todos los asistentes siguen registrados y visibles en la pantalla pública. Dentro del grupo militar, oficiales y sargentos tienen 50 % de probabilidad por grupo si ambos tienen candidatos. Se mantienen la participación de civiles y la exclusión de ganadores anteriores.</p>
     {(loadError || params.error) && <p className="error" role="alert">{loadError || params.error}</p>}
     {params.ok && <p role="status">Lista guardada. Se aplicará a los próximos sorteos.</p>}
     <div className="card">

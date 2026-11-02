@@ -1,7 +1,6 @@
-// Regla de probabilidades por grado militar (ver ruleta-probabilidades/regla-por-grado.md).
-// A más antigüedad, menos probabilidad: los grados 1, 2 y 3 (generales/almirantes) nunca ganan y el 16 es el que más tiene.
-// Ejército y Armada valen lo mismo. El peso es del GRADO (no de cada persona), así el orden se cumple
-// aunque haya muchos más de un grado que de otro.
+// Sorteo militar equilibrado: 50 % oficiales y 50 % sargentos cuando ambos grupos tienen candidatos.
+// Los pesos históricos se conservan por compatibilidad; solo peso cero sigue excluyendo del sorteo.
+// Ejército y Armada comparten grupos. Dentro del grupo elegido cada persona tiene la misma probabilidad.
 
 export type Grado = { n: number; nombre: string; peso: number; nombres: string[] };
 
@@ -83,31 +82,26 @@ export const esMilitar = (rank: string | null | undefined) => !!gradoDe(rank);
 
 // Elige al ganador en 3 pasos. `azar(n)` devuelve un entero 0..n-1 (en el servidor, randomInt de crypto).
 // 1) Civil o militar, según cuántos hay de cada uno (los civiles quedan igual que antes).
-// 2) Si es militar, el grado según su peso, entre los grados que todavía tienen gente.
-// 3) Una persona al azar de ese grado.
+// 2) Si es militar: oficiales o sargentos al 50/50, independientemente de cuántos hay en cada grupo.
+//    Si solo queda un grupo con candidatos, se utiliza ese grupo.
+// 3) Una persona al azar del grupo elegido, sin ponderar por grado.
 // Los de peso 0 (grados 1, 2 y 3: generales y almirantes) siguen en la ruleta pero nunca salen. Devuelve null si nadie puede ganar.
 export function elegirGanador<T extends { rank: string | null }>(pool: T[], azar: (n: number) => number): T | null {
   const civiles: T[] = [];
-  const porGrado = new Map<number, T[]>();
+  const oficiales: T[] = [], sargentos: T[] = [];
   for (const p of pool) {
     const g = gradoDe(p.rank);
     if (!g) { civiles.push(p); continue; }
     if (g.peso <= 0) continue;
-    const lista = porGrado.get(g.n);
-    if (lista) lista.push(p); else porGrado.set(g.n, [p]);
+    (g.n <= 9 ? oficiales : sargentos).push(p);
   }
-  let militares = 0;
-  porGrado.forEach((l) => { militares += l.length; });
+  const militares = oficiales.length + sargentos.length;
   if (!civiles.length && !militares) return null;
 
   if (azar(civiles.length + militares) < civiles.length) return civiles[azar(civiles.length)];
 
-  const grados = GRADOS.filter((g) => porGrado.has(g.n));
-  const suma = grados.reduce((s, g) => s + g.peso, 0);
-  let r = azar(suma);
-  for (const g of grados) {
-    if (r < g.peso) { const lista = porGrado.get(g.n)!; return lista[azar(lista.length)]; }
-    r -= g.peso;
-  }
-  return null; // no ocurre: r siempre cae en algún grado
+  const grupo = oficiales.length && sargentos.length
+    ? (azar(2) === 0 ? oficiales : sargentos)
+    : oficiales.length ? oficiales : sargentos;
+  return grupo[azar(grupo.length)];
 }
