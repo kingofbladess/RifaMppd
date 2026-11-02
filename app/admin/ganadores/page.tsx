@@ -20,7 +20,7 @@ export default async function GanadoresPage() {
       <div className="inf-nombre">{g.nombre}</div>
       <div className="inf-dato">C.I. {g.cedula}</div>
       <div className="inf-dato"><b>{g.grado}</b></div>
-      {g.unidad && <div className="inf-dato">{g.unidad}</div>}
+      {g.dependencia && <div className="inf-dato inf-dep">{g.dependencia}</div>}
       <div className="inf-hora">{horaVe(g.hora)}</div>
     </div>)}
   </div>;
@@ -35,7 +35,7 @@ export default async function GanadoresPage() {
       .inf-n{position:absolute;top:6px;left:6px;background:#0b2545;color:#fff;border-radius:999px;min-width:26px;height:26px;line-height:26px;font-size:13px;font-weight:700}
       .inf-foto{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;background:#e8edf3;display:block}
       .inf-sin{display:flex;align-items:center;justify-content:center;color:#7a8799;font-size:13px}
-      .inf-nombre{font-weight:700;margin-top:8px;font-size:14px;line-height:1.2}.inf-dato{font-size:13px;margin-top:2px}.inf-hora{font-size:11px;color:#5d6b7e;margin-top:4px}
+      .inf-nombre{font-weight:700;margin-top:8px;font-size:14px;line-height:1.2}.inf-dato{font-size:13px;margin-top:2px}.inf-dep{font-size:12px;color:#33445c}.inf-hora{font-size:11px;color:#5d6b7e;margin-top:4px}
       @media print{
         @page{size:A4;margin:12mm}
         body{background:#fff!important}.no-print,.snow,canvas{display:none!important}
