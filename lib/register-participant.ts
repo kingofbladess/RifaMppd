@@ -88,6 +88,18 @@ export async function registerParticipant(req: Request) {
   const idPath = idBuf ? `${key}.jpg` : null;
   const photoPath = `${key}.jpg`;
 
+  // Con el mismo código, la subida de abajo reemplaza la foto. Si ese código ya guardó a otra persona (la red cortó
+  // la respuesta y luego se corrigió la cédula antes de volver a presionar Guardar), se pisaba la foto de esa persona.
+  const { data: owner, error: ownerErr } = await sb.from("participants")
+    .select("raffle_number, full_name, document_number").eq("photo_path", photoPath).limit(1).maybeSingle();
+  if (ownerErr) {
+    return NextResponse.json({ error: isNetErr(ownerErr) ? SIN_INTERNET : "No se pudo verificar el registro. Intenta otra vez." }, { status: 503 });
+  }
+  if (owner) {
+    if (owner.document_number === data.document_number) return NextResponse.json({ number: owner.raffle_number, name: owner.full_name });
+    return NextResponse.json({ error: `Este intento ya guardó a ${owner.full_name} con el número ${owner.raffle_number}. Busca la cédula otra vez para registrar a otra persona.` }, { status: 409 });
+  }
+
   const up1 = await sb.storage.from(BUCKET_PHOTOS).upload(photoPath, photoBuf, { contentType: "image/jpeg", upsert: true });
   const up2 = up1.error || !idBuf || !idPath ? up1
     : await sb.storage.from(BUCKET_DOCS).upload(idPath, idBuf, { contentType: "image/jpeg", upsert: true });

@@ -11,6 +11,10 @@ export const runtime = "nodejs";
 
 const sha = (v: string) => createHash("sha256").update(v).digest();
 
+// Solo rutas de esta app. Los navegadores leen "/\otro.com" como "//otro.com" y quitan tabs y saltos de línea,
+// así que "/\t/otro.com" también sacaría al usuario a otro sitio después de iniciar sesión.
+const isLocalPath = (p: string) => p.startsWith("/") && !/^\/[\/\\]/.test(p) && !/[\\\x00-\x1f\x7f]/.test(p);
+
 export async function POST(req: Request) {
   // Un POST que no viene del formulario (otro programa, una extensión, un escáner de la red) no trae un formulario:
   // antes eso lanzaba "Content-Type was not one of multipart/form-data..." en la consola. Ahora vuelve al login.
@@ -51,7 +55,7 @@ export async function POST(req: Request) {
   if (!user) return fail();
 
   const fallback = homeFor(user.role);
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : fallback;
+  const safeNext = isLocalPath(next) ? next : fallback;
   const res = seeOther(safeNext);
   res.cookies.set(SESSION_COOKIE, await createSessionToken(user), {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: sessionMaxAge,
