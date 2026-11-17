@@ -5,6 +5,7 @@ import { readStorageJson } from "@/lib/storage-json";
 import { normalizeRaffleDocument } from "@/lib/raffle-eligibility";
 import { formatCedula } from "@/lib/cedula";
 import { CORRECCIONES } from "@/lib/ganadores-correcciones";
+import { readCorte, despuesDelCorte } from "@/lib/ganadores-corte";
 // Dependencia (columna "Área") de las listas de la rifa y de cadetes que se subieron (cédula → área).
 import DEPENDENCIAS from "@/lib/dependencias-lista.json";
 
@@ -19,12 +20,13 @@ export async function informeGanadores(conFotos: boolean): Promise<{ rifa: strin
   if (!raffle) return { rifa: "", ganadores: [] };
   const sb = supabaseAdmin();
   type P = { id: string; full_name: string; document_number: string; rank: string | null; raffle_number: number; photo_path: string };
-  const [inscritos, draws, cad] = await Promise.all([
+  const [inscritos, draws, cad, corte] = await Promise.all([
     fetchAll<P>((from, to) => sb.from("participants").select("id, full_name, document_number, rank, raffle_number, photo_path")
       .eq("raffle_id", raffle.id).order("id").range(from, to)),
     fetchAll<{ participant_id: string; created_at: string }>((from, to) => sb.from("draws").select("participant_id, created_at")
       .eq("raffle_id", raffle.id).order("created_at").range(from, to)),
     readStorageJson<{ draws?: { cedula: string; at: string }[] }>("_cadetes/ganadores.json"),
+    readCorte(),
   ]);
   const porId = new Map(inscritos.map((p) => [p.id, p]));
   const porCedula = new Map(inscritos.map((p) => [normalizeRaffleDocument(p.document_number) ?? p.document_number, p]));
@@ -36,12 +38,9 @@ export async function informeGanadores(conFotos: boolean): Promise<{ rifa: strin
   });
   const normal = draws.map((d) => { const p = porId.get(d.participant_id); return fila("Principal", p, p?.document_number ?? "", d.created_at); });
   const cadetes = (cad?.draws ?? []).map((d) => fila("Cadetes", porCedula.get(d.cedula), d.cedula, d.at));
-  const ganadores = [...normal, ...cadetes].sort((a, b) => a.hora.localeCompare(b.hora)).map((g, i) => ({ ...g, orden: i + 1 }));
-  if (conFotos) {
-    const urls = await signPhotos(ganadores.map((g) => g.photoPath).filter((p): p is string => !!p), 12 * 60 * 60);
-    ganadores.forEach((g) => { g.photoUrl = g.photoPath ? urls.get(g.photoPath) ?? null : null; });
-  }
-  ganadores.forEach((g) => {
+  const todos = [...normal, ...cadetes].sort((a, b) => Date.parse(a.hora) - Date.parse(b.hora)).map((g, i) => ({ ...g, orden: i + 1 }));
+  // Las correcciones van por el N° de orden de la lista completa: se aplican antes de quitar los anteriores a la limpieza.
+  todos.forEach((g) => {
     const c = CORRECCIONES[g.orden];
     if (!c) return;
     if (c.nombre) g.nombre = c.nombre;
@@ -51,6 +50,12 @@ export async function informeGanadores(conFotos: boolean): Promise<{ rifa: strin
     if (c.dependencia) g.dependencia = c.dependencia;
     if (c.foto) g.photoUrl = c.foto;
   });
+  // Solo los ganadores desde la última limpieza de la lista, numerados otra vez desde 1.
+  const ganadores = todos.filter((g) => despuesDelCorte(corte, g.hora)).map((g, i) => ({ ...g, orden: i + 1 }));
+  if (conFotos) {
+    const urls = await signPhotos(ganadores.map((g) => g.photoPath).filter((p): p is string => !!p), 12 * 60 * 60);
+    ganadores.forEach((g) => { if (!g.photoUrl) g.photoUrl = g.photoPath ? urls.get(g.photoPath) ?? null : null; }); // la foto corregida se respeta
+  }
   return { rifa: raffle.name, ganadores };
 }
 

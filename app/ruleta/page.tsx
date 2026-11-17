@@ -13,7 +13,8 @@ async function RuletaPageContent({ espejo }: { espejo: boolean }) {
   const [raffle, modo, session] = await Promise.all([getActiveRaffle(), readModo(), getSession()]);
   // La ruleta se ve igual en los dos modos: pasan todos los inscritos que no han ganado (ver ruletaVisible).
   // Solo cambia quién puede ganar: en modo cadetes, solo un cadete de la lista; en el normal, los de la lista de la rifa.
-  // drawIds (solo cadetes): todos los sorteos guardados, para que la TV no se recargue sin parar (ver getCadetWheel).
+  // drawIds: todos los sorteos guardados, para que la TV no se recargue sin parar (ver getCadetWheel). La lista de
+  // ganadores (winners, otherWinners) solo trae los de después de la última limpieza (ver lib/ganadores-corte.ts).
   // otherWinners: los ganadores de la otra ruleta, que también salen en la lista de ganadores (solo se muestran).
   const { participants, winners, drawIds, otherWinners }: { participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds?: string[]; otherWinners: WheelParticipant[] } =
     modo === "cadetes"

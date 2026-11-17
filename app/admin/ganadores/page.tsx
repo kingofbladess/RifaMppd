@@ -1,12 +1,14 @@
 import { getSession } from "@/lib/auth";
 import { informeGanadores, horaVe, type Ganador } from "@/lib/ganadores";
 import PrintButton from "@/components/PrintButton";
+import LimpiarGanadores from "@/components/LimpiarGanadores";
 
 export const dynamic = "force-dynamic";
 
 // Informe imprimible de los ganadores de las dos ruletas, con foto. "Imprimir" permite guardarlo como PDF.
-export default async function GanadoresPage() {
+export default async function GanadoresPage({ searchParams }: { searchParams: Promise<{ limpia?: string }> }) {
   if ((await getSession())?.role !== "admin") return <main>No autorizado</main>;
+  const { limpia } = await searchParams;
   let data: Awaited<ReturnType<typeof informeGanadores>> = { rifa: "", ganadores: [] }, error = "";
   try { data = await informeGanadores(true); } catch (e) { error = (e as Error).message; }
   const principal = data.ganadores.filter((g) => g.ruleta === "Principal");
@@ -51,9 +53,12 @@ export default async function GanadoresPage() {
       <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <PrintButton />
         <a className="btn secondary" href="/api/admin/ganadores">⬇️ Descargar Excel</a>
+        <LimpiarGanadores />
         <a className="btn secondary" href="/admin">Volver al panel</a>
       </div>
     </div>
+    {limpia === "1" && <p className="no-print">✓ Lista de ganadores limpia. Recarga la pantalla de la TV para que también se vea vacía.</p>}
+    {limpia === "error" && <p className="error no-print">No se pudo limpiar la lista. Revisa la conexión e intenta otra vez.</p>}
     {error && <p className="error">No se pudieron cargar los ganadores: {error}</p>}
     <div className="inf-tot">
       <div>Total: {data.ganadores.length}</div>

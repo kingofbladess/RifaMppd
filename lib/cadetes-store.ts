@@ -7,6 +7,7 @@ import { normalizeRaffleDocument } from "@/lib/raffle-eligibility";
 import { cadeteId, type Cadete, type Modo } from "@/lib/cadetes";
 import type { WheelParticipant } from "@/components/Wheel";
 import { gradoDe } from "@/lib/grados";
+import { readCorte, despuesDelCorte } from "@/lib/ganadores-corte";
 
 // Todo en JSON del bucket privado: no hace falta SQL nuevo en Supabase.
 const MODO = "_estado/modo.json";
@@ -99,12 +100,13 @@ export async function cadetesRegistrados(raffleId: string | null): Promise<{ lis
 
 // Quién se dibuja en la ruleta (igual en los dos modos, para que se vea idéntica): todos los inscritos que no
 // han ganado en ninguna de las dos ruletas. Quién puede GANAR lo decide el servidor al sortear.
-export async function ruletaVisible(): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[]; ganadosCadetes: string[] }> {
+export async function ruletaVisible(): Promise<{ participants: WheelParticipant[]; winners: WheelParticipant[]; drawIds: string[]; ganadosCadetes: string[] }> {
   const [base, ganadosCadetes] = await Promise.all([getWheelParticipants(), readCadetDraws()]);
   const won = new Set(ganadosCadetes);
   return {
     participants: base.participants.filter((p) => !won.has(normalizeRaffleDocument(p.cedula) ?? "")),
     winners: base.winners,
+    drawIds: base.drawIds,
     ganadosCadetes,
   };
 }
@@ -126,15 +128,17 @@ export async function getCadetWheel(raffleId: string | null): Promise<{ particip
   return {
     // Una cédula de cadete registrada dos veces se dibuja una sola vez (el id "cad-<cédula>" debe ser único).
     participants: visibles.map(comoCadete).filter((p, i, all) => !p.id.startsWith("cad-") || all.findIndex((q) => q.id === p.id) === i),
-    winners: await ganadoresCadetes(raffleId, ganados),
+    winners: await ganadoresCadetes(raffleId),
     drawIds: ganados.map(cadeteId),
     otherWinners: ganadoresNormal, // la lista de ganadores muestra también los de la ruleta normal
   };
 }
 
 // Ganadores de la ruleta de cadetes (el más reciente primero), con sus datos del registro.
-export async function ganadoresCadetes(raffleId: string | null, ganados?: string[]): Promise<WheelParticipant[]> {
-  const cedulas = ganados ?? await readCadetDraws();
+// Solo los posteriores a la última limpieza de la lista (los anteriores siguen sin poder ganar otra vez).
+export async function ganadoresCadetes(raffleId: string | null): Promise<WheelParticipant[]> {
+  const [g, corte] = await Promise.all([readStorageJson<Ganadores>(GANADORES), readCorte()]);
+  const cedulas = (g?.draws ?? []).filter((d) => despuesDelCorte(corte, d.at)).map((d) => d.cedula);
   const datos = await datosPorCedula(raffleId, cedulas);
   return [...cedulas].reverse().map((c) => datos.get(c)).filter((p): p is WheelParticipant => !!p)
     .map((p) => ({ ...p, id: cadeteId(normalizeRaffleDocument(p.cedula) ?? ""), rank: "Cadete" }));
