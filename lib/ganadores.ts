@@ -20,19 +20,22 @@ export async function informeGanadores(conFotos: boolean): Promise<{ rifa: strin
   if (!raffle) return { rifa: "", ganadores: [] };
   const sb = supabaseAdmin();
   type P = { id: string; full_name: string; document_number: string; rank: string | null; raffle_number: number; photo_path: string };
-  const [inscritos, draws, cad, corte] = await Promise.all([
+  const [inscritos, draws, cad, corte, lista] = await Promise.all([
     fetchAll<P>((from, to) => sb.from("participants").select("id, full_name, document_number, rank, raffle_number, photo_path")
       .eq("raffle_id", raffle.id).order("id").range(from, to)),
     fetchAll<{ participant_id: string; created_at: string }>((from, to) => sb.from("draws").select("participant_id, created_at")
       .eq("raffle_id", raffle.id).order("created_at").range(from, to)),
     readStorageJson<{ draws?: { cedula: string; at: string }[] }>("_cadetes/ganadores.json"),
     readCorte(),
+    readStorageJson<{ cadetes?: { cedula: string; conGrado?: true }[] }>("_cadetes/lista.json"),
   ]);
+  // Agregados a la lista de cadetes con su grado militar: el informe muestra su grado real, no "Cadete".
+  const cadeteConGrado = new Set((lista?.cadetes ?? []).filter((c) => c.conGrado).map((c) => c.cedula));
   const porId = new Map(inscritos.map((p) => [p.id, p]));
   const porCedula = new Map(inscritos.map((p) => [normalizeRaffleDocument(p.document_number) ?? p.document_number, p]));
   const fila = (ruleta: Ganador["ruleta"], p: P | undefined, cedula: string, hora: string): Ganador => ({
     orden: 0, ruleta, nombre: p?.full_name ?? "(registro borrado)", cedula: formatCedula(p?.document_number ?? cedula),
-    grado: ruleta === "Cadetes" ? "Cadete" : (p?.rank?.trim() || "Civil"), numero: p?.raffle_number ?? null, hora,
+    grado: ruleta === "Cadetes" && !cadeteConGrado.has(cedula) ? "Cadete" : (p?.rank?.trim() || "Civil"), numero: p?.raffle_number ?? null, hora,
     photoPath: p?.photo_path ?? null, photoUrl: null,
     dependencia: (DEPENDENCIAS as Record<string, string>)[normalizeRaffleDocument(p?.document_number ?? cedula) ?? ""] ?? "",
   });

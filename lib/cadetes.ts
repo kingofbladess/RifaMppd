@@ -2,7 +2,9 @@ import { normalizeRaffleDocument } from "./raffle-eligibility";
 
 // Ruleta de cadetes: una lista aparte (cédula, nombre, grado) que, con el modo "cadetes" activo,
 // reemplaza a los inscritos en la ruleta y la TV. Todos tienen la misma probabilidad (sin regla por grado).
-export type Cadete = { cedula: string; nombre: string; grado: string | null };
+// conGrado: agregado a propósito aunque tenga grado militar. Sale en la ruleta de cadetes (y no en la normal)
+// aunque esté inscrito con grado; sin esta marca, quien se inscribió con grado va a la ruleta normal.
+export type Cadete = { cedula: string; nombre: string; grado: string | null; conGrado?: true };
 export type Modo = "normal" | "cadetes";
 export const MAX_CADETES = 5000;
 
@@ -67,7 +69,7 @@ export function validarCadetes(input: unknown): Cadete[] {
     if (!cedula || nombre.length < 3) throw new Error(`Cadete inválido en la posición ${i + 1}`);
     if (vistos.has(cedula)) return;
     vistos.add(cedula);
-    out.push({ cedula, nombre, grado: clean(o.grado).slice(0, 80) || null });
+    out.push({ cedula, nombre, grado: clean(o.grado).slice(0, 80) || null, ...(o.conGrado === true ? { conGrado: true as const } : {}) });
   });
   return out;
 }

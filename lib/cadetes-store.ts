@@ -57,12 +57,13 @@ export async function removeCadetDraws(cedula: string | null) {
 // grado militar, que va a la normal) y quien ya ganó en la ruleta de cadetes (sin cruce de ganadores).
 export async function excluidosRuletaNormal(): Promise<(documento: string, rank: string | null) => boolean> {
   const [lista, ganados] = await Promise.all([readCadetes(), readCadetDraws()]);
-  const enLista = new Set((lista?.cadetes ?? []).map((c) => c.cedula));
+  const enLista = new Map((lista?.cadetes ?? []).map((c) => [c.cedula, c]));
   const ganaron = new Set(ganados);
   return (documento, rank) => {
     const doc = normalizeRaffleDocument(documento);
     if (!doc) return false;
-    return ganaron.has(doc) || (enLista.has(doc) && !gradoDe(rank));
+    const c = enLista.get(doc);
+    return ganaron.has(doc) || (!!c && (!!c.conGrado || !gradoDe(rank)));
   };
 }
 
@@ -89,8 +90,9 @@ export async function cadetesRegistrados(raffleId: string | null): Promise<{ lis
     const doc = normalizeRaffleDocument(p.document_number);
     const c = doc ? porCedula.get(doc) : undefined;
     if (!c || vistos.has(c.cedula)) continue;
-    // En la ruleta de cadetes solo hay cadetes: un "colado" registrado con grado militar no entra.
-    if (gradoDe(p.rank)) { conGrado.add(c.cedula); continue; }
+    // En la ruleta de cadetes solo hay cadetes: un "colado" registrado con grado militar no entra
+    // (salvo que se haya agregado a propósito con la marca conGrado).
+    if (gradoDe(p.rank) && !c.conGrado) { conGrado.add(c.cedula); continue; }
     if (ganoNormal.has(p.id)) { ganaronNormal.add(c.cedula); continue; }
     vistos.add(c.cedula);
     registrados.push({ ...c, participant_id: p.id, photo_path: p.photo_path, full_name: p.full_name, raffle_number: p.raffle_number, rank: p.rank });
@@ -120,10 +122,11 @@ export async function getCadetWheel(raffleId: string | null): Promise<{ particip
   const [{ participants: visibles, winners: ganadoresNormal }, { registrados }, ganados] = await Promise.all([
     ruletaVisible(), cadetesRegistrados(raffleId), readCadetDraws(),
   ]);
-  const cadetes = new Set(registrados.map((c) => c.cedula));
+  const cadetes = new Map(registrados.map((c) => [c.cedula, c]));
   const comoCadete = (p: WheelParticipant): WheelParticipant => {
     const doc = normalizeRaffleDocument(p.cedula);
-    return doc && cadetes.has(doc) ? { ...p, id: cadeteId(doc), rank: "Cadete" } : p;
+    const c = doc ? cadetes.get(doc) : undefined;
+    return doc && c ? { ...p, id: cadeteId(doc), rank: c.conGrado ? p.rank : "Cadete" } : p; // con grado: se ve su grado real
   };
   return {
     // Una cédula de cadete registrada dos veces se dibuja una sola vez (el id "cad-<cédula>" debe ser único).
@@ -137,11 +140,15 @@ export async function getCadetWheel(raffleId: string | null): Promise<{ particip
 // Ganadores de la ruleta de cadetes (el más reciente primero), con sus datos del registro.
 // Solo los posteriores a la última limpieza de la lista (los anteriores siguen sin poder ganar otra vez).
 export async function ganadoresCadetes(raffleId: string | null): Promise<WheelParticipant[]> {
-  const [g, corte] = await Promise.all([readStorageJson<Ganadores>(GANADORES), readCorte()]);
+  const [g, corte, lista] = await Promise.all([readStorageJson<Ganadores>(GANADORES), readCorte(), readCadetes()]);
   const cedulas = (g?.draws ?? []).filter((d) => despuesDelCorte(corte, d.at)).map((d) => d.cedula);
+  const conGrado = new Set((lista?.cadetes ?? []).filter((c) => c.conGrado).map((c) => c.cedula));
   const datos = await datosPorCedula(raffleId, cedulas);
   return [...cedulas].reverse().map((c) => datos.get(c)).filter((p): p is WheelParticipant => !!p)
-    .map((p) => ({ ...p, id: cadeteId(normalizeRaffleDocument(p.cedula) ?? ""), rank: "Cadete" }));
+    .map((p) => {
+      const doc = normalizeRaffleDocument(p.cedula) ?? "";
+      return { ...p, id: cadeteId(doc), rank: conGrado.has(doc) ? p.rank : "Cadete" };
+    });
 }
 
 // Datos para el carrusel de ganadores de cadetes (nombre, foto, cédula) a partir de sus cédulas.
